@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mdh
+      POSTGRES_PASSWORD: mdhsecret
+      POSTGRES_DB: mdh
+    ports:
+      - "5433:5432"
+    volumes:
+      - mdh_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mdh -d mdh"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql://mdh:mdhsecret@postgres:5432/mdh?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: change-me-access-secret-min-32-chars!!
+      JWT_REFRESH_SECRET: change-me-refresh-secret-min-32-chars!
+      API_PORT: 3001
+      UPLOAD_DIR: /app/uploads
+      STORAGE_PUBLIC_URL: http://localhost/uploads
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3002,http://localhost:3003,http://localhost:3004
+      SEED_ADMIN_EMAIL: admin@mercydosahouse.com
+      SEED_ADMIN_PASSWORD: Admin@12345
+    ports:
+      - "3001:3001"
+    volumes:
+      - mdh_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  website:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: website
+        APP_PORT: 3000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        APP_NAME: admin
+        APP_PORT: 3002
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost/api/v1
+    ports:
+      - "3002:3002"
+    depends_on:
+      - api
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - mdh_uploads:/var/www/uploads:ro
+    depends_on:
+      - api
+      - website
+      - admin
+
+volumes:
+  mdh_pg:
+  mdh_uploads:

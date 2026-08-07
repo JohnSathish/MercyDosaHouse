@@ -1,0 +1,31 @@
+FROM node:22-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY backend/api/package.json ./backend/api/
+COPY packages/types/package.json ./packages/types/
+COPY packages/utils/package.json ./packages/utils/
+RUN pnpm install --frozen-lockfile || pnpm install
+
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN pnpm --filter @mdh/types build
+RUN pnpm --filter @mdh/utils build
+RUN cd backend/api && npx prisma generate
+RUN pnpm --filter @mdh/api build
+
+FROM base AS runner
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=builder /app/backend/api/dist ./dist
+COPY --from=builder /app/backend/api/package.json ./
+COPY --from=builder /app/backend/api/prisma ./prisma
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/backend/api/node_modules ./backend_modules
+RUN mkdir -p /app/uploads
+
+EXPOSE 3001
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed && node dist/main.js"]

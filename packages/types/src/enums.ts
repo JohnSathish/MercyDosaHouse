@@ -1,0 +1,68 @@
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  MANAGER = 'MANAGER',
+  KITCHEN_STAFF = 'KITCHEN_STAFF',
+  DELIVERY_STAFF = 'DELIVERY_STAFF',
+  CASHIER = 'CASHIER',
+  CUSTOMER = 'CUSTOMER',
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  PREPARING = 'PREPARING',
+  READY = 'READY',
+  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  DELIVERED = 'DELIVERED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum TrackingStatus {
+  ACCEPTED = 'ACCEPTED',
+  PREPARING = 'PREPARING',
+  COOKING = 'COOKING',
+  PACKING = 'PACKING',
+  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  DELIVERED = 'DELIVERED',
+}
+
+export enum PaymentMethod {
+  COD = 'COD',
+  UPI = 'UPI',
+  RAZORPAY = 'RAZORPAY',
+  CASHFREE = 'CASHFREE',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export enum SpiceLevel {
+  MILD = 'MILD',
+  MEDIUM = 'MEDIUM',
+  HOT = 'HOT',
+  EXTRA_HOT = 'EXTRA_HOT',
+}
+
+export enum FoodType {
+  VEG = 'VEG',
+  NON_VEG = 'NON_VEG',
+}
+
+export enum CouponType {
+  PERCENTAGE = 'PERCENTAGE',
+  FIXED = 'FIXED',
+}
+
+export enum NotificationType {
+  ORDER_CONFIRMED = 'ORDER_CONFIRMED',
+  PREPARING = 'PREPARING',
+  READY = 'READY',
+  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  DELIVERED = 'DELIVERED',
+  OFFER = 'OFFER',
+  FESTIVAL = 'FESTIVAL',
+}

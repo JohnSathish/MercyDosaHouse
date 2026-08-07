@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mdh
+          POSTGRES_PASSWORD: mdhsecret
+          POSTGRES_DB: mdh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: |
+          pnpm --filter @mdh/types build
+          pnpm --filter @mdh/utils build
+          pnpm --filter @mdh/auth-client build
+          pnpm --filter @mdh/sdk build
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+        env:
+          DATABASE_URL: postgresql://mdh:mdhsecret@localhost:5432/mdh?schema=public
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build API
+        run: pnpm --filter @mdh/api build
+
+      - name: Build Website
+        run: pnpm --filter @mdh/website build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+
+      - name: Build Admin
+        run: pnpm --filter @mdh/admin build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
