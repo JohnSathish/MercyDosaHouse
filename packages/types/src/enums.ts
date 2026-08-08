@@ -57,6 +57,12 @@ export enum CouponType {
   FIXED = 'FIXED',
 }
 
+export enum AddressType {
+  HOME = 'HOME',
+  OFFICE = 'OFFICE',
+  OTHER = 'OTHER',
+}
+
 export enum NotificationType {
   ORDER_CONFIRMED = 'ORDER_CONFIRMED',
   PREPARING = 'PREPARING',

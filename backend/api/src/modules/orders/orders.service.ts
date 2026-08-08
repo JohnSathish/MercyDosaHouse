@@ -1,14 +1,63 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { OrderStatus, PaymentMethod, PaymentStatus, TrackingStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private gateway: OrdersGateway,
   ) {}
+
+  async onModuleInit() {
+    await this.linkOrphanOrdersByPhone();
+  }
+
+  /** Attach guest orders to accounts when phone numbers match */
+  private async linkOrphanOrdersByPhone() {
+    const orphans = await this.prisma.order.findMany({
+      where: { userId: null },
+      select: { id: true, customerPhone: true },
+    });
+    if (!orphans.length) return;
+
+    const users = await this.prisma.user.findMany({
+      where: { phone: { not: null } },
+      select: { id: true, phone: true },
+    });
+    const phoneToUser = new Map(users.filter((u) => u.phone).map((u) => [u.phone!, u.id]));
+
+    for (const order of orphans) {
+      const userId = phoneToUser.get(order.customerPhone);
+      if (userId) {
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { userId },
+        });
+      }
+    }
+  }
+
+  async findForUser(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (user.phone) {
+      await this.prisma.order.updateMany({
+        where: { userId: null, customerPhone: user.phone },
+        data: { userId },
+      });
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: { userId },
+      include: { items: true, payment: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return orders.map((order) => this.mapOrder(order));
+  }
 
   async create(data: {
     customerName: string;
@@ -140,6 +189,14 @@ export class OrdersService {
       return created;
     });
 
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        newStatus: OrderStatus.PENDING,
+        remarks: 'Order placed',
+      },
+    });
+
     this.gateway.emitNewOrder(order);
     return this.findOne(order.id);
   }
@@ -172,7 +229,14 @@ export class OrdersService {
   async findOne(id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true, payment: true },
+      include: {
+        items: true,
+        payment: true,
+        statusHistory: {
+          include: { updatedBy: { select: { name: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
     if (!order) throw new NotFoundException('Order not found');
     return this.mapOrder(order);
@@ -187,15 +251,40 @@ export class OrdersService {
     return this.mapOrder(order);
   }
 
-  async updateStatus(id: string, status: OrderStatus, trackingStatus?: TrackingStatus) {
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status,
-        ...(trackingStatus ? { trackingStatus } : {}),
-        ...(status === OrderStatus.DELIVERED ? { paymentStatus: PaymentStatus.COMPLETED } : {}),
-      },
-      include: { items: true },
+  async updateStatus(
+    id: string,
+    status: OrderStatus,
+    options?: {
+      trackingStatus?: TrackingStatus;
+      updatedById?: string;
+      remarks?: string;
+    },
+  ) {
+    const existing = await this.prisma.order.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Order not found');
+
+    const order = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          status,
+          ...(options?.trackingStatus ? { trackingStatus: options.trackingStatus } : {}),
+          ...(status === OrderStatus.DELIVERED ? { paymentStatus: PaymentStatus.COMPLETED } : {}),
+        },
+        include: { items: true },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          previousStatus: existing.status,
+          newStatus: status,
+          updatedById: options?.updatedById,
+          remarks: options?.remarks,
+        },
+      });
+
+      return updated;
     });
 
     if (status === OrderStatus.DELIVERED) {
@@ -205,8 +294,55 @@ export class OrdersService {
       });
     }
 
-    this.gateway.emitOrderUpdate(order.id, { status, trackingStatus });
-    return this.mapOrder(order);
+    this.gateway.emitOrderUpdate(order.id, {
+      status,
+      trackingStatus: options?.trackingStatus,
+      message: this.statusMessage(status),
+    });
+    return this.findOne(order.id);
+  }
+
+  async rejectOrder(id: string, reason: string, updatedById?: string) {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findUnique({ where: { id } });
+      if (!existing) throw new NotFoundException('Order not found');
+
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status: OrderStatus.CANCELLED, rejectReason: reason },
+        include: { items: true },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          previousStatus: existing.status,
+          newStatus: OrderStatus.CANCELLED,
+          updatedById,
+          remarks: reason,
+        },
+      });
+
+      return updated;
+    });
+
+    this.gateway.emitOrderUpdate(order.id, {
+      status: OrderStatus.CANCELLED,
+      message: `Unfortunately your order was cancelled. Reason: ${reason}`,
+    });
+    return this.findOne(order.id);
+  }
+
+  private statusMessage(status: OrderStatus): string {
+    const messages: Partial<Record<OrderStatus, string>> = {
+      ACCEPTED: 'Your order has been accepted.',
+      PREPARING: 'Your order is being prepared.',
+      READY: 'Your order is ready for pickup.',
+      OUT_FOR_DELIVERY: 'Your order is out for delivery.',
+      DELIVERED: 'Your order has been delivered.',
+      CANCELLED: 'Unfortunately your order was cancelled.',
+    };
+    return messages[status] || 'Your order status was updated.';
   }
 
   async confirmPayment(id: string) {
@@ -222,20 +358,24 @@ export class OrdersService {
 
   private async generateOrderNumber(): Promise<string> {
     const settings = await this.prisma.businessSettings.findFirst();
-    const year = new Date().getFullYear();
+    const now = new Date();
+    const dateKey = parseInt(
+      `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`,
+      10,
+    );
+    const isSameDay = settings!.orderYear === dateKey;
 
     const updated = await this.prisma.businessSettings.update({
       where: { id: settings!.id },
       data: {
-        orderSequence: {
-          increment: settings!.orderYear === year ? 1 : 1,
-        },
-        orderYear: year,
+        orderSequence: isSameDay ? { increment: 1 } : 1,
+        orderYear: dateKey,
       },
     });
 
-    const seq = updated.orderYear === year ? updated.orderSequence : 1;
-    return `MDH-${year}${String(seq).padStart(6, '0')}`;
+    const dateStr = String(dateKey);
+    const seq = updated.orderSequence;
+    return `MDH-${dateStr}-${String(seq).padStart(6, '0')}`;
   }
 
   private mapOrder(order: {
@@ -247,6 +387,7 @@ export class OrdersService {
     customerPhone: string;
     deliveryAddress: string;
     deliveryInstructions: string | null;
+    rejectReason?: string | null;
     subtotal: { toNumber?: () => number } | number;
     deliveryCharge: { toNumber?: () => number } | number;
     packingCharge: { toNumber?: () => number } | number;
@@ -264,6 +405,14 @@ export class OrdersService {
       unitPrice: { toNumber?: () => number } | number;
       totalPrice: { toNumber?: () => number } | number;
     }[];
+    statusHistory?: {
+      id: string;
+      previousStatus: OrderStatus | null;
+      newStatus: OrderStatus;
+      remarks: string | null;
+      createdAt: Date;
+      updatedBy?: { name: string | null } | null;
+    }[];
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -279,6 +428,7 @@ export class OrdersService {
       customerPhone: order.customerPhone,
       deliveryAddress: order.deliveryAddress,
       deliveryInstructions: order.deliveryInstructions,
+      rejectReason: order.rejectReason ?? null,
       subtotal: toNum(order.subtotal),
       deliveryCharge: toNum(order.deliveryCharge),
       packingCharge: toNum(order.packingCharge),
@@ -295,6 +445,14 @@ export class OrdersService {
         quantity: i.quantity,
         unitPrice: toNum(i.unitPrice),
         totalPrice: toNum(i.totalPrice),
+      })),
+      statusHistory: order.statusHistory?.map((h) => ({
+        id: h.id,
+        previousStatus: h.previousStatus,
+        newStatus: h.newStatus,
+        updatedByName: h.updatedBy?.name ?? null,
+        remarks: h.remarks,
+        createdAt: h.createdAt.toISOString(),
       })),
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),

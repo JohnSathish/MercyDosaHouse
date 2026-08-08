@@ -1,6 +1,16 @@
 import { getAccessToken, refreshTokens, clearAuth } from '@mdh/auth-client';
 import type { PaginatedResult } from '@mdh/types';
 
+const DEFAULT_TIMEOUT_MS = 10_000;
+
+function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() =>
+    clearTimeout(timeoutId),
+  );
+}
+
 export class MdhApiClient {
   constructor(private readonly baseUrl: string) {}
 
@@ -14,7 +24,15 @@ export class MdhApiClient {
     }
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(`${this.baseUrl}${path}`, { ...options, headers });
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw err;
+    }
 
     if (res.status === 401 && !retried) {
       const refreshed = await refreshTokens(this.baseUrl);

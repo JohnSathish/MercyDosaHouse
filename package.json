@@ -6,7 +6,9 @@
   "packageManager": "pnpm@10.30.1",
   "scripts": {
     "dev": "turbo run dev",
-    "dev:core": "pnpm --parallel --filter @mdh/api --filter @mdh/website --filter @mdh/admin run dev",
+    "dev:core": "pnpm --filter @mdh/types build && pnpm --parallel --filter @mdh/api --filter @mdh/website --filter @mdh/admin run dev",
+    "dev:website": "pnpm --filter @mdh/website dev",
+    "dev:api": "pnpm --filter @mdh/api dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

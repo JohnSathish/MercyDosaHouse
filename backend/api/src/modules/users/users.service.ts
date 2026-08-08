@@ -1,5 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AddressType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+
+export interface CreateAddressInput {
+  contactName: string;
+  mobileNumber: string;
+  label?: string;
+  line1: string;
+  line2?: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+  deliveryNotes?: string;
+  addressType?: AddressType;
+  isDefault?: boolean;
+}
 
 @Injectable()
 export class UsersService {
@@ -16,6 +35,7 @@ export class UsersService {
       email: user.email,
       phone: user.phone,
       name: user.name,
+      createdAt: user.createdAt,
       addresses: user.addresses,
     };
   }
@@ -25,22 +45,75 @@ export class UsersService {
   }
 
   getAddresses(userId: string) {
-    return this.prisma.address.findMany({ where: { userId }, orderBy: { isDefault: 'desc' } });
+    return this.prisma.address.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+    });
   }
 
-  createAddress(
-    userId: string,
-    data: {
-      label?: string;
-      line1: string;
-      line2?: string;
-      landmark?: string;
-      city: string;
-      pincode: string;
-      isDefault?: boolean;
-    },
-  ) {
-    return this.prisma.address.create({ data: { ...data, userId } });
+  async createAddress(userId: string, data: CreateAddressInput) {
+    if (data.isDefault) {
+      await this.prisma.address.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.address.create({
+      data: {
+        userId,
+        contactName: data.contactName,
+        mobileNumber: data.mobileNumber,
+        label: data.label,
+        line1: data.line1,
+        line2: data.line2,
+        landmark: data.landmark,
+        city: data.city,
+        state: data.state,
+        pincode: data.pincode,
+        country: data.country ?? 'India',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        deliveryNotes: data.deliveryNotes,
+        addressType: data.addressType ?? AddressType.HOME,
+        isDefault: data.isDefault ?? false,
+      },
+    });
+  }
+
+  async updateAddress(userId: string, addressId: string, data: Partial<CreateAddressInput>) {
+    const existing = await this.prisma.address.findFirst({
+      where: { id: addressId, userId },
+    });
+    if (!existing) throw new NotFoundException('Address not found');
+
+    if (data.isDefault) {
+      await this.prisma.address.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.address.update({
+      where: { id: addressId },
+      data: {
+        contactName: data.contactName,
+        mobileNumber: data.mobileNumber,
+        label: data.label,
+        line1: data.line1,
+        line2: data.line2,
+        landmark: data.landmark,
+        city: data.city,
+        state: data.state,
+        pincode: data.pincode,
+        country: data.country,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        deliveryNotes: data.deliveryNotes,
+        addressType: data.addressType,
+        isDefault: data.isDefault,
+      },
+    });
   }
 
   deleteAddress(userId: string, addressId: string) {

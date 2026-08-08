@@ -1,53 +1,139 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@mdh/ui';
-import { formatCurrency } from '@mdh/utils';
+import { BarChart3, Download } from 'lucide-react';
+import { Button } from '@mdh/ui';
 import { api } from '@/lib/api';
+import type {
+  ReportPeriod,
+  ReportsDashboardDto,
+  SalesAnalyticsDto,
+  OrderAnalyticsDto,
+  PaymentAnalyticsDto,
+  ReportsCategoryAnalyticsDto,
+  ProductPerformanceDto,
+  ReportInsightDto,
+  HeatmapDayDto,
+} from '@mdh/types';
+import { ReportsFilterBar } from '@/components/reports/reports-filter-bar';
+import { ReportsKpiCards } from '@/components/reports/reports-kpi-cards';
+import { InsightsPanel } from '@/components/reports/insights-panel';
+import {
+  RevenueByHourChart,
+  RevenueByDayChart,
+  OrderStatusDonut,
+  PaymentChart,
+  CategoryRevenueChart,
+  HeatmapChart,
+} from '@/components/reports/reports-charts';
+import { ProductPerformanceTable } from '@/components/reports/product-performance-table';
 
-export default function ReportsPage() {
-  const { data: daily } = useQuery({
-    queryKey: ['report-daily'],
-    queryFn: () => api.get<{ date: string; orderCount: number; revenue: number }>('/reports/daily'),
+export default function ReportsOverviewPage() {
+  const [period, setPeriod] = useState<ReportPeriod>('today');
+  const [paymentMethod, setPaymentMethod] = useState('');
+
+  const params = new URLSearchParams({
+    period,
+    ...(paymentMethod && { paymentMethod }),
+  }).toString();
+
+  const { data: dashboard, isLoading } = useQuery({
+    queryKey: ['reports-dashboard', period, paymentMethod],
+    queryFn: () => api.get<ReportsDashboardDto>(`/reports/dashboard?${params}`),
+    refetchInterval: 60_000,
   });
 
-  const { data: topProducts } = useQuery({
-    queryKey: ['report-top'],
-    queryFn: () =>
-      api.get<{ name: string; quantity: number; revenue: number }[]>('/reports/top-products'),
+  const { data: sales } = useQuery({
+    queryKey: ['reports-sales', period],
+    queryFn: () => api.get<SalesAnalyticsDto>(`/reports/sales?period=${period}`),
   });
+
+  const { data: orders } = useQuery({
+    queryKey: ['reports-orders', period],
+    queryFn: () => api.get<OrderAnalyticsDto>(`/reports/orders?period=${period}`),
+  });
+
+  const { data: payments } = useQuery({
+    queryKey: ['reports-payments', period],
+    queryFn: () => api.get<PaymentAnalyticsDto[]>(`/reports/payments?period=${period}`),
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['reports-categories'],
+    queryFn: () => api.get<ReportsCategoryAnalyticsDto[]>('/reports/categories'),
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ['reports-products'],
+    queryFn: () => api.get<ProductPerformanceDto[]>('/reports/products?limit=10'),
+  });
+
+  const { data: insights } = useQuery({
+    queryKey: ['reports-insights'],
+    queryFn: () => api.get<ReportInsightDto[]>('/reports/insights'),
+  });
+
+  const { data: heatmap } = useQuery({
+    queryKey: ['reports-heatmap'],
+    queryFn: () => api.get<HeatmapDayDto[]>('/reports/heatmap'),
+  });
+
+  async function exportReport() {
+    const res = await api.get<{ csv: string }>(`/reports/export?${params}`);
+    const blob = new Blob([res.csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'business-report.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Reports</h1>
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily Sales</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Date: {daily?.date}</p>
-            <p>Orders: {daily?.orderCount ?? '—'}</p>
-            <p>Revenue: {daily ? formatCurrency(daily.revenue) : '—'}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {topProducts?.map((p) => (
-                <li key={p.name} className="flex justify-between">
-                  <span>{p.name}</span>
-                  <span>
-                    {p.quantity} sold — {formatCurrency(p.revenue)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-[#14532D]" />
+            Business Intelligence
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Real-time insights, analytics, and AI-powered recommendations
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={exportReport}>
+          <Download className="h-4 w-4 mr-1" /> Export CSV
+        </Button>
+      </div>
+
+      <ReportsFilterBar
+        period={period}
+        onPeriodChange={setPeriod}
+        paymentMethod={paymentMethod}
+        onPaymentChange={setPaymentMethod}
+      />
+
+      <ReportsKpiCards kpis={dashboard?.kpis} live={dashboard?.live} loading={isLoading} />
+
+      <InsightsPanel insights={insights} />
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        {sales && <RevenueByHourChart data={sales.byHour} />}
+        {sales && <RevenueByDayChart data={sales.byDay} />}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        {orders && <OrderStatusDonut data={orders.byStatus} />}
+        {payments && <PaymentChart data={payments} />}
+        {categories && <CategoryRevenueChart data={categories} />}
+      </div>
+
+      {heatmap && <HeatmapChart data={heatmap} />}
+
+      <div>
+        <h3 className="font-semibold mb-3">Top Products</h3>
+        <ProductPerformanceTable products={products ?? []} loading={!products} />
       </div>
     </div>
   );

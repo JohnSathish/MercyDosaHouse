@@ -86,11 +86,22 @@ export async function verifyOtp(
 export async function refreshTokens(apiBase: string): Promise<AuthTokens | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
-  const res = await fetch(`${apiBase}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+      signal: controller.signal,
+    });
+  } catch {
+    clearAuth();
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     clearAuth();
     return null;
@@ -115,3 +126,5 @@ export async function logout(apiBase: string): Promise<void> {
 export function isAuthenticated(): boolean {
   return !!getAccessToken();
 }
+
+export * from './roles';

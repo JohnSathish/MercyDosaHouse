@@ -5,7 +5,10 @@ import type { BusinessSettingsDto } from '@mdh/types';
 export default async function ContactPage() {
   let settings: BusinessSettingsDto | null = null;
   try {
-    settings = await api.get<BusinessSettingsDto>('/settings/business');
+    settings = await Promise.race([
+      api.get<BusinessSettingsDto>('/settings/business'),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
   } catch {
     /* ignore */
   }
@@ -16,7 +19,7 @@ export default async function ContactPage() {
       <div className="space-y-6">
         <div>
           <h2 className="font-semibold mb-1">Phone</h2>
-          <p>{settings?.phone || '9876543210'}</p>
+          <p>{settings?.phone || '9566363655'}</p>
         </div>
         <div>
           <h2 className="font-semibold mb-1">WhatsApp</h2>
@@ -35,7 +38,7 @@ export default async function ContactPage() {
         </div>
         <div>
           <h2 className="font-semibold mb-1">Address</h2>
-          <p>{settings?.address || 'Chennai, Tamil Nadu'}</p>
+          <p>{settings?.address || 'Tura, Meghalaya'}</p>
         </div>
         <div>
           <h2 className="font-semibold mb-1">Opening Hours</h2>

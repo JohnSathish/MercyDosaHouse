@@ -4,48 +4,27 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 150 70% 10%;
+    --background: 43 100% 96%;
+    --foreground: 215 28% 17%;
     --card: 0 0% 100%;
-    --card-foreground: 150 70% 10%;
+    --card-foreground: 215 28% 17%;
     --popover: 0 0% 100%;
-    --popover-foreground: 150 70% 10%;
-    --primary: 152 69% 19%;
+    --popover-foreground: 215 28% 17%;
+    --primary: 152 60% 20%;
     --primary-foreground: 0 0% 100%;
     --secondary: 38 92% 50%;
-    --secondary-foreground: 150 70% 10%;
-    --muted: 45 100% 96%;
-    --muted-foreground: 150 20% 40%;
-    --accent: 45 100% 96%;
-    --accent-foreground: 152 69% 19%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 43 80% 94%;
+    --muted-foreground: 152 15% 40%;
+    --accent: 43 100% 96%;
+    --accent-foreground: 152 60% 20%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 150 20% 90%;
-    --input: 150 20% 90%;
-    --ring: 152 69% 19%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 150 30% 8%;
-    --foreground: 45 100% 96%;
-    --card: 150 25% 12%;
-    --card-foreground: 45 100% 96%;
-    --popover: 150 25% 12%;
-    --popover-foreground: 45 100% 96%;
-    --primary: 152 50% 35%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 38 92% 50%;
-    --secondary-foreground: 150 70% 10%;
-    --muted: 150 20% 18%;
-    --muted-foreground: 150 10% 65%;
-    --accent: 150 20% 18%;
-    --accent-foreground: 45 100% 96%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 150 20% 20%;
-    --input: 150 20% 20%;
-    --ring: 152 50% 35%;
+    --border: 43 30% 88%;
+    --input: 43 30% 88%;
+    --ring: 152 60% 20%;
+    --radius: 0.75rem;
+    --cream: 43 100% 96%;
   }
 }
 
@@ -54,7 +33,96 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[#FFF8E8] text-[#1F2937];
+    font-family: var(--font-inter), var(--font-poppins), system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-poppins), system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass-nav {
+    @apply bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-sm;
+  }
+  .glass-nav-transparent {
+    @apply bg-[#14532D]/90 backdrop-blur-xl border-b border-white/15 shadow-md;
+  }
+  .hero-pattern {
+    background-color: #14532D;
+    background-image:
+      radial-gradient(circle at 20% 80%, rgba(245, 158, 11, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 40%),
+      url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-size: auto, auto, 60px 60px;
+    animation: hero-grid-drift 120s linear infinite;
+  }
+  .card-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+  .btn-glow {
+    @apply transition-all duration-300 hover:shadow-[0_0_24px_rgba(245,158,11,0.45)];
+  }
+  .food-gradient {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #f59e0b 100%);
+  }
+  .steam {
+    animation: steam 3s ease-in-out infinite;
+  }
+}
+
+@keyframes steam {
+  0%, 100% { opacity: 0.3; transform: translateY(0) scale(1); }
+  50% { opacity: 0.7; transform: translateY(-8px) scale(1.05); }
+}
+
+@keyframes hero-grid-drift {
+  0% { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 0 0, 0 0, 60px 60px; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.safe-area-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.mobile-main {
+  -webkit-overflow-scrolling: touch;
+}
+
+.tap-active {
+  @apply active:scale-[0.97] transition-transform;
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 1023px) {
+  .card-lift:active {
+    transform: scale(0.98);
   }
 }

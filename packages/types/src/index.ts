@@ -53,15 +53,28 @@ export interface GoogleAuthRequest {
 
 export interface AddressDto {
   id?: string;
+  contactName: string;
+  mobileNumber: string;
   label?: string;
   line1: string;
   line2?: string;
   landmark?: string;
   city: string;
+  state: string;
   pincode: string;
+  country?: string;
   latitude?: number;
   longitude?: number;
+  deliveryNotes?: string;
+  addressType?: import('./enums').AddressType;
   isDefault?: boolean;
+}
+
+export interface DeliveryPincodeCheckDto {
+  available: boolean;
+  pincode: string;
+  estimatedMinutes: number;
+  message: string;
 }
 
 export interface CategoryDto {
@@ -129,6 +142,15 @@ export interface OrderItemDto {
   totalPrice: number;
 }
 
+export interface OrderStatusHistoryDto {
+  id: string;
+  previousStatus?: OrderStatus | null;
+  newStatus: OrderStatus;
+  updatedByName?: string | null;
+  remarks?: string | null;
+  createdAt: string;
+}
+
 export interface OrderDto {
   id: string;
   orderNumber: string;
@@ -145,7 +167,9 @@ export interface OrderDto {
   grandTotal: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  rejectReason?: string | null;
   items: OrderItemDto[];
+  statusHistory?: OrderStatusHistoryDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -160,18 +184,31 @@ export interface BusinessSettingsDto {
   deliveryCharge: number;
   packingCharge: number;
   minOrderAmount: number;
+  freeDeliveryLimit?: number;
+  deliveryRadiusKm?: number;
+  estimatedDeliveryMinutes?: number;
   openingHours: string;
+  deliveryHours?: string | null;
   upiId?: string | null;
   upiQrUrl?: string | null;
   googleMapsEmbed?: string | null;
+  announcementBar?: string | null;
+  footerCopyright?: string | null;
+  socialLinks?: Record<string, string> | null;
 }
 
 export interface DashboardStatsDto {
   salesToday: number;
   ordersToday: number;
   revenueToday: number;
+  revenueWeek: number;
+  revenueMonth: number;
   customersToday: number;
   pendingOrders: number;
+  preparingOrders: number;
+  readyOrders: number;
+  outForDeliveryOrders: number;
+  deliveredToday: number;
   cancelledOrders: number;
   popularItems: { name: string; count: number }[];
 }
@@ -210,3 +247,11 @@ export interface BannerDto {
 }
 
 export * from './schemas';
+export * from './cms';
+export * from './kitchen';
+export * from './customers';
+export * from './inventory';
+export * from './delivery';
+export * from './categories';
+export * from './reports';
+export * from './activity';

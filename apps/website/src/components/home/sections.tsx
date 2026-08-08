@@ -1,0 +1,220 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import Image from 'next/image';
+import { FiTruck, FiShield, FiHeart, FiStar, FiCoffee, FiChevronDown } from 'react-icons/fi';
+import { AnimatedCounter } from './hero-animated-counter';
+import { useCmsContent } from '@/components/cms/cms-content-provider';
+import { getSectionContent } from '@/lib/cms-content';
+
+const WHY_ITEMS = [
+  {
+    icon: FiCoffee,
+    title: 'Fresh Batter Daily',
+    desc: 'Prepared every morning with premium ingredients',
+  },
+  { icon: FiTruck, title: 'Fast Delivery', desc: 'Hot food at your door in 25–30 minutes' },
+  { icon: FiShield, title: 'Hygienic Kitchen', desc: 'Clean, safe & certified food preparation' },
+  { icon: FiHeart, title: 'Homemade Taste', desc: 'Traditional recipes with love' },
+  { icon: FiStar, title: 'Customer Favourite', desc: '4.9 rating from happy customers' },
+];
+
+export function WhyChooseUsSection() {
+  const cms = useCmsContent();
+  const cmsItems = cms
+    ? getSectionContent<{ items: { title: string; desc: string }[] }>(cms, 'home', 'whyChooseUs')
+        ?.items
+    : undefined;
+  const items = cmsItems?.length
+    ? cmsItems.map((item, i) => ({
+        ...WHY_ITEMS[i % WHY_ITEMS.length],
+        title: item.title,
+        desc: item.desc,
+      }))
+    : WHY_ITEMS;
+
+  return (
+    <section className="py-16 md:py-20 bg-white">
+      <div className="container mx-auto px-4">
+        <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] text-center mb-12">
+          Why Choose Us
+        </h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          {items.map((item, i) => (
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              whileHover={{ y: -4 }}
+              className="text-center p-6 rounded-2xl bg-[#FFF8E8] border border-[#14532D]/5"
+            >
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                <item.icon className="w-7 h-7 text-primary" />
+              </div>
+              <h3 className="font-bold text-[#1F2937] mb-2">{item.title}</h3>
+              <p className="text-sm text-gray-500">{item.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const TESTIMONIALS = [
+  { name: 'John', text: 'The best dosa in Tura. Crispy, fresh and always on time!' },
+  { name: 'Mary', text: 'Crispy and delicious. The masala dosa is my favourite!' },
+  { name: 'Priya', text: 'Chicken biryani is amazing. Highly recommend Mercy Dosa House.' },
+];
+
+export function TestimonialsSection() {
+  const cms = useCmsContent();
+  const testimonials = cms?.testimonials?.length
+    ? cms.testimonials.map((t) => ({ name: t.customerName, text: t.comment }))
+    : TESTIMONIALS;
+
+  return (
+    <section className="py-16 bg-[#FFF8E8]">
+      <div className="container mx-auto px-4">
+        <h2 className="text-3xl font-bold text-[#14532D] text-center mb-10">What Customers Say</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {testimonials.map((t, i) => (
+            <motion.div
+              key={t.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="bg-white rounded-2xl p-6 shadow-md card-lift"
+            >
+              <div className="flex gap-0.5 text-secondary mb-3">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <FiStar key={s} className="w-4 h-4 fill-current" />
+                ))}
+              </div>
+              <p className="text-gray-600 italic mb-4">&ldquo;{t.text}&rdquo;</p>
+              <p className="font-semibold text-[#14532D]">— {t.name}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+import { GALLERY_PREVIEW_ITEMS } from '@/lib/gallery-images';
+
+export function GalleryPreviewSection() {
+  return (
+    <section className="py-16 bg-white">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-end mb-8">
+          <h2 className="text-3xl font-bold text-[#14532D]">Gallery</h2>
+          <Link href="/gallery" className="text-primary font-semibold hover:underline">
+            View All →
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 auto-rows-[120px] md:auto-rows-[150px]">
+          {GALLERY_PREVIEW_ITEMS.map((item) => (
+            <Link
+              key={item.title}
+              href="/gallery"
+              className={`relative rounded-xl overflow-hidden group ${item.span}`}
+            >
+              <Image
+                src={item.src}
+                alt={item.title}
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                sizes="(max-width: 768px) 50vw, 25vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-x-0 bottom-0 p-3 flex items-end justify-between">
+                <span className="text-white text-sm font-semibold drop-shadow">{item.title}</span>
+                <span className="text-white/80 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                  View
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const STEPS = [
+  { title: 'Choose Food', icon: '🍽️' },
+  { title: 'Place Order', icon: '📱' },
+  { title: 'Cooking', icon: '👨‍🍳' },
+  { title: 'Delivery', icon: '🚚' },
+];
+
+export function DeliveryStepsSection() {
+  return (
+    <section className="py-16 bg-[#14532D] text-white">
+      <div className="container mx-auto px-4">
+        <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-2">
+          {STEPS.map((step, i) => (
+            <div key={step.title} className="flex flex-col md:flex-row items-center">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15 }}
+                className="bg-white/10 backdrop-blur rounded-2xl p-6 text-center min-w-[140px] card-lift"
+              >
+                <span className="text-3xl mb-2 block">{step.icon}</span>
+                <p className="font-semibold">{step.title}</p>
+              </motion.div>
+              {i < STEPS.length - 1 && (
+                <FiChevronDown className="w-6 h-6 text-secondary my-2 md:my-0 md:rotate-[-90deg] mx-2 shrink-0" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function StatsSection() {
+  const stats = [
+    { value: 5000, suffix: '+', label: 'Orders Served' },
+    { value: 4.9, suffix: '', label: 'Rating', isDecimal: true },
+    { value: 100, suffix: '%', label: 'Fresh Ingredients' },
+    { value: 20, suffix: ' min', label: 'Avg Delivery' },
+  ];
+
+  return (
+    <section className="py-16 bg-[#FFF8E8]">
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          {stats.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="text-center"
+            >
+              <p className="text-3xl md:text-4xl font-bold text-primary">
+                {stat.isDecimal ? (
+                  <>★ {stat.value}</>
+                ) : (
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                )}
+              </p>
+              <p className="text-gray-600 mt-2 font-medium">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

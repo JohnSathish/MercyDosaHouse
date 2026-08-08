@@ -1,13 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { OrdersService } from '../orders/orders.service';
 import { RequestUser } from '../../common/guards';
 
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private ordersService: OrdersService,
+  ) {}
 
   @Get('me')
   getProfile(@Req() req: { user: RequestUser }) {
@@ -29,6 +33,15 @@ export class UsersController {
     return this.usersService.createAddress(req.user.id, body as never);
   }
 
+  @Patch('me/addresses/:id')
+  updateAddress(
+    @Req() req: { user: RequestUser },
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.usersService.updateAddress(req.user.id, id, body as never);
+  }
+
   @Delete('me/addresses/:id')
   deleteAddress(@Req() req: { user: RequestUser }, @Param('id') id: string) {
     return this.usersService.deleteAddress(req.user.id, id);
@@ -36,7 +49,7 @@ export class UsersController {
 
   @Get('me/orders')
   getOrders(@Req() req: { user: RequestUser }) {
-    return this.usersService.getOrders(req.user.id);
+    return this.ordersService.findForUser(req.user.id);
   }
 
   @Get('me/favorites')

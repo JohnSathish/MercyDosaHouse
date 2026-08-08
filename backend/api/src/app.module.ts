@@ -18,6 +18,10 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { CmsModule } from './modules/cms/cms.module';
+import { OffersModule } from './modules/offers/offers.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard, PermissionsGuard } from './common/guards';
 
@@ -41,6 +45,10 @@ import { JwtAuthGuard, PermissionsGuard } from './common/guards';
     NotificationsModule,
     ReviewsModule,
     ReportsModule,
+    CmsModule,
+    OffersModule,
+    CustomersModule,
+    InventoryModule,
   ],
   controllers: [HealthController],
   providers: [

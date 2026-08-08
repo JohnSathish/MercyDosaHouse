@@ -16,26 +16,55 @@ export default function TrackOrderPage() {
   const orderNumber = params.orderNumber as string;
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
 
-  const { data: order, refetch } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['order', orderNumber],
     queryFn: () => api.get<OrderDto>(`/orders/track/${orderNumber}`),
     enabled: !!orderNumber,
+    retry: 1,
   });
 
   useEffect(() => {
     if (!order) return;
-    const socket = io(`${API_BASE}/orders`);
-    socket.emit('subscribe', order.id);
-    socket.on('orderUpdate', (data: { status: string }) => {
-      setLiveStatus(data.status);
-      refetch();
+    const socket = io(`${API_BASE}/orders`, {
+      transports: ['websocket', 'polling'],
+      timeout: 10_000,
     });
+    socket.emit('subscribe', order.id);
+    const onUpdate = (data: { status: string }) => {
+      setLiveStatus(data.status);
+    };
+    socket.on('orderUpdate', onUpdate);
     return () => {
+      socket.off('orderUpdate', onUpdate);
       socket.disconnect();
     };
-  }, [order, refetch]);
+  }, [order?.id]);
 
-  if (!order) return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="h-64 bg-muted rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !order) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg text-center">
+        <p className="text-muted-foreground mb-4">Order not found or unavailable.</p>
+        <a href="/" className="text-primary font-medium hover:underline">
+          Back to Home
+        </a>
+      </div>
+    );
+  }
 
   const status = liveStatus || order.status;
 

@@ -4,6 +4,8 @@ import { OrderStatus, TrackingStatus } from '@prisma/client';
 import { OrdersService } from './orders.service';
 import { Public, RequirePermissions, RequestUser } from '../../common/guards';
 
+type AuthRequest = { user?: RequestUser };
+
 @ApiTags('orders')
 @Controller('orders')
 export class OrdersController {
@@ -14,17 +16,22 @@ export class OrdersController {
   create(@Body() body: Record<string, unknown>, @Req() req: { user?: RequestUser }) {
     const items = body.items as { productId: string; variantId?: string; quantity: number }[];
     const address = body.address as {
+      contactName?: string;
+      mobileNumber?: string;
       line1: string;
       line2?: string;
       landmark?: string;
       city: string;
+      state?: string;
       pincode: string;
+      deliveryNotes?: string;
     };
     const deliveryAddress = [
       address.line1,
       address.line2,
       address.landmark,
       address.city,
+      address.state,
       address.pincode,
     ]
       .filter(Boolean)
@@ -75,9 +82,21 @@ export class OrdersController {
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: OrderStatus; trackingStatus?: TrackingStatus },
+    @Body() body: { status: OrderStatus; trackingStatus?: TrackingStatus; remarks?: string },
+    @Req() req: AuthRequest,
   ) {
-    return this.ordersService.updateStatus(id, body.status, body.trackingStatus);
+    return this.ordersService.updateStatus(id, body.status, {
+      trackingStatus: body.trackingStatus,
+      updatedById: req.user?.id,
+      remarks: body.remarks,
+    });
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('orders.manage')
+  @Patch(':id/reject')
+  rejectOrder(@Param('id') id: string, @Body() body: { reason: string }, @Req() req: AuthRequest) {
+    return this.ordersService.rejectOrder(id, body.reason, req.user?.id);
   }
 
   @ApiBearerAuth()

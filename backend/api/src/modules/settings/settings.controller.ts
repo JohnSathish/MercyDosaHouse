@@ -53,4 +53,10 @@ export class SettingsController {
   getPaymentMethods() {
     return this.settingsService.getPaymentMethods();
   }
+
+  @Public()
+  @Get('delivery-check')
+  checkDelivery(@Query('pincode') pincode: string) {
+    return this.settingsService.checkDeliveryPincode(pincode ?? '');
+  }
 }

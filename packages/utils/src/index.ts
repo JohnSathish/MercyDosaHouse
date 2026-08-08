@@ -1,10 +1,11 @@
 export const BRAND = {
   name: 'Mercy Dosa House',
-  tagline: 'Freshly Made. Delivered with Love.',
-  primary: '#0F5132',
+  tagline: 'Freshly Made. Delivered With Love.',
+  primary: '#14532D',
   secondary: '#F59E0B',
-  accent: '#FFF7E6',
+  accent: '#FFF8E8',
   background: '#FFFFFF',
+  darkText: '#1F2937',
 } as const;
 
 export function formatCurrency(amount: number): string {
@@ -15,8 +16,8 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatOrderNumber(year: number, sequence: number): string {
-  return `MDH-${year}${String(sequence).padStart(6, '0')}`;
+export function formatOrderNumber(dateKey: number | string, sequence: number): string {
+  return `MDH-${dateKey}-${String(sequence).padStart(6, '0')}`;
 }
 
 export function slugify(text: string): string {
@@ -55,6 +56,13 @@ export function formatDate(date: string | Date): string {
     timeStyle: 'short',
   }).format(new Date(date));
 }
+
+export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  COD: 'Cash on Delivery',
+  UPI: 'UPI',
+  RAZORPAY: 'Razorpay',
+  CASHFREE: 'Cashfree',
+};
 
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',

@@ -25,7 +25,10 @@ export class OrdersGateway implements OnGatewayConnection {
     this.server.emit('newOrder', order);
   }
 
-  emitOrderUpdate(orderId: string, data: { status: string; trackingStatus?: string }) {
+  emitOrderUpdate(
+    orderId: string,
+    data: { status: string; trackingStatus?: string; message?: string },
+  ) {
     this.server.to(`order:${orderId}`).emit('orderUpdate', { orderId, ...data });
     this.server.emit('orderStatusChanged', { orderId, ...data });
   }
