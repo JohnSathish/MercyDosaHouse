@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -10,6 +10,13 @@ export interface EmailSendResult {
   error?: string;
 }
 
+export interface EmailConfigStatus {
+  configured: boolean;
+  provider: EmailProvider;
+  message: string;
+  missing?: string[];
+}
+
 export interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -18,24 +25,67 @@ export interface SendEmailOptions {
 }
 
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
 
   constructor(private config: ConfigService) {}
+
+  onModuleInit() {
+    const status = this.getConfigStatus();
+    if (!status.configured) {
+      this.logger.warn(
+        `Order notification emails DISABLED: ${status.message}${
+          status.missing?.length ? ` (missing: ${status.missing.join(', ')})` : ''
+        }`,
+      );
+    } else {
+      this.logger.log(`Order notification emails enabled via ${status.provider}`);
+    }
+  }
 
   isConfigured(): boolean {
     return this.resolveProvider() !== 'none';
   }
 
   getStatus() {
-    const provider = this.resolveProvider();
+    const status = this.getConfigStatus();
     return {
-      configured: provider !== 'none',
+      configured: status.configured,
+      provider: status.provider,
+      message: status.message,
+      missing: status.missing,
+    };
+  }
+
+  getConfigStatus(): EmailConfigStatus {
+    const provider = this.resolveProvider();
+    if (provider === 'none') {
+      const explicit = this.config.get<string>('EMAIL_PROVIDER')?.toLowerCase();
+      const missing: string[] = [];
+      if (explicit === 'resend' && !this.config.get('RESEND_API_KEY')) {
+        missing.push('RESEND_API_KEY');
+      }
+      if ((explicit === 'smtp' || !explicit) && !this.config.get('SMTP_HOST')) {
+        missing.push('SMTP_HOST');
+      }
+      if (this.config.get('SMTP_HOST')) {
+        if (!this.config.get('SMTP_USER')) missing.push('SMTP_USER');
+        if (!this.config.get('SMTP_PASS')) missing.push('SMTP_PASS');
+      }
+      return {
+        configured: false,
+        provider: 'none',
+        message:
+          missing.length > 0
+            ? 'Email provider credentials are incomplete'
+            : 'Email provider not configured',
+        missing: missing.length ? missing : undefined,
+      };
+    }
+    return {
+      configured: true,
       provider,
-      message:
-        provider === 'none'
-          ? 'Email notifications are not configured. Add SMTP or Resend credentials to enable email delivery.'
-          : `Email provider: ${provider}`,
+      message: `Email provider: ${provider}`,
     };
   }
 
@@ -130,11 +180,21 @@ export class EmailService {
       throw new Error('SMTP_HOST, SMTP_USER and SMTP_PASS are required');
     }
 
+    const secureExplicit = this.config.get<string>('SMTP_SECURE');
+    const secure = secureExplicit != null ? secureExplicit === 'true' : port === 465;
+
     const transporter = nodemailer.createTransport({
       host,
       port,
-      secure: port === 465,
+      secure,
       auth: { user, pass },
+      tls: {
+        rejectUnauthorized: this.config.get('SMTP_TLS_REJECT_UNAUTHORIZED') !== 'false',
+        minVersion: 'TLSv1.2',
+      },
+      connectionTimeout: 20_000,
+      greetingTimeout: 20_000,
+      socketTimeout: 30_000,
     });
 
     await transporter.sendMail({

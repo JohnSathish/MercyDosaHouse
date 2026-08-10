@@ -49,8 +49,9 @@ EMAIL_PROVIDER=smtp
 EMAIL_FROM=Mercy Dosa House <contact@mercydosahouse.com>
 ORDER_NOTIFICATION_RECIPIENTS=johnsathish16@gmail.com,SUDHABCA96@gmail.com,alboraja@gmail.com
 ADMIN_URL=https://admin.mercydosahouse.com
-SMTP_HOST=
-SMTP_PORT=587
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
 SMTP_USER=contact@mercydosahouse.com
 SMTP_PASS=
 

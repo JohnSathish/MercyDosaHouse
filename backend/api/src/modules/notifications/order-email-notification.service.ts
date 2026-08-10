@@ -139,7 +139,15 @@ export class OrderEmailNotificationService {
     });
 
     if (!this.emailService.isConfigured()) {
-      await this.markFailed(record.id, 'Email provider not configured', order.orderNumber, orderId);
+      const status = this.emailService.getConfigStatus();
+      await this.markFailed(
+        record.id,
+        status.missing?.length
+          ? `Email not configured — missing ${status.missing.join(', ')}`
+          : 'Email provider not configured',
+        order.orderNumber,
+        orderId,
+      );
       return;
     }
 

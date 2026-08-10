@@ -39,6 +39,22 @@ export default function SettingsPage() {
     queryFn: () => api.get<ThemeSettingsDto>('/cms/theme'),
   });
 
+  const { data: emailStatus } = useQuery({
+    queryKey: ['email-status'],
+    queryFn: () =>
+      api.get<{
+        configured: boolean;
+        provider: string;
+        message: string;
+        missing?: string[];
+        recipients?: string[];
+      }>('/settings/email/status'),
+  });
+
+  const testEmail = useMutation({
+    mutationFn: () => api.post<{ sent: boolean; error?: string }>('/settings/email/test', {}),
+  });
+
   const [form, setForm] = useState<Partial<BusinessSettingsDto>>({});
   const [themeDraft, setThemeDraft] = useState<Partial<ThemeSettingsDto>>({});
 
@@ -182,6 +198,55 @@ export default function SettingsPage() {
           <Button onClick={() => saveBusiness.mutate(form)} disabled={saveBusiness.isPending}>
             {saveBusiness.isPending ? 'Saving…' : 'Save Settings'}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="dark:bg-gray-900">
+        <CardHeader>
+          <CardTitle className="text-lg">Order Notification Email</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Sends a confirmation email to business recipients when a new order is placed (COD
+            immediately; online payments after confirmation).
+          </p>
+          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+            <p>
+              <span className="text-muted-foreground">Status:</span>{' '}
+              <span
+                className={
+                  emailStatus?.configured
+                    ? 'text-emerald-600 font-medium'
+                    : 'text-red-600 font-medium'
+                }
+              >
+                {emailStatus?.configured
+                  ? `Configured (${emailStatus.provider})`
+                  : 'Not configured'}
+              </span>
+            </p>
+            {emailStatus?.missing?.length ? (
+              <p className="text-red-600 text-xs">Missing env: {emailStatus.missing.join(', ')}</p>
+            ) : null}
+            {emailStatus?.recipients?.length ? (
+              <p className="text-xs text-muted-foreground">
+                Recipients: {emailStatus.recipients.join(', ')}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => testEmail.mutate()}
+            disabled={testEmail.isPending}
+          >
+            {testEmail.isPending ? 'Sending…' : 'Send Test Email'}
+          </Button>
+          {testEmail.data?.sent && (
+            <p className="text-sm text-emerald-600">Test email sent successfully.</p>
+          )}
+          {testEmail.data?.error && (
+            <p className="text-sm text-red-600">Failed: {testEmail.data.error}</p>
+          )}
         </CardContent>
       </Card>
 
