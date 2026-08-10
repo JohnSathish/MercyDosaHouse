@@ -1,0 +1,3 @@
+# Ensure Unix line endings and no BOM surprises in migrations
+*.sql text eol=lf
+*.sh text eol=lf

@@ -20,6 +20,7 @@ COPY --from=builder /app/backend/api/dist ./dist
 COPY --from=builder /app/backend/api/package.json ./
 COPY --from=builder /app/backend/api/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
+RUN find prisma/migrations -name 'migration.sql' -exec sed -i '1s/^\xEF\xBB\xBF//' {} + 2>/dev/null || true
 RUN mkdir -p /app/uploads
 
 EXPOSE 3001
