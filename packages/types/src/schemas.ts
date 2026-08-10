@@ -1,31 +1,15 @@
 import { z } from 'zod';
 import { FoodType, PaymentMethod, SpiceLevel, AddressType } from './enums';
 
-const normalizeMobile = (value: unknown) =>
-  typeof value === 'string' ? value.replace(/\D/g, '').slice(-10) : value;
+const mobileSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, '').slice(-10))
+  .pipe(z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'));
 
-const mobileSchema = z.preprocess(
-  normalizeMobile,
-  z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'),
-);
-
-const optionalString = z.preprocess(
-  (value) => (value === null || value === undefined ? undefined : String(value)),
-  z.string().optional(),
-);
-
-const optionalNumber = z.preprocess(
-  (value) =>
-    value === null || value === '' || (typeof value === 'number' && Number.isNaN(value))
-      ? undefined
-      : value,
-  z.number().optional(),
-);
-
-const pincodeSchema = z.preprocess(
-  (value) => (typeof value === 'string' ? value.replace(/\D/g, '').slice(0, 6) : value),
-  z.string().regex(/^\d{6}$/, 'Enter a valid 6-digit pincode'),
-);
+const pincodeSchema = z
+  .string()
+  .transform((v) => v.replace(/\D/g, '').slice(0, 6))
+  .pipe(z.string().regex(/^\d{6}$/, 'Enter a valid 6-digit pincode'));
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -44,25 +28,19 @@ export const otpVerifySchema = z.object({
 export const addressSchema = z.object({
   contactName: z.string().min(2, 'Contact person name is required'),
   mobileNumber: mobileSchema,
-  label: optionalString,
+  label: z.string().optional(),
   line1: z.string().min(3, 'Address line 1 is required'),
-  line2: optionalString,
-  landmark: optionalString,
+  line2: z.string().optional(),
+  landmark: z.string().optional(),
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
   pincode: pincodeSchema,
-  country: optionalString,
-  latitude: optionalNumber,
-  longitude: optionalNumber,
-  deliveryNotes: z.preprocess(
-    (value) => (value === null || value === undefined ? undefined : String(value)),
-    z.string().max(500).optional(),
-  ),
+  country: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  deliveryNotes: z.string().max(500).optional(),
   addressType: z.nativeEnum(AddressType).optional(),
-  isDefault: z.preprocess(
-    (value) => value === true || value === 'true' || value === 'on',
-    z.boolean().optional(),
-  ),
+  isDefault: z.boolean().optional(),
 });
 
 export const createOrderSchema = z.object({
@@ -116,7 +94,29 @@ export const reviewSchema = z.object({
   comment: z.string().max(1000).optional(),
 });
 
+export const CONTACT_FORM_SUBJECTS = [
+  'General Inquiry',
+  'Order Issue',
+  'Feedback & Suggestions',
+  'Catering / Bulk Order',
+  'Partnership',
+  'Other',
+] as const;
+
+export const contactFormSchema = z.object({
+  name: z.string().min(2, 'Name is required').max(100),
+  phone: z
+    .string()
+    .transform((v) => v.replace(/\D/g, '').slice(-10))
+    .pipe(z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number')),
+  email: z.string().email('Enter a valid email address'),
+  subject: z.enum(CONTACT_FORM_SUBJECTS, { required_error: 'Please select a subject' }),
+  message: z.string().min(10, 'Message must be at least 10 characters').max(2000),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
+export type AddressFormInput = z.infer<typeof addressSchema>;
+export type ContactFormInput = z.infer<typeof contactFormSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type CheckoutFormInput = z.infer<typeof checkoutFormSchema>;
 export type ProductInput = z.infer<typeof productSchema>;

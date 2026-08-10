@@ -367,7 +367,7 @@ export class OrdersService implements OnModuleInit {
     ]);
 
     return {
-      data: data.map(this.mapOrder),
+      data: data.map((order) => this.mapOrder(order)),
       total,
       page,
       limit,
