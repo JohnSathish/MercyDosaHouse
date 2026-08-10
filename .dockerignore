@@ -1,0 +1,14 @@
+node_modules
+.next
+.turbo
+dist
+.git
+.env
+.env.*
+!.env.example
+!.env.development.example
+uploads
+**/android.local.bak
+**/.gradle
+e2e/reports
+*.log
