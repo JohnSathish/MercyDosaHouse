@@ -20,6 +20,11 @@ COPY --from=builder /app/backend/api/dist ./dist
 COPY --from=builder /app/backend/api/package.json ./
 COPY --from=builder /app/backend/api/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
+# Workspace packages — node_modules symlinks break in runtime image
+COPY --from=builder /app/packages/types/package.json ./node_modules/@mdh/types/package.json
+COPY --from=builder /app/packages/types/dist ./node_modules/@mdh/types/dist
+COPY --from=builder /app/packages/utils/package.json ./node_modules/@mdh/utils/package.json
+COPY --from=builder /app/packages/utils/dist ./node_modules/@mdh/utils/dist
 RUN find prisma/migrations -name 'migration.sql' -exec sed -i '1s/^\xEF\xBB\xBF//' {} + 2>/dev/null || true
 RUN mkdir -p /app/uploads
 
