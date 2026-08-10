@@ -2,18 +2,10 @@ FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 WORKDIR /app
 
-FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY backend/api/package.json ./backend/api/
-COPY packages/types/package.json ./packages/types/
-COPY packages/utils/package.json ./packages/utils/
-RUN pnpm install --frozen-lockfile || pnpm install
-
 FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY . .
-RUN pnpm install --frozen-lockfile --prefer-offline || pnpm install --frozen-lockfile
+RUN printf 'node-linker=hoisted\n' > .npmrc
+RUN pnpm install --frozen-lockfile || pnpm install
 RUN pnpm --filter @mdh/types build
 RUN pnpm --filter @mdh/utils build
 RUN cd backend/api && npx prisma generate
@@ -26,7 +18,6 @@ COPY --from=builder /app/backend/api/dist ./dist
 COPY --from=builder /app/backend/api/package.json ./
 COPY --from=builder /app/backend/api/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/backend/api/node_modules ./backend_modules
 RUN mkdir -p /app/uploads
 
 EXPOSE 3001
