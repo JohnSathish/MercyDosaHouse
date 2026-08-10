@@ -45,8 +45,14 @@ MDH_API_PORT=13001
 MDH_ADMIN_PORT=13002
 
 SMS_PROVIDER=none
-EMAIL_PROVIDER=none
-EMAIL_FROM=Mercy Dosa House <orders@mercydosahouse.com>
+EMAIL_PROVIDER=smtp
+EMAIL_FROM=Mercy Dosa House <contact@mercydosahouse.com>
+ORDER_NOTIFICATION_RECIPIENTS=johnsathish16@gmail.com,SUDHABCA96@gmail.com,alboraja@gmail.com
+ADMIN_URL=https://admin.mercydosahouse.com
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=contact@mercydosahouse.com
+SMTP_PASS=
 
 RUN_SEED=true
 SEED_ADMIN_EMAIL=admin@mercydosahouse.com

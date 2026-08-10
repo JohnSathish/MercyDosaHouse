@@ -654,6 +654,7 @@ model Order {
   deliveryTracking     DeliveryTracking?
   statusHistory        OrderStatusHistory[]
   kitchenLogs          KitchenLog[]
+  emailNotifications   OrderEmailNotification[]
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
@@ -738,6 +739,34 @@ model Payment {
   updatedAt     DateTime      @updatedAt
 
   @@map("payments")
+}
+
+enum OrderEmailNotificationType {
+  ORDER_CONFIRMED
+}
+
+enum OrderEmailNotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
+}
+
+model OrderEmailNotification {
+  id               String                       @id @default(uuid())
+  orderId          String
+  order            Order                        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  notificationType OrderEmailNotificationType   @default(ORDER_CONFIRMED)
+  status           OrderEmailNotificationStatus @default(PENDING)
+  recipients       String[]
+  attemptCount     Int                          @default(0)
+  lastError        String?
+  sentAt           DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@unique([orderId, notificationType])
+  @@map("order_email_notifications")
 }
 
 model PaymentMethodConfig {

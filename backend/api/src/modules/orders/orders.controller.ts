@@ -168,4 +168,11 @@ export class OrdersController {
   confirmPayment(@Param('id') id: string) {
     return this.ordersService.confirmPayment(id);
   }
+
+  @ApiBearerAuth()
+  @RequirePermissions('orders.manage')
+  @Post(':id/resend-order-email')
+  resendOrderEmail(@Param('id') id: string, @Req() req: AuthRequest) {
+    return this.ordersService.resendOrderEmail(id, req.user?.id, req.user?.name ?? undefined);
+  }
 }

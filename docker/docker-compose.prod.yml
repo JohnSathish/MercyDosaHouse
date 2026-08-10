@@ -55,6 +55,9 @@ services:
       args:
         APP_NAME: website
         APP_PORT: 3000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://mercydosahouse.com/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://mercydosahouse.com}
+        NEXT_PUBLIC_WEBSITE_URL: ${NEXT_PUBLIC_WEBSITE_URL:-https://mercydosahouse.com}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -72,6 +75,10 @@ services:
       args:
         APP_NAME: admin
         APP_PORT: 3002
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://mercydosahouse.com/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://mercydosahouse.com}
+        NEXT_PUBLIC_WEBSITE_URL: ${NEXT_PUBLIC_WEBSITE_URL:-https://mercydosahouse.com}
+        NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-https://admin.mercydosahouse.com}
     restart: unless-stopped
     environment:
       NODE_ENV: production

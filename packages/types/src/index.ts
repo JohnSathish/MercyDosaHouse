@@ -154,6 +154,15 @@ export interface OrderStatusHistoryDto {
   createdAt: string;
 }
 
+export interface OrderEmailNotificationDto {
+  status: 'PENDING' | 'SENT' | 'FAILED' | 'RETRYING';
+  attemptCount: number;
+  lastError?: string | null;
+  sentAt?: string | null;
+  recipients: string[];
+  updatedAt?: string;
+}
+
 export interface OrderDto {
   id: string;
   orderNumber: string;
@@ -176,6 +185,7 @@ export interface OrderDto {
   rejectReason?: string | null;
   items: OrderItemDto[];
   statusHistory?: OrderStatusHistoryDto[];
+  emailNotification?: OrderEmailNotificationDto;
   createdAt: string;
   updatedAt: string;
 }

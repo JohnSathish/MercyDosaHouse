@@ -59,8 +59,14 @@ export class AuthService {
     return {
       ...this.sms.getStatus(),
       redisAvailable: !!this.redis,
+      demoMode: this.isDemoOtpMode(),
       fallbackMethods: ['email', 'google'],
     };
+  }
+
+  /** Temporary demo OTP (123456) for staging — set OTP_DEMO_MODE=true, disable when SMS is live. */
+  private isDemoOtpMode(): boolean {
+    return process.env.OTP_DEMO_MODE === 'true';
   }
 
   async sendOtp(phone: string) {
@@ -70,9 +76,10 @@ export class AuthService {
     }
 
     const isProd = process.env.NODE_ENV === 'production';
+    const demoMode = this.isDemoOtpMode();
     const smsConfigured = this.sms.isConfigured();
 
-    if (isProd && !smsConfigured) {
+    if (isProd && !smsConfigured && !demoMode) {
       throw new ServiceUnavailableException({
         message:
           'Verification service temporarily unavailable. Please sign in with email or Google, or try again later.',
@@ -81,14 +88,15 @@ export class AuthService {
       });
     }
 
-    if (isProd && !this.redis) {
+    if (isProd && !this.redis && !demoMode) {
       throw new ServiceUnavailableException({
         message: 'Verification service temporarily unavailable. Please try again later.',
         code: 'OTP_STORAGE_UNAVAILABLE',
       });
     }
 
-    const otp = isProd ? String(Math.floor(100000 + Math.random() * 900000)) : '123456';
+    const otp =
+      !isProd || demoMode ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
 
     if (this.redis) {
       const cooldownKey = `otp:cooldown:${normalized}`;
@@ -98,11 +106,11 @@ export class AuthService {
       }
       await this.redis.setex(`otp:${normalized}`, 300, otp);
       await this.redis.setex(cooldownKey, 60, '1');
-    } else if (!isProd) {
-      console.log(`[DEV OTP] Phone: ${normalized}, OTP: ${otp}`);
+    } else if (!isProd || demoMode) {
+      console.log(`[${demoMode ? 'DEMO' : 'DEV'} OTP] Phone: ${normalized}, OTP: ${otp}`);
     }
 
-    if (smsConfigured) {
+    if (smsConfigured && !demoMode) {
       const result = await this.sms.sendOtp(normalized, otp);
       if (!result.sent) {
         throw new ServiceUnavailableException({
@@ -110,8 +118,8 @@ export class AuthService {
           code: 'OTP_SEND_FAILED',
         });
       }
-    } else if (!isProd) {
-      console.log(`[DEV OTP] SMS not configured — use OTP: ${otp}`);
+    } else if (!isProd || demoMode) {
+      console.log(`[${demoMode ? 'DEMO' : 'DEV'} OTP] SMS skipped — use OTP: ${otp}`);
     }
 
     return { message: 'OTP sent successfully' };
@@ -124,8 +132,12 @@ export class AuthService {
       storedOtp = await this.redis.get(`otp:${normalized}`);
     }
 
-    // Dev fallback: accept 123456 when not in production
-    if (!storedOtp && process.env.NODE_ENV !== 'production' && otp === '123456') {
+    // Dev/demo fallback: accept 123456 when SMS is not used
+    if (
+      !storedOtp &&
+      (process.env.NODE_ENV !== 'production' || this.isDemoOtpMode()) &&
+      otp === '123456'
+    ) {
       storedOtp = '123456';
     }
 

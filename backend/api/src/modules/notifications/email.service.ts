@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
 
 export type EmailProvider = 'smtp' | 'resend' | 'none';
 
@@ -10,7 +11,7 @@ export interface EmailSendResult {
 }
 
 export interface SendEmailOptions {
-  to: string;
+  to: string | string[];
   subject: string;
   text?: string;
   html?: string;
@@ -44,28 +45,21 @@ export class EmailService {
       return { sent: false, provider, error: 'Email provider not configured' };
     }
 
+    const recipients = Array.isArray(options.to) ? options.to : [options.to];
+
     try {
       if (provider === 'resend') {
-        await this.sendViaResend(options);
+        await this.sendViaResend({ ...options, to: recipients });
       } else {
-        await this.sendViaSmtp(options);
+        await this.sendViaSmtp({ ...options, to: recipients });
       }
-      this.logger.log(`Email sent via ${provider} to ${options.to}`);
+      this.logger.log(`Email sent via ${provider} to ${recipients.join(', ')}`);
       return { sent: true, provider };
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Email delivery failed';
       this.logger.error(`Email send failed (${provider}): ${error}`);
       return { sent: false, provider, error };
     }
-  }
-
-  async sendOrderConfirmation(to: string, orderNumber: string, total: number) {
-    return this.send({
-      to,
-      subject: `Order Confirmed — ${orderNumber} | Mercy Dosa House`,
-      text: `Thank you for your order #${orderNumber}. Total: ₹${total}. We are preparing your food with care.`,
-      html: `<p>Thank you for your order <strong>#${orderNumber}</strong>.</p><p>Total: <strong>₹${total}</strong></p><p>We are preparing your food with care.</p>`,
-    });
   }
 
   private resolveProvider(): EmailProvider {
@@ -78,10 +72,13 @@ export class EmailService {
     return 'none';
   }
 
-  private async sendViaResend(options: SendEmailOptions) {
+  private getFromAddress(): string {
+    return this.config.get<string>('EMAIL_FROM') || 'Mercy Dosa House <contact@mercydosahouse.com>';
+  }
+
+  private async sendViaResend(options: SendEmailOptions & { to: string[] }) {
     const apiKey = this.config.get<string>('RESEND_API_KEY')!;
-    const from =
-      this.config.get<string>('EMAIL_FROM') || 'Mercy Dosa House <orders@mercydosahouse.com>';
+    const from = this.getFromAddress();
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -91,7 +88,7 @@ export class EmailService {
       },
       body: JSON.stringify({
         from,
-        to: [options.to],
+        to: options.to,
         subject: options.subject,
         text: options.text,
         html: options.html,
@@ -103,8 +100,7 @@ export class EmailService {
     }
   }
 
-  /** SMTP via raw HTTP relay or future nodemailer integration — uses a simple fetch-based relay if SMTP_RELAY_URL is set. */
-  private async sendViaSmtp(options: SendEmailOptions) {
+  private async sendViaSmtp(options: SendEmailOptions & { to: string[] }) {
     const relayUrl = this.config.get<string>('SMTP_RELAY_URL');
     if (relayUrl) {
       const res = await fetch(relayUrl, {
@@ -118,7 +114,7 @@ export class EmailService {
           port: Number(this.config.get('SMTP_PORT') || 587),
           user: this.config.get('SMTP_USER'),
           pass: this.config.get('SMTP_PASS'),
-          from: this.config.get('EMAIL_FROM'),
+          from: this.getFromAddress(),
           ...options,
         }),
       });
@@ -126,13 +122,27 @@ export class EmailService {
       return;
     }
 
-    // Direct SMTP credentials stored for when nodemailer is added — log intent without blocking
-    this.logger.warn(
-      `SMTP configured (${this.config.get('SMTP_HOST')}) but no relay. Install nodemailer or set SMTP_RELAY_URL. Email to ${options.to} queued in logs only.`,
-    );
-    if (process.env.NODE_ENV !== 'production') {
-      this.logger.debug(`[DEV EMAIL] To: ${options.to} | Subject: ${options.subject}`);
+    const host = this.config.get<string>('SMTP_HOST');
+    const port = Number(this.config.get('SMTP_PORT') || 587);
+    const user = this.config.get<string>('SMTP_USER');
+    const pass = this.config.get<string>('SMTP_PASS');
+    if (!host || !user || !pass) {
+      throw new Error('SMTP_HOST, SMTP_USER and SMTP_PASS are required');
     }
-    throw new Error('SMTP relay not configured. Set SMTP_RELAY_URL or add nodemailer.');
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+
+    await transporter.sendMail({
+      from: this.getFromAddress(),
+      to: options.to.join(', '),
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+    });
   }
 }

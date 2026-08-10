@@ -3,6 +3,7 @@ import { PaymentMethod, PaymentStatus } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 
 @Injectable()
 export class RazorpayService {
@@ -11,6 +12,7 @@ export class RazorpayService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private orderEmailNotification: OrderEmailNotificationService,
   ) {}
 
   isConfigured(): boolean {
@@ -131,6 +133,7 @@ export class RazorpayService {
     ]);
 
     this.logger.log(`Razorpay payment captured for order ${payment.orderId}`);
+    void this.orderEmailNotification.notifyOrderConfirmed(payment.orderId);
     return { handled: true, orderId: payment.orderId };
   }
 }

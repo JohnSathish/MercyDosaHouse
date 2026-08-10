@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   useReactTable,
   getCoreRowModel,
@@ -26,10 +27,20 @@ interface OrdersTableProps {
 }
 
 export function OrdersTable({ orders, onStatusChange, onReject, loading }: OrdersTableProps) {
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rejectId, setRejectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId) {
+      setSelectedOrderId(orderId);
+      setDrawerOpen(true);
+    }
+  }, [searchParams]);
 
   const { data: selectedOrder } = useQuery({
     queryKey: ['admin-order', selectedOrderId],
@@ -200,6 +211,10 @@ export function OrdersTable({ orders, onStatusChange, onReject, loading }: Order
         onAccept={(id) => onStatusChange(id, OrderStatus.ACCEPTED)}
         onReject={(id) => setRejectId(id)}
         onStatusChange={onStatusChange}
+        onResendEmail={async (id) => {
+          await api.post(`/orders/${id}/resend-order-email`, {});
+          queryClient.invalidateQueries({ queryKey: ['admin-order', id] });
+        }}
         loading={loading}
       />
 

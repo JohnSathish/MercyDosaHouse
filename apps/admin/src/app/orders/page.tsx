@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ORDER_STATUS_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
@@ -102,12 +102,14 @@ export default function OrdersPage() {
         </select>
       </div>
 
-      <OrdersTable
-        orders={orders}
-        loading={updateStatus.isPending || rejectOrder.isPending}
-        onStatusChange={handleStatusChange}
-        onReject={(id, reason) => rejectOrder.mutate({ id, reason })}
-      />
+      <Suspense fallback={<p>Loading orders table...</p>}>
+        <OrdersTable
+          orders={orders}
+          loading={updateStatus.isPending || rejectOrder.isPending}
+          onStatusChange={handleStatusChange}
+          onReject={(id, reason) => rejectOrder.mutate({ id, reason })}
+        />
+      </Suspense>
     </div>
   );
 }

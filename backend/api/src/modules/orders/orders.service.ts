@@ -9,7 +9,7 @@ import { OrderStatus, PaymentMethod, PaymentStatus, TrackingStatus } from '@pris
 import { calculatePreOrderDiscount, calculateDeliveryCharge, isPreOrderEligible } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
-import { EmailService } from '../notifications/email.service';
+import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -18,7 +18,7 @@ export class OrdersService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private gateway: OrdersGateway,
-    private emailService: EmailService,
+    private orderEmailNotification: OrderEmailNotificationService,
   ) {}
 
   async onModuleInit() {
@@ -202,36 +202,10 @@ export class OrdersService implements OnModuleInit {
     });
 
     this.gateway.emitNewOrder(order);
-    void this.sendOrderConfirmationEmail(order.orderNumber, pricing.grandTotal, data.userId);
-    return this.findOne(order.id);
-  }
-
-  private async sendOrderConfirmationEmail(
-    orderNumber: string,
-    grandTotal: number,
-    userId?: string,
-  ) {
-    if (!userId) return;
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true },
-      });
-      if (!user?.email) return;
-
-      const result = await this.emailService.sendOrderConfirmation(
-        user.email,
-        orderNumber,
-        grandTotal,
-      );
-      if (!result.sent) {
-        this.logger.debug(`Order confirmation email skipped: ${result.error ?? 'not configured'}`);
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Order confirmation email failed for ${orderNumber}: ${err instanceof Error ? err.message : err}`,
-      );
+    if (this.orderEmailNotification.shouldNotifyOnOrderCreate(data.paymentMethod)) {
+      void this.orderEmailNotification.notifyOrderConfirmed(order.id);
     }
+    return this.findOne(order.id);
   }
 
   private async computePricing(data: {
@@ -407,6 +381,11 @@ export class OrdersService implements OnModuleInit {
       include: {
         items: true,
         payment: true,
+        posTable: { select: { label: true } },
+        emailNotifications: {
+          where: { notificationType: 'ORDER_CONFIRMED' },
+          take: 1,
+        },
         statusHistory: {
           include: { updatedBy: { select: { name: true } } },
           orderBy: { createdAt: 'asc' },
@@ -525,10 +504,17 @@ export class OrdersService implements OnModuleInit {
       where: { orderId: id },
       data: { status: PaymentStatus.COMPLETED },
     });
-    return this.prisma.order.update({
+    const order = await this.prisma.order.update({
       where: { id },
       data: { paymentStatus: PaymentStatus.COMPLETED },
     });
+    void this.orderEmailNotification.notifyOrderConfirmed(id);
+    return order;
+  }
+
+  async resendOrderEmail(id: string, userId?: string, userName?: string) {
+    await this.orderEmailNotification.resendOrderConfirmed(id, userId, userName);
+    return this.findOne(id);
   }
 
   private async generateOrderNumber(): Promise<string> {
@@ -593,6 +579,14 @@ export class OrdersService implements OnModuleInit {
       createdAt: Date;
       updatedBy?: { name: string | null } | null;
     }[];
+    emailNotifications?: {
+      status: import('@prisma/client').OrderEmailNotificationStatus;
+      attemptCount: number;
+      lastError: string | null;
+      sentAt: Date | null;
+      recipients: string[];
+      updatedAt: Date;
+    }[];
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -639,6 +633,9 @@ export class OrdersService implements OnModuleInit {
         remarks: h.remarks,
         createdAt: h.createdAt.toISOString(),
       })),
+      emailNotification: this.orderEmailNotification.mapNotification(
+        order.emailNotifications?.[0] ?? null,
+      ),
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
     };

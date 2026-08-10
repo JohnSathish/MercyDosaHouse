@@ -22,6 +22,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { AuditService } from '../audit/audit.service';
 import { PosGateway } from './pos.gateway';
+import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 
 const billInclude = {
   items: true,
@@ -40,6 +41,7 @@ export class PosService {
     private ordersGateway: OrdersGateway,
     private posGateway: PosGateway,
     private audit: AuditService,
+    private orderEmailNotification: OrderEmailNotificationService,
   ) {}
 
   private toNum(v: Prisma.Decimal | number | null | undefined) {
@@ -995,6 +997,8 @@ export class PosService {
     const mapped = this.mapBill(settled);
     this.posGateway.emitBillUpdate(billId, { ...mapped, settled: true });
     this.posGateway.emitAnalytics(await this.getLiveAnalytics());
+
+    void this.orderEmailNotification.notifyOrderConfirmed(billId);
 
     return mapped;
   }

@@ -20,6 +20,7 @@ interface OrderDrawerProps {
   onAccept: (id: string) => void | Promise<void>;
   onReject: (id: string) => void;
   onStatusChange: (id: string, status: OrderStatus) => void | Promise<void>;
+  onResendEmail?: (id: string) => void | Promise<void>;
   loading?: boolean;
 }
 
@@ -43,9 +44,20 @@ export function OrderDrawer({
   onAccept,
   onReject,
   onStatusChange,
+  onResendEmail,
   loading,
 }: OrderDrawerProps) {
   if (!order) return null;
+
+  const email = order.emailNotification;
+  const emailStatusLabel =
+    email?.status === 'SENT'
+      ? 'Sent ✓'
+      : email?.status === 'FAILED'
+        ? 'Failed'
+        : email?.status === 'RETRYING'
+          ? 'Retry'
+          : 'Pending';
 
   const historyMap = new Map((order.statusHistory || []).map((h) => [h.newStatus, h]));
   const currentIdx = statusIndex(order.status);
@@ -116,6 +128,44 @@ export function OrderDrawer({
                 <span>{formatCurrency(order.grandTotal)}</span>
               </div>
               <p className="text-muted-foreground pt-1">Payment: {order.paymentMethod}</p>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold mb-2">Email Notification</h3>
+            <div className="rounded-xl bg-gray-50 p-3 text-sm space-y-2">
+              <p>
+                <span className="text-muted-foreground">Status:</span>{' '}
+                <span
+                  className={
+                    email?.status === 'SENT'
+                      ? 'text-emerald-600 font-medium'
+                      : email?.status === 'FAILED'
+                        ? 'text-red-600 font-medium'
+                        : 'font-medium'
+                  }
+                >
+                  {emailStatusLabel}
+                </span>
+              </p>
+              {email?.sentAt && (
+                <p>
+                  <span className="text-muted-foreground">Sent at:</span>{' '}
+                  {new Date(email.sentAt).toLocaleString()}
+                </p>
+              )}
+              {email?.lastError && <p className="text-red-600 text-xs">Error: {email.lastError}</p>}
+              {onResendEmail && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loading}
+                  onClick={() => runAction(() => onResendEmail(order.id))}
+                >
+                  Resend Order Email
+                </Button>
+              )}
             </div>
           </section>
 
