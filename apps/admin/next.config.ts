@@ -13,7 +13,14 @@ function hostnameFrom(url: string) {
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  transpilePackages: ['@mdh/ui', '@mdh/types', '@mdh/utils', '@mdh/sdk', '@mdh/auth-client'],
+  transpilePackages: [
+    '@mdh/ui',
+    '@mdh/types',
+    '@mdh/utils',
+    '@mdh/sdk',
+    '@mdh/auth-client',
+    '@mdh/pos-ui',
+  ],
   poweredByHeader: false,
   images: {
     remotePatterns: [

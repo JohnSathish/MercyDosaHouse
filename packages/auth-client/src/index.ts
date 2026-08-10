@@ -127,4 +127,5 @@ export function isAuthenticated(): boolean {
   return !!getAccessToken();
 }
 
+export type { AuthUser, AuthTokens } from '@mdh/types';
 export * from './roles';

@@ -355,7 +355,7 @@ export function CustomerDrawer({ customer, open, onClose, onRefresh }: CustomerD
                               <p className="font-semibold">
                                 {String(a.contactName ?? a.label ?? 'Address')}
                               </p>
-                              {a.isDefault && <Badge className="text-[10px]">Default</Badge>}
+                              {a.isDefault ? <Badge className="text-[10px]">Default</Badge> : null}
                             </div>
                             <p className="text-sm">{String(a.mobileNumber ?? '')}</p>
                             <p className="text-sm text-muted-foreground mt-1">

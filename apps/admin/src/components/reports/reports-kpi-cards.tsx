@@ -115,7 +115,11 @@ export function ReportsKpiCards({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-        {KPI_CARDS.map(({ key, label, icon: Icon, color, format, trendKey, suffix }, i) => {
+        {KPI_CARDS.map((card, i) => {
+          const { key, label, icon: Icon, color } = card;
+          const format = 'format' in card ? card.format : undefined;
+          const trendKey = 'trendKey' in card ? card.trendKey : undefined;
+          const suffix = 'suffix' in card ? card.suffix : undefined;
           const val = kpis[key as keyof ReportsKpiDto];
           const trend = trendKey ? (kpis[trendKey as keyof ReportsKpiDto] as number) : undefined;
           return (

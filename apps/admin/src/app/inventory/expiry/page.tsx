@@ -57,7 +57,9 @@ export default function ExpiryPage() {
                       ? new Date(String(b.expiryDate)).toLocaleDateString('en-IN')
                       : '—'}
                   </td>
-                  <td className="px-4 py-3 font-bold">{b.daysLeft ?? '—'}</td>
+                  <td className="px-4 py-3 font-bold">
+                    {b.daysLeft != null ? String(b.daysLeft) : '—'}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge className={cn('text-[10px]', URGENCY_COLORS[String(b.urgency)] ?? '')}>
                       {String(b.urgency).toUpperCase()}

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { PosWorkspace } from '@mdh/pos-ui';
 import { api } from '@/lib/api';
-import { getStoredUser, userHasRole, type AuthUser } from '@mdh/auth-client';
+import type { AuthUser } from '@mdh/types';
+import { getStoredUser, userHasRole } from '@mdh/auth-client';
 
 export default function AdminPosPage() {
   const [user, setUser] = useState<AuthUser | null>(null);

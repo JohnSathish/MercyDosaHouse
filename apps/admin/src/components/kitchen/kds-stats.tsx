@@ -22,20 +22,24 @@ const STAT_ITEMS = [
 export function KdsStatsBar({ stats }: { stats: KitchenStatsDto }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      {STAT_ITEMS.map(({ key, label, icon: Icon, color, suffix }) => (
-        <div key={key} className="rounded-xl bg-gray-900/60 border border-gray-800 p-3 lg:p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Icon className={cn('h-4 w-4', color)} />
-            <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
-              {label}
-            </span>
+      {STAT_ITEMS.map((item) => {
+        const { key, label, icon: Icon, color } = item;
+        const suffix = 'suffix' in item ? item.suffix : undefined;
+        return (
+          <div key={key} className="rounded-xl bg-gray-900/60 border border-gray-800 p-3 lg:p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Icon className={cn('h-4 w-4', color)} />
+              <span className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold">
+                {label}
+              </span>
+            </div>
+            <p className={cn('text-2xl font-bold', color)}>
+              {stats[key]}
+              {suffix ?? ''}
+            </p>
           </div>
-          <p className={cn('text-2xl font-bold', color)}>
-            {stats[key]}
-            {suffix ?? ''}
-          </p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

@@ -5,7 +5,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Download, Upload, Users } from 'lucide-react';
 import { Button, cn } from '@mdh/ui';
 import { api } from '@/lib/api';
-import type { CustomerDashboardDto, CustomerListItemDto, CustomerFilter } from '@mdh/types';
+import type {
+  CustomerDashboardDto,
+  CustomerDetailDto,
+  CustomerListItemDto,
+  CustomerFilter,
+} from '@mdh/types';
 import { CustomerDashboard } from '@/components/customers/customer-dashboard';
 import { CustomersTable, CustomersMobileCards } from '@/components/customers/customers-table';
 import { CustomerDrawer } from '@/components/customers/customer-drawer';
@@ -49,7 +54,7 @@ export default function CustomersPage() {
 
   const { data: mobileDetail } = useQuery({
     queryKey: ['customer-detail', mobileSelectedId],
-    queryFn: () => api.get(`/customers/${mobileSelectedId}`),
+    queryFn: () => api.get<CustomerDetailDto>(`/customers/${mobileSelectedId}`),
     enabled: !!mobileSelectedId && mobileDrawerOpen,
   });
 

@@ -29,13 +29,15 @@ export default function SuppliersPage() {
                   {String((s._count as { items: number })?.items ?? 0)} items
                 </Badge>
               </div>
-              {s.contactPerson && <p className="text-sm">{String(s.contactPerson)}</p>}
-              {s.phone && <p className="text-sm text-muted-foreground">{String(s.phone)}</p>}
-              {s.email && <p className="text-sm text-muted-foreground">{String(s.email)}</p>}
-              {s.gstNumber && (
+              {s.contactPerson ? <p className="text-sm">{String(s.contactPerson)}</p> : null}
+              {s.phone ? <p className="text-sm text-muted-foreground">{String(s.phone)}</p> : null}
+              {s.email ? <p className="text-sm text-muted-foreground">{String(s.email)}</p> : null}
+              {s.gstNumber ? (
                 <p className="text-xs text-muted-foreground mt-1">GST: {String(s.gstNumber)}</p>
-              )}
-              {s.paymentTerms && <p className="text-xs mt-2">Terms: {String(s.paymentTerms)}</p>}
+              ) : null}
+              {s.paymentTerms ? (
+                <p className="text-xs mt-2">Terms: {String(s.paymentTerms)}</p>
+              ) : null}
               <p className="text-sm font-semibold mt-2 text-[#14532D]">
                 Outstanding: {formatCurrency(Number(s.outstandingBalance ?? 0))}
               </p>

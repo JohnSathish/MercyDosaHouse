@@ -82,7 +82,9 @@ export function CustomerDashboard({ data, loading }: CustomerDashboardProps) {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-        {STAT_CARDS.map(({ key, label, icon: Icon, color, format }, i) => {
+        {STAT_CARDS.map((card, i) => {
+          const { key, label, icon: Icon, color } = card;
+          const format = 'format' in card ? card.format : undefined;
           const val = data.stats[key as keyof typeof data.stats];
           return (
             <motion.div

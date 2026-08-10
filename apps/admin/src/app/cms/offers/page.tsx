@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { useToastStore } from '@/lib/toast-store';
 import type { OfferDto } from '@mdh/types';
 
-const emptyOffer = {
+const emptyOffer: Partial<OfferDto> = {
   title: '',
   description: '',
   buttonLabel: 'Order Now',
@@ -48,7 +48,7 @@ export default function OffersCmsPage() {
     },
   });
 
-  const form = editing ?? emptyOffer;
+  const form: Partial<OfferDto> = editing ?? emptyOffer;
 
   return (
     <div>

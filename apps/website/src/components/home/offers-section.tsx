@@ -8,7 +8,16 @@ import { CATEGORY_IMAGES } from '@/lib/product-images';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import type { OfferDto } from '@mdh/types';
 
-const FALLBACK_OFFERS = [
+type OfferCard = {
+  title: string;
+  subtitle: string;
+  cta: string;
+  href: string;
+  bg: string;
+  imageUrl?: string;
+};
+
+const FALLBACK_OFFERS: OfferCard[] = [
   {
     title: 'Buy 2 Masala Dosas',
     subtitle: 'Fresh spiced masala filling, crispy & hot',
@@ -38,7 +47,7 @@ const OFFER_GRADIENTS = [
   'from-red-500 to-rose-500',
 ];
 
-function cmsOffersToCards(offers: OfferDto[]) {
+function cmsOffersToCards(offers: OfferDto[]): OfferCard[] {
   return offers.map((o, i) => ({
     title: o.title,
     subtitle: o.description ?? '',

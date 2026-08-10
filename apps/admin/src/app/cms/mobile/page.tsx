@@ -387,7 +387,7 @@ export default function MobileAppCmsPage() {
             <ToggleRow
               label="Force Update"
               description="Block app usage until user updates"
-              checked={config.forceUpdate}
+              checked={config.forceUpdate ?? false}
               onChange={(checked) => update({ forceUpdate: checked })}
             />
             <div>
@@ -401,7 +401,7 @@ export default function MobileAppCmsPage() {
             <ToggleRow
               label="Maintenance Mode"
               description="Show maintenance screen in the app"
-              checked={config.maintenanceMode}
+              checked={config.maintenanceMode ?? false}
               onChange={(checked) => update({ maintenanceMode: checked })}
             />
             <div>
@@ -415,7 +415,7 @@ export default function MobileAppCmsPage() {
             <ToggleRow
               label="Store Open"
               description="Allow new orders from the app"
-              checked={config.storeOpen}
+              checked={config.storeOpen ?? false}
               onChange={(checked) => update({ storeOpen: checked })}
             />
             <div>

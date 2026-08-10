@@ -3,7 +3,7 @@
 import { Button, cn } from '@mdh/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { formatCurrency } from '@mdh/utils';
-import type { KitchenItemStatus, KitchenOrderDto } from '@mdh/types';
+import { KitchenItemStatus, type KitchenOrderDto } from '@mdh/types';
 import { KitchenTimer } from './kitchen-timer';
 import { PriorityBadge } from './priority-badge';
 import { MapPin, Phone, CreditCard } from 'lucide-react';
@@ -17,10 +17,10 @@ interface KitchenOrderDrawerProps {
 }
 
 const ITEM_STATUSES = [
-  'WAITING',
-  'PREPARING',
-  'READY',
-] as const satisfies readonly KitchenItemStatus[];
+  KitchenItemStatus.WAITING,
+  KitchenItemStatus.PREPARING,
+  KitchenItemStatus.READY,
+] as const;
 
 export function KitchenOrderDrawer({
   order,

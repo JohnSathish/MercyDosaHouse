@@ -143,7 +143,7 @@ function DashboardInner() {
         return (
           <AddressesPanel
             addresses={addresses}
-            defaultContactName={userName}
+            defaultContactName={userName ?? undefined}
             defaultMobile={profile?.phone ?? storedUser?.phone ?? undefined}
           />
         );

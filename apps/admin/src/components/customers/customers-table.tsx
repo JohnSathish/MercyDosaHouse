@@ -12,7 +12,7 @@ import {
 } from '@tanstack/react-table';
 import { Badge, Button, cn } from '@mdh/ui';
 import { formatCurrency } from '@mdh/utils';
-import type { CustomerListItemDto } from '@mdh/types';
+import type { CustomerDetailDto, CustomerListItemDto } from '@mdh/types';
 import { LoyaltyTier } from '@mdh/types';
 import { api } from '@/lib/api';
 import { CustomerDrawer } from './customer-drawer';
@@ -68,7 +68,7 @@ export function CustomersTable({ customers, onRefresh }: CustomersTableProps) {
 
   const { data: customerDetail } = useQuery({
     queryKey: ['customer-detail', selectedId],
-    queryFn: () => api.get(`/customers/${selectedId}`),
+    queryFn: () => api.get<CustomerDetailDto>(`/customers/${selectedId}`),
     enabled: !!selectedId && drawerOpen,
   });
 

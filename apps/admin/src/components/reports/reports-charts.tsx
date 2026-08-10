@@ -47,7 +47,7 @@ export function RevenueByHourChart({ data }: { data: SalesAnalyticsDto['byHour']
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
           <XAxis dataKey="label" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `₹${v}`} />
-          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+          <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
           <Area
             type="monotone"
             dataKey="revenue"
@@ -71,7 +71,9 @@ export function RevenueByDayChart({ data }: { data: SalesAnalyticsDto['byDay'] }
           <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(d) => d.slice(5)} />
           <YAxis tick={{ fontSize: 10 }} />
           <Tooltip
-            formatter={(v: number, name: string) => (name === 'revenue' ? formatCurrency(v) : v)}
+            formatter={(v, name) =>
+              name === 'revenue' ? formatCurrency(Number(v ?? 0)) : Number(v ?? 0)
+            }
           />
           <Bar dataKey="revenue" fill="#14532D" radius={[4, 4, 0, 0]} />
           <Bar dataKey="orders" fill="#059669" radius={[4, 4, 0, 0]} />
@@ -118,7 +120,7 @@ export function PaymentChart({ data }: { data: PaymentAnalyticsDto[] }) {
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
           <XAxis type="number" tick={{ fontSize: 10 }} />
           <YAxis type="category" dataKey="method" tick={{ fontSize: 10 }} width={60} />
-          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+          <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
           <Bar dataKey="amount" fill="#14532D" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -135,7 +137,7 @@ export function CategoryRevenueChart({ data }: { data: ReportsCategoryAnalyticsD
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
           <XAxis dataKey="name" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} />
-          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+          <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
           <Bar dataKey="revenue" fill="#14532D" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
