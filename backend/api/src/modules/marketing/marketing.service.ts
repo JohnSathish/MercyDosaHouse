@@ -188,7 +188,7 @@ export class MarketingService {
     return this.mapDeliveryConfig(saved);
   }
 
-  async checkDeliveryArea(address: string) {
+  async checkDeliveryArea(address: string, pincode?: string) {
     const config = await this.getDeliveryConfig();
     if (!config) {
       return {
@@ -223,8 +223,25 @@ export class MarketingService {
       };
     }
 
-    const normalized = address.toLowerCase();
-    const matched = config.areas.find((area) => normalized.includes(area.toLowerCase()));
+    const resolvedPincode = this.extractPincode(address, pincode);
+    const defaultTuraPincodes = ['794101', '794001', '794002'];
+    const configuredPincodes = config.pincodes ?? [];
+    const allowedPincodes =
+      configuredPincodes.length > 0 ? configuredPincodes : defaultTuraPincodes;
+
+    if (resolvedPincode && allowedPincodes.includes(resolvedPincode)) {
+      return {
+        available: true,
+        matchedArea: resolvedPincode,
+        status: config.status,
+        message: config.message ?? `Home delivery is available for pincode ${resolvedPincode}.`,
+        expansionMessage: config.expansionMessage,
+        orderWindow: this.formatWindow(config.orderStartTime, config.orderEndTime),
+        deliveryWindow: this.formatWindow(config.deliveryStartTime, config.deliveryEndTime),
+      };
+    }
+
+    const matched = config.areas.find((area) => this.matchesDeliveryArea(address, area));
 
     return {
       available: Boolean(matched),
@@ -232,12 +249,45 @@ export class MarketingService {
       status: config.status,
       message: matched
         ? (config.message ?? `Home delivery is available in ${matched}.`)
-        : (config.message ??
-          'Home delivery is currently unavailable in your area. We are expanding our delivery service across Tura soon.'),
+        : resolvedPincode
+          ? `Pincode ${resolvedPincode} is outside our current delivery zone. We deliver to ${config.areas.slice(0, 2).join(' and ')} (pincodes: ${allowedPincodes.join(', ')}).`
+          : `We couldn't confirm delivery to this address. We currently deliver to ${config.areas.slice(0, 2).join(' and ')} — please include your area name or a valid pincode.`,
       expansionMessage: config.expansionMessage,
-      orderWindow: this.formatWindow(config.orderStartTime, config.orderEndTime),
-      deliveryWindow: this.formatWindow(config.deliveryStartTime, config.deliveryEndTime),
+      orderWindow: matched
+        ? this.formatWindow(config.orderStartTime, config.orderEndTime)
+        : undefined,
+      deliveryWindow: matched
+        ? this.formatWindow(config.deliveryStartTime, config.deliveryEndTime)
+        : undefined,
     };
+  }
+
+  private extractPincode(address: string, pincode?: string): string | null {
+    const fromParam = pincode?.replace(/\D/g, '').slice(0, 6);
+    if (fromParam?.length === 6) return fromParam;
+    const fromText = address.match(/\b(\d{6})\b/)?.[1];
+    return fromText ?? null;
+  }
+
+  private normalizeForAreaMatch(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  private matchesDeliveryArea(address: string, area: string): boolean {
+    const norm = this.normalizeForAreaMatch(address);
+    const areaNorm = this.normalizeForAreaMatch(area);
+    if (!norm || !areaNorm) return false;
+    if (norm.includes(areaNorm) || areaNorm.includes(norm)) return true;
+
+    const variants: Record<string, string[]> = {
+      walbakgre: ['walbagre', 'walbakgre', 'walbakgrearea'],
+      walbagre: ['walbakgre', 'walbagre'],
+      holycrosshospitalarea: ['holycrosshospital', 'holycross', 'holycrosshospitalarea'],
+      holycrosshospital: ['holycross', 'holy cross hospital', 'hospital area'],
+    };
+
+    const aliases = variants[areaNorm] ?? [];
+    return aliases.some((alias) => norm.includes(this.normalizeForAreaMatch(alias)));
   }
 
   async trackEvent(body: {
@@ -496,6 +546,7 @@ export class MarketingService {
     id: string;
     status: string;
     areas: string[];
+    pincodes?: string[];
     orderStartTime?: string | null;
     orderEndTime?: string | null;
     deliveryStartTime?: string | null;
@@ -511,6 +562,7 @@ export class MarketingService {
       id: c.id,
       status: c.status,
       areas: c.areas,
+      pincodes: c.pincodes ?? [],
       orderStartTime: c.orderStartTime,
       orderEndTime: c.orderEndTime,
       deliveryStartTime: c.deliveryStartTime,

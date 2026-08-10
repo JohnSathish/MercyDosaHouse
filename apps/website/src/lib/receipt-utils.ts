@@ -118,19 +118,20 @@ function estimateReceiptPageHeight(order: OrderDto): number {
   return Math.ceil(Math.max(y, 130));
 }
 
-export async function generateReceiptPdf(
+async function buildReceiptPdfDocument(
   order: OrderDto,
   settings?: Pick<
     BusinessSettingsDto,
     'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
   >,
   qrDataUrl?: string,
-): Promise<Blob> {
+) {
   const qr = qrDataUrl ?? (await generateQrDataUrl(getReceiptQrPayload(order, settings)));
   const logoDataUrl = await loadReceiptLogoDataUrl();
   const businessName = settings?.businessName || BRAND.name;
   const tagline = settings?.tagline || 'Freshly Made South Indian Food';
   const phone = settings?.phone || order.customerPhone;
+  const hasLogo = Boolean(logoDataUrl?.startsWith('data:image/'));
 
   const lineHeight = 4.2;
   const pageHeight = estimateReceiptPageHeight(order);
@@ -145,19 +146,19 @@ export async function generateReceiptPdf(
   doc.rect(0, 0, 80, 22, 'F');
   doc.setTextColor(255, 255, 255);
 
-  if (logoDataUrl) {
+  if (hasLogo && logoDataUrl) {
     doc.addImage(logoDataUrl, 'PNG', left, 3, 14, 14);
   }
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(businessName, logoDataUrl ? left + 17 : center, y + 4, {
-    align: logoDataUrl ? 'left' : 'center',
+  doc.text(businessName, hasLogo ? left + 17 : center, y + 4, {
+    align: hasLogo ? 'left' : 'center',
   });
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.text(tagline, logoDataUrl ? left + 17 : center, y + 9, {
-    align: logoDataUrl ? 'left' : 'center',
+  doc.text(tagline, hasLogo ? left + 17 : center, y + 9, {
+    align: hasLogo ? 'left' : 'center',
   });
 
   y = 26;
@@ -246,7 +247,48 @@ export async function generateReceiptPdf(
   doc.setFont('helvetica', 'normal');
   doc.text(phone, center, y, { align: 'center' });
 
-  return doc.output('blob');
+  doc.setProperties({
+    title: `Receipt ${order.orderNumber}`,
+    subject: 'Order Receipt',
+    creator: businessName,
+  });
+
+  return doc;
+}
+
+export async function generateReceiptPdf(
+  order: OrderDto,
+  settings?: Pick<
+    BusinessSettingsDto,
+    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
+  >,
+  qrDataUrl?: string,
+): Promise<Blob> {
+  const doc = await buildReceiptPdfDocument(order, settings, qrDataUrl);
+  const buffer = doc.output('arraybuffer');
+  return new Blob([buffer], { type: 'application/pdf' });
+}
+
+function receiptPdfFilename(orderNumber: string) {
+  return `${orderNumber}-receipt.pdf`;
+}
+
+/** Open receipt in a new browser tab (blob URL — avoids file:// viewer errors). */
+export async function openReceiptPdf(
+  order: OrderDto,
+  settings?: Pick<
+    BusinessSettingsDto,
+    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
+  >,
+) {
+  const blob = await generateReceiptPdf(order, settings);
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    URL.revokeObjectURL(url);
+    throw new Error('Pop-up blocked. Allow pop-ups to view the receipt PDF.');
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
 }
 
 export async function downloadReceiptPdf(
@@ -256,13 +298,8 @@ export async function downloadReceiptPdf(
     'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
   >,
 ) {
-  const blob = await generateReceiptPdf(order, settings);
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${order.orderNumber}-receipt.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const doc = await buildReceiptPdfDocument(order, settings);
+  doc.save(receiptPdfFilename(order.orderNumber));
 }
 
 export async function shareReceipt(order: OrderDto) {

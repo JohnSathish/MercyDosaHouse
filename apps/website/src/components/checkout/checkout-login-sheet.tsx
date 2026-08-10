@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowRight, Lock, Smartphone } from 'lucide-react';
 import { Button, Input, Label } from '@mdh/ui';
 import { sendOtp, verifyOtp, isCustomer } from '@mdh/auth-client';
 import { API_URL } from '@/lib/api';
+import { clearUserSessionQueries } from '@/lib/auth-queries';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 function OtpInput({
@@ -56,6 +58,7 @@ export function CheckoutLoginSheet({
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -87,6 +90,7 @@ export function CheckoutLoginSheet({
         setError('Please use a customer account');
         return;
       }
+      clearUserSessionQueries(queryClient);
       onOpenChange(false);
       onSuccess();
     } catch (err) {

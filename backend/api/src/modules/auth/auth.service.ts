@@ -69,11 +69,36 @@ export class AuthService {
     return process.env.OTP_DEMO_MODE === 'true';
   }
 
-  async sendOtp(phone: string) {
-    const normalized = phone.replace(/\s/g, '');
-    if (!/^\+?[0-9]{10,13}$/.test(normalized)) {
+  /** Normalize to 10-digit Indian mobile — avoids duplicate accounts for +91/91/10-digit variants. */
+  private normalizePhone(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    const normalized = digits.length >= 10 ? digits.slice(-10) : digits;
+    if (!/^[6-9]\d{9}$/.test(normalized)) {
       throw new BadRequestException('Invalid phone number');
     }
+    return normalized;
+  }
+
+  private userInclude() {
+    return {
+      role: {
+        include: { permissions: { include: { permission: true } } },
+      },
+    } as const;
+  }
+
+  private async findUserByPhone(phone: string) {
+    const normalized = this.normalizePhone(phone);
+    return this.prisma.user.findFirst({
+      where: {
+        OR: [{ phone: normalized }, { phone: `+91${normalized}` }, { phone: `91${normalized}` }],
+      },
+      include: this.userInclude(),
+    });
+  }
+
+  async sendOtp(phone: string) {
+    const normalized = this.normalizePhone(phone);
 
     const isProd = process.env.NODE_ENV === 'production';
     const demoMode = this.isDemoOtpMode();
@@ -126,7 +151,7 @@ export class AuthService {
   }
 
   async verifyOtp(phone: string, otp: string) {
-    const normalized = phone.replace(/\s/g, '');
+    const normalized = this.normalizePhone(phone);
     let storedOtp: string | null = null;
     if (this.redis) {
       storedOtp = await this.redis.get(`otp:${normalized}`);
@@ -147,14 +172,7 @@ export class AuthService {
 
     if (this.redis) await this.redis.del(`otp:${normalized}`);
 
-    let user = await this.prisma.user.findUnique({
-      where: { phone: normalized },
-      include: {
-        role: {
-          include: { permissions: { include: { permission: true } } },
-        },
-      },
-    });
+    let user = await this.findUserByPhone(normalized);
 
     if (!user) {
       const customerRole = await this.prisma.role.findUnique({
@@ -166,11 +184,13 @@ export class AuthService {
           name: `Customer ${normalized.slice(-4)}`,
           roleId: customerRole?.id,
         },
-        include: {
-          role: {
-            include: { permissions: { include: { permission: true } } },
-          },
-        },
+        include: this.userInclude(),
+      });
+    } else if (user.phone !== normalized) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { phone: normalized },
+        include: this.userInclude(),
       });
     }
 

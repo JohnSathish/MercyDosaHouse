@@ -74,7 +74,7 @@ services:
       - '${MDH_WEBSITE_PORT:-13000}:3000'
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
 
   admin:
     build:
@@ -95,10 +95,10 @@ services:
       NEXT_PUBLIC_WEBSITE_URL: ${NEXT_PUBLIC_WEBSITE_URL:-https://mercydosahouse.com}
       NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-https://admin.mercydosahouse.com}
     ports:
-      - '127.0.0.1:${MDH_ADMIN_PORT:-13002}:3002'
+      - '${MDH_ADMIN_PORT:-13002}:3002'
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
 
 volumes:
   mdh_pg:

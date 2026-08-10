@@ -55,6 +55,7 @@ import {
 import { useCartStore } from '@/lib/cart-store';
 import { useCheckoutStore } from '@/lib/checkout-store';
 import { api } from '@/lib/api';
+import { userQueryKey, clearUserSessionQueries } from '@/lib/auth-queries';
 import { useToastStore } from '@/lib/toast-store';
 import { saveLastOrder } from '@/lib/last-order';
 import { CheckoutLoginSheet } from './checkout-login-sheet';
@@ -134,6 +135,7 @@ export function CheckoutPageClient() {
 
   const session = useCheckoutStore();
   const [authed, setAuthed] = useState(false);
+  const checkoutUserId = authed ? getStoredUser()?.id : undefined;
   const [loginOpen, setLoginOpen] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<AddressDto | null>(null);
@@ -155,7 +157,7 @@ export function CheckoutPageClient() {
   });
 
   const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ['checkout-profile'],
+    queryKey: userQueryKey('checkout-profile', checkoutUserId),
     queryFn: () => api.get<CheckoutProfileDto>('/users/me/checkout-profile'),
     enabled: authed,
     staleTime: 60_000,
@@ -269,8 +271,10 @@ export function CheckoutPageClient() {
       setDeliveryCheck(null);
       return;
     }
-    const text = [addr.line1, addr.line2, addr.landmark, addr.city].filter(Boolean).join(' ');
-    checkDeliveryArea(text).then((result) => {
+    const text = [addr.line1, addr.line2, addr.landmark, addr.city || 'Tura', addr.pincode]
+      .filter(Boolean)
+      .join(' ');
+    checkDeliveryArea(text, addr.pincode).then((result) => {
       setDeliveryCheck(result);
       if (!result.available) setDeliveryPopupOpen(true);
     });
@@ -357,10 +361,27 @@ export function CheckoutPageClient() {
     }
   }
 
-  async function saveAddress(values: Record<string, unknown>) {
+  async function saveAddress(values: Record<string, unknown>, addressId?: string) {
     try {
-      if (editingAddress?.id) {
-        await api.patch(`/users/me/addresses/${editingAddress.id}`, values);
+      if (addressId) {
+        try {
+          await api.patch(`/users/me/addresses/${addressId}`, values);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : '';
+          if (message.includes('Address not found')) {
+            const created = await api.post<AddressDto>('/users/me/addresses', {
+              ...values,
+              isDefault: profile?.addresses.length === 0,
+            });
+            if (created.id) session.setSelectedAddressId(created.id);
+            queryClient.invalidateQueries({ queryKey: ['checkout-profile'] });
+            setAddressDialogOpen(false);
+            setEditingAddress(null);
+            toast('Address saved as new — please refresh if you still see old entries.');
+            return;
+          }
+          throw err;
+        }
       } else {
         const created = await api.post<AddressDto>('/users/me/addresses', {
           ...values,
@@ -438,11 +459,25 @@ export function CheckoutPageClient() {
       };
     } else if (session.guestAddressDraft?.line1) {
       const g = session.guestAddressDraft;
+      if (!g.pincode || g.pincode.replace(/\D/g, '').length !== 6) {
+        toast('Please enter a valid 6-digit pincode');
+        return;
+      }
+      if (!g.mobileNumber || g.mobileNumber.replace(/\D/g, '').length < 10) {
+        toast('Please enter a valid mobile number');
+        return;
+      }
       customerName = resolveCheckoutCustomerName(g.contactName, user?.name);
       payload = {
         customerName,
-        customerPhone: g.mobileNumber || user?.phone || '',
-        address: g,
+        customerPhone: g.mobileNumber.replace(/\D/g, '').slice(-10),
+        address: {
+          ...g,
+          city: g.city || 'Tura',
+          state: g.state || 'Meghalaya',
+          pincode: g.pincode.replace(/\D/g, '').slice(0, 6),
+          mobileNumber: g.mobileNumber.replace(/\D/g, '').slice(-10),
+        },
         paymentMethod: session.paymentMethod,
         couponCode,
         scheduledDeliveryAt: buildScheduledIso(),
@@ -647,7 +682,16 @@ export function CheckoutPageClient() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setShowGuestForm(true)}
+                      onClick={() => {
+                        setShowGuestForm(true);
+                        if (!session.guestAddressDraft) {
+                          session.setGuestAddressDraft({
+                            city: 'Tura',
+                            state: 'Meghalaya',
+                            country: 'India',
+                          });
+                        }
+                      }}
                       className="rounded-xl"
                     >
                       Enter address
@@ -969,7 +1013,7 @@ export function CheckoutPageClient() {
         onOpenChange={setLoginOpen}
         onSuccess={() => {
           setAuthed(true);
-          queryClient.invalidateQueries({ queryKey: ['checkout-profile'] });
+          clearUserSessionQueries(queryClient);
         }}
       />
       <DeliveryPopupTrigger
@@ -1096,14 +1140,16 @@ function GuestAddressForm({
         <input
           className="rounded-xl border px-3 py-2 text-sm"
           placeholder="City *"
-          value={d.city ?? ''}
+          value={d.city ?? 'Tura'}
           onChange={(e) => set('city', e.target.value)}
         />
         <input
           className="rounded-xl border px-3 py-2 text-sm"
           placeholder="Pincode *"
+          inputMode="numeric"
+          maxLength={6}
           value={d.pincode ?? ''}
-          onChange={(e) => set('pincode', e.target.value)}
+          onChange={(e) => set('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
         />
       </div>
     </div>

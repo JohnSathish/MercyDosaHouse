@@ -64,8 +64,10 @@ export async function dismissAnnouncement(announcementId: string) {
   }
 }
 
-export async function checkDeliveryArea(address: string) {
+export async function checkDeliveryArea(address: string, pincode?: string) {
   try {
+    const params = new URLSearchParams({ address });
+    if (pincode) params.set('pincode', pincode.replace(/\D/g, '').slice(0, 6));
     return await api.get<{
       available: boolean;
       matchedArea?: string | null;
@@ -74,7 +76,7 @@ export async function checkDeliveryArea(address: string) {
       expansionMessage?: string | null;
       orderWindow?: string | null;
       deliveryWindow?: string | null;
-    }>(`/marketing/delivery/check?address=${encodeURIComponent(address)}`);
+    }>(`/marketing/delivery/check?${params.toString()}`);
   } catch {
     return { available: true, status: 'AVAILABLE', message: 'Delivery check unavailable.' };
   }

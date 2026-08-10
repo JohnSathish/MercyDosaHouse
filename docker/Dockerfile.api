@@ -29,4 +29,4 @@ RUN find prisma/migrations -name 'migration.sql' -exec sed -i '1s/^\xEF\xBB\xBF/
 RUN mkdir -p /app/uploads
 
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy && if [ \"$RUN_SEED\" = \"true\" ]; then echo 'Running seed...' && node prisma/seed.js; else echo 'Skipping seed (set RUN_SEED=true for first deploy only)'; fi && node dist/main.js"]
+CMD ["sh", "-c", "echo '=== MDH API startup ===' && npx prisma migrate deploy && if [ \"$RUN_SEED\" = \"true\" ]; then echo 'Running seed...' && node prisma/seed.js; else echo 'Skipping seed'; fi && exec node dist/main.js"]

@@ -1001,11 +1001,27 @@ async function main() {
   const deliveryConfigId = '00000000-0000-0000-0000-0000000000dc';
   await prisma.deliveryConfig.upsert({
     where: { id: deliveryConfigId },
-    update: {},
+    update: {
+      status: 'LIMITED_AREA',
+      areas: ['Walbakgre', 'Walbagre', 'Holy Cross Hospital Area', 'Holy Cross Hospital'],
+      pincodes: ['794101', '794001', '794002'],
+      orderStartTime: '15:00',
+      orderEndTime: '16:00',
+      deliveryStartTime: '17:30',
+      deliveryEndTime: '18:00',
+      deliveryCharge: 30,
+      freeDeliveryThreshold: 299,
+      minOrderAmount: 100,
+      message:
+        'Home delivery is currently available in the Walbakgre and Holy Cross Hospital areas.',
+      expansionMessage: 'Coming soon to all areas of Tura!',
+      isActive: true,
+    },
     create: {
       id: deliveryConfigId,
       status: 'LIMITED_AREA',
-      areas: ['Walbakgre', 'Holy Cross Hospital Area'],
+      areas: ['Walbakgre', 'Walbagre', 'Holy Cross Hospital Area', 'Holy Cross Hospital'],
+      pincodes: ['794101', '794001', '794002'],
       orderStartTime: '15:00',
       orderEndTime: '16:00',
       deliveryStartTime: '17:30',

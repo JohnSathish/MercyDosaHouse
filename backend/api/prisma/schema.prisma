@@ -1337,6 +1337,7 @@ model DeliveryConfig {
   id                    String                     @id @default(uuid())
   status                DeliveryAvailabilityStatus @default(LIMITED_AREA)
   areas                 String[]                   @default([])
+  pincodes              String[]                   @default([])
   orderStartTime        String?
   orderEndTime          String?
   deliveryStartTime     String?

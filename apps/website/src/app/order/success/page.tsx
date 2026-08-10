@@ -8,11 +8,16 @@ import { motion } from 'framer-motion';
 import { Button, Card, CardContent, cn } from '@mdh/ui';
 import { formatCurrency, PAYMENT_METHOD_LABELS, ORDER_STATUS_LABELS } from '@mdh/utils';
 import type { OrderDto, BusinessSettingsDto } from '@mdh/types';
-import { CheckCircle2, Download, Home, Printer, Share2, Truck } from 'lucide-react';
+import { CheckCircle2, Download, ExternalLink, Home, Printer, Share2, Truck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { OrderReceipt } from '@/components/receipt/order-receipt';
 import { loadLastOrder } from '@/lib/last-order';
-import { downloadReceiptPdf, printReceipt, shareReceipt } from '@/lib/receipt-utils';
+import {
+  downloadReceiptPdf,
+  openReceiptPdf,
+  printReceipt,
+  shareReceipt,
+} from '@/lib/receipt-utils';
 import { useToastStore } from '@/lib/toast-store';
 
 function OrderSuccessFallback() {
@@ -111,6 +116,14 @@ function OrderSuccessContent() {
     }
   };
 
+  const handleViewPdf = async () => {
+    try {
+      await openReceiptPdf(order, settings);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : '❌ Unable to open receipt PDF.');
+    }
+  };
+
   const handleShare = async () => {
     try {
       await shareReceipt(order);
@@ -166,7 +179,7 @@ function OrderSuccessContent() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
         <Link
           href={`/track/${order.orderNumber}`}
           className={cn(
@@ -177,15 +190,19 @@ function OrderSuccessContent() {
           <Truck className="w-4 h-4" />
           Track Order
         </Link>
+        <Button onClick={handleViewPdf} variant="outline" className="gap-2">
+          <ExternalLink className="w-4 h-4" />
+          View PDF
+        </Button>
         <Button onClick={handleDownload} variant="outline" className="gap-2">
           <Download className="w-4 h-4" />
-          Download Receipt
+          Download PDF
         </Button>
         <Button onClick={() => printReceipt('order-receipt')} variant="outline" className="gap-2">
           <Printer className="w-4 h-4" />
           Print Receipt
         </Button>
-        <Button onClick={handleShare} variant="outline" className="gap-2 sm:col-span-3">
+        <Button onClick={handleShare} variant="outline" className="gap-2 sm:col-span-2">
           <Share2 className="w-4 h-4" />
           Share Receipt
         </Button>

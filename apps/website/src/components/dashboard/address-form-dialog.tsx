@@ -9,6 +9,7 @@ import type { AddressDto, DeliveryPincodeCheckDto } from '@mdh/types';
 import { z } from 'zod';
 import { Loader2, MapPin, Navigation, CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useToastStore } from '@/lib/toast-store';
 import {
   ADDRESS_LABEL_CHIPS,
   INDIAN_STATES,
@@ -28,7 +29,7 @@ type AddressFormValues = z.infer<typeof formSchema>;
 interface AddressFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: AddressFormValues) => Promise<void>;
+  onSubmit: (values: AddressFormValues, addressId?: string) => Promise<void>;
   loading?: boolean;
   initialValues?: AddressDto | null;
   defaultContactName?: string;
@@ -69,6 +70,7 @@ export function AddressFormDialog({
   defaultContactName,
   defaultMobile,
 }: AddressFormDialogProps) {
+  const toast = useToastStore((s) => s.show);
   const [locating, setLocating] = useState(false);
   const [pincodeCheck, setPincodeCheck] = useState<DeliveryPincodeCheckDto | null>(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
@@ -106,8 +108,8 @@ export function AddressFormDialog({
               state: initialValues.state || 'Meghalaya',
               pincode: initialValues.pincode,
               country: initialValues.country || 'India',
-              latitude: initialValues.latitude,
-              longitude: initialValues.longitude,
+              latitude: initialValues.latitude ?? undefined,
+              longitude: initialValues.longitude ?? undefined,
               deliveryNotes: initialValues.deliveryNotes || '',
               addressType: initialValues.addressType || AddressType.HOME,
               isDefault: initialValues.isDefault || false,
@@ -206,12 +208,17 @@ export function AddressFormDialog({
 
         <form
           className="mt-2 space-y-4"
-          onSubmit={handleSubmit(async (values) => {
-            await onSubmit({
-              ...values,
-              mobileNumber: values.mobileNumber.replace(/\D/g, '').slice(-10),
-            });
-          })}
+          onSubmit={handleSubmit(
+            async (values) => {
+              await onSubmit(values, initialValues?.id);
+            },
+            (invalid) => {
+              const firstError = Object.values(invalid)[0]?.message;
+              if (typeof firstError === 'string') {
+                toast(firstError);
+              }
+            },
+          )}
         >
           <div>
             <FieldLabel icon="👤">Contact Person Name *</FieldLabel>
@@ -425,10 +432,21 @@ export function AddressFormDialog({
             </p>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-            <input type="checkbox" className="rounded border-gray-300" {...register('isDefault')} />
-            ☑ Make this my default address
-          </label>
+          <Controller
+            name="isDefault"
+            control={control}
+            render={({ field }) => (
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={!!field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+                ☑ Make this my default address
+              </label>
+            )}
+          />
 
           <div className="flex gap-3 justify-end pt-2 border-t">
             <Button

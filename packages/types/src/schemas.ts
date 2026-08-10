@@ -1,7 +1,31 @@
 import { z } from 'zod';
 import { FoodType, PaymentMethod, SpiceLevel, AddressType } from './enums';
 
-const mobileSchema = z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number');
+const normalizeMobile = (value: unknown) =>
+  typeof value === 'string' ? value.replace(/\D/g, '').slice(-10) : value;
+
+const mobileSchema = z.preprocess(
+  normalizeMobile,
+  z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'),
+);
+
+const optionalString = z.preprocess(
+  (value) => (value === null || value === undefined ? undefined : String(value)),
+  z.string().optional(),
+);
+
+const optionalNumber = z.preprocess(
+  (value) =>
+    value === null || value === '' || (typeof value === 'number' && Number.isNaN(value))
+      ? undefined
+      : value,
+  z.number().optional(),
+);
+
+const pincodeSchema = z.preprocess(
+  (value) => (typeof value === 'string' ? value.replace(/\D/g, '').slice(0, 6) : value),
+  z.string().regex(/^\d{6}$/, 'Enter a valid 6-digit pincode'),
+);
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -20,19 +44,25 @@ export const otpVerifySchema = z.object({
 export const addressSchema = z.object({
   contactName: z.string().min(2, 'Contact person name is required'),
   mobileNumber: mobileSchema,
-  label: z.string().optional(),
+  label: optionalString,
   line1: z.string().min(3, 'Address line 1 is required'),
-  line2: z.string().optional(),
-  landmark: z.string().optional(),
+  line2: optionalString,
+  landmark: optionalString,
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
-  pincode: z.string().regex(/^\d{6}$/, 'Enter a valid 6-digit pincode'),
-  country: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  deliveryNotes: z.string().max(500).optional(),
+  pincode: pincodeSchema,
+  country: optionalString,
+  latitude: optionalNumber,
+  longitude: optionalNumber,
+  deliveryNotes: z.preprocess(
+    (value) => (value === null || value === undefined ? undefined : String(value)),
+    z.string().max(500).optional(),
+  ),
   addressType: z.nativeEnum(AddressType).optional(),
-  isDefault: z.boolean().optional(),
+  isDefault: z.preprocess(
+    (value) => value === true || value === 'true' || value === 'on',
+    z.boolean().optional(),
+  ),
 });
 
 export const createOrderSchema = z.object({

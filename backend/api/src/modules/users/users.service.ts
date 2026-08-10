@@ -128,25 +128,29 @@ export class UsersService {
       });
     }
 
+    const updateData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(clean)) {
+      if (value !== undefined) updateData[key] = value;
+    }
+
+    if (
+      updateData.contactName !== undefined &&
+      typeof updateData.contactName === 'string' &&
+      !updateData.contactName
+    ) {
+      throw new BadRequestException('Contact name is required');
+    }
+    if (
+      updateData.mobileNumber !== undefined &&
+      typeof updateData.mobileNumber === 'string' &&
+      !updateData.mobileNumber
+    ) {
+      throw new BadRequestException('Mobile number is required');
+    }
+
     return this.prisma.address.update({
       where: { id: addressId },
-      data: {
-        contactName: clean.contactName,
-        mobileNumber: clean.mobileNumber,
-        label: clean.label,
-        line1: clean.line1,
-        line2: clean.line2,
-        landmark: clean.landmark,
-        city: clean.city,
-        state: clean.state,
-        pincode: clean.pincode,
-        country: clean.country,
-        latitude: clean.latitude,
-        longitude: clean.longitude,
-        deliveryNotes: clean.deliveryNotes,
-        addressType: clean.addressType,
-        isDefault: clean.isDefault,
-      },
+      data: updateData,
     });
   }
 

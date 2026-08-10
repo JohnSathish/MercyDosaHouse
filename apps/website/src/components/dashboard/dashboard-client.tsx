@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { Button } from '@mdh/ui';
@@ -15,6 +15,7 @@ import {
 } from '@mdh/auth-client';
 import { api, API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
+import { clearUserSessionQueries, userQueryKey } from '@/lib/auth-queries';
 import { useToastStore } from '@/lib/toast-store';
 import type { OrderDto, ProductDto, AddressDto } from '@mdh/types';
 import { DashboardSidebar } from './dashboard-sidebar';
@@ -45,6 +46,7 @@ const SECTION_TITLES: Record<DashboardSection, string> = {
 function DashboardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const tab = (searchParams.get('tab') as DashboardSection) || 'dashboard';
   const [section, setSection] = useState<DashboardSection>(tab);
   const [mounted, setMounted] = useState(false);
@@ -86,33 +88,34 @@ function DashboardInner() {
   );
 
   const authed = mounted && isAuthenticated();
+  const userId = storedUser?.id;
 
   const { data: profile } = useQuery({
-    queryKey: ['profile'],
+    queryKey: userQueryKey('profile', userId),
     queryFn: () => api.get<UserProfile>('/users/me'),
     enabled: authed,
   });
 
   const { data: orders = [] } = useQuery({
-    queryKey: ['my-orders'],
+    queryKey: userQueryKey('my-orders', userId),
     queryFn: () => api.get<OrderDto[]>('/users/me/orders'),
     enabled: authed,
   });
 
   const { data: favorites = [] } = useQuery({
-    queryKey: ['my-favorites'],
+    queryKey: userQueryKey('my-favorites', userId),
     queryFn: () => api.get<ProductDto[]>('/users/me/favorites'),
     enabled: authed,
   });
 
   const { data: addresses = [] } = useQuery({
-    queryKey: ['my-addresses'],
+    queryKey: userQueryKey('my-addresses', userId),
     queryFn: () => api.get<AddressDto[]>('/users/me/addresses'),
     enabled: authed,
   });
 
   const { data: notifications = [] } = useQuery({
-    queryKey: ['notifications'],
+    queryKey: userQueryKey('notifications', userId),
     queryFn: () =>
       api.get<{ id: string; title: string; body: string; createdAt: string }[]>('/notifications'),
     enabled: authed,
@@ -125,6 +128,7 @@ function DashboardInner() {
     setLogoutLoading(true);
     try {
       await logout(API_URL);
+      clearUserSessionQueries(queryClient);
       setLogoutOpen(false);
       toast('Logged out successfully.');
       router.push('/');

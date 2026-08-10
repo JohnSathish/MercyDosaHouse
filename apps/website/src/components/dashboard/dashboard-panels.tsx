@@ -364,20 +364,34 @@ export function AddressesPanel({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const saveMutation = useMutation({
-    mutationFn: (values: Omit<AddressDto, 'id'>) => {
-      if (editingAddress?.id) {
-        return api.patch<AddressDto>(`/users/me/addresses/${editingAddress.id}`, values);
+    mutationFn: async ({
+      values,
+      addressId,
+    }: {
+      values: Omit<AddressDto, 'id'>;
+      addressId?: string;
+    }) => {
+      if (addressId) {
+        try {
+          return await api.patch<AddressDto>(`/users/me/addresses/${addressId}`, values);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : '';
+          if (message.includes('Address not found')) {
+            return api.post<AddressDto>('/users/me/addresses', values);
+          }
+          throw err;
+        }
       }
       return api.post<AddressDto>('/users/me/addresses', values);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['my-addresses'] });
       setDialogOpen(false);
-      toast(editingAddress?.id ? 'Address updated.' : 'Address saved successfully.');
+      toast(variables.addressId ? 'Address updated.' : 'Address saved successfully.');
       setEditingAddress(null);
     },
-    onError: () => {
-      toast('Could not save address. Please try again.');
+    onError: (err) => {
+      toast(err instanceof Error ? err.message : 'Could not save address. Please try again.');
     },
   });
 
@@ -492,8 +506,8 @@ export function AddressesPanel({
         initialValues={editingAddress}
         defaultContactName={defaultContactName}
         defaultMobile={defaultMobile}
-        onSubmit={async (values) => {
-          await saveMutation.mutateAsync(values);
+        onSubmit={async (values, addressId) => {
+          await saveMutation.mutateAsync({ values, addressId });
         }}
       />
     </div>

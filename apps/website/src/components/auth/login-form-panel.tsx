@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Smartphone, ArrowRight, UserRound, Lock, Shield, Zap, ChevronDown } from 'lucide-react';
@@ -9,6 +10,7 @@ import { Button, Input, Label } from '@mdh/ui';
 import { sendOtp, verifyOtp, getPostLoginRedirect, isCustomer } from '@mdh/auth-client';
 import { API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
+import { clearUserSessionQueries } from '@/lib/auth-queries';
 import { getSafeRedirect } from '@/lib/auth-redirect';
 
 function OtpInput({
@@ -68,6 +70,7 @@ const TRUST_BADGES = [
 export function LoginFormPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const redirectTo = getSafeRedirect(searchParams.get('redirect'));
   const fromCheckout = redirectTo === '/checkout';
   const [phone, setPhone] = useState('');
@@ -97,6 +100,7 @@ export function LoginFormPanel() {
     setError('');
     try {
       const { user } = await verifyOtp(API_URL, { phone, otp });
+      clearUserSessionQueries(queryClient);
       const returnPath = redirectTo && isCustomer(user) ? redirectTo : null;
       if (returnPath) {
         router.push(returnPath);

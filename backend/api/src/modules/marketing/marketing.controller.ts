@@ -16,8 +16,8 @@ export class MarketingController {
 
   @Public()
   @Get('delivery/check')
-  checkDelivery(@Query('address') address = '') {
-    return this.marketingService.checkDeliveryArea(address);
+  checkDelivery(@Query('address') address = '', @Query('pincode') pincode?: string) {
+    return this.marketingService.checkDeliveryArea(address, pincode);
   }
 
   @Public()
