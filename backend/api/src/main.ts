@@ -6,22 +6,34 @@ import helmet from 'helmet';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
+import { ProductionExceptionFilter } from './common/filters/http-exception.filter';
+import { assertProductionEnv } from './common/production-guard';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  assertProductionEnv();
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  const isProduction = process.env.NODE_ENV === 'production';
 
   const uploadDir = process.env.UPLOAD_DIR || './uploads';
   if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
   app.useStaticAssets(join(process.cwd(), uploadDir), { prefix: '/uploads/' });
 
   app.setGlobalPrefix('api/v1');
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: isProduction ? undefined : false,
+    }),
+  );
 
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
         .map((o) => o.trim())
         .filter(Boolean)
-    : true;
+    : isProduction
+      ? false
+      : true;
   app.enableCors({ origin: corsOrigins, credentials: true });
 
   app.useGlobalPipes(
@@ -32,19 +44,25 @@ async function bootstrap() {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Mercy Dosa House API')
-    .setDescription('Restaurant Ordering Platform REST API')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  app.useGlobalFilters(new ProductionExceptionFilter());
+
+  if (!isProduction) {
+    const config = new DocumentBuilder()
+      .setTitle('Mercy Dosa House API')
+      .setDescription('Restaurant Ordering Platform REST API')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = Number(process.env.API_PORT || 3001);
   const host = process.env.API_HOST || '0.0.0.0';
   await app.listen(port, host);
-  console.log(`MDH API listening on http://${host}:${port}/api/v1`);
+  console.log(
+    `MDH API listening on http://${host}:${port}/api/v1 (${process.env.NODE_ENV || 'development'})`,
+  );
 }
 
 bootstrap();

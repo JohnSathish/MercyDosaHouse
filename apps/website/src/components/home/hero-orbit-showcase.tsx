@@ -7,6 +7,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Star, Pause, Play } from 'lucide-react';
 import { HERO_MENU_ITEMS, HERO_DEFAULT_INDEX, type HeroMenuItem } from '@/lib/hero-menu-items';
 import { HeroPriceCounter } from './hero-price-counter';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const AUTO_CYCLE_MS = 4000;
 const STEP_DURATION_MS = 900;
@@ -286,7 +287,15 @@ const featuredVariants = {
   },
 };
 
-function FeaturedCard({ item, orbitTilt }: { item: HeroMenuItem; orbitTilt: number }) {
+function FeaturedCard({
+  item,
+  orbitTilt,
+  preload,
+}: {
+  item: HeroMenuItem;
+  orbitTilt: number;
+  preload?: boolean;
+}) {
   const steamIntensity = item.category === 'Biryani' || item.category === 'Breakfast' ? 1.3 : 1;
 
   return (
@@ -333,7 +342,7 @@ function FeaturedCard({ item, orbitTilt }: { item: HeroMenuItem; orbitTilt: numb
                 alt={item.name}
                 fill
                 className="object-cover group-hover:scale-[1.04] transition-transform duration-700"
-                priority
+                priority={preload}
                 sizes="320px"
               />
             </motion.div>
@@ -433,6 +442,7 @@ interface HeroOrbitShowcaseProps {
 
 export function HeroOrbitShowcase({ radius = 200 }: HeroOrbitShowcaseProps) {
   const reducedMotion = useReducedMotion();
+  const isDesktop = useMediaQuery('(min-width: 768px)');
   const [mounted, setMounted] = useState(false);
   const [orbitRotation, setOrbitRotation] = useState(
     snapRotationForIndex(HERO_DEFAULT_INDEX, ITEM_COUNT),
@@ -673,7 +683,12 @@ export function HeroOrbitShowcase({ radius = 200 }: HeroOrbitShowcaseProps) {
 
       <div className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 w-[52%]">
         <AnimatePresence mode="wait">
-          <FeaturedCard key={activeItem.id} item={activeItem} orbitTilt={orbitTilt} />
+          <FeaturedCard
+            key={activeItem.id}
+            item={activeItem}
+            orbitTilt={orbitTilt}
+            preload={isDesktop === true}
+          />
         </AnimatePresence>
       </div>
 

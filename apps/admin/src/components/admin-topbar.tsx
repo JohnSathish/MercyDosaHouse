@@ -20,6 +20,7 @@ import {
 import { Button, cn } from '@mdh/ui';
 import { logout } from '@mdh/auth-client';
 import { API_URL, QUICK_ACTIONS } from '@/lib/api';
+import { APP_URLS } from '@/lib/app-urls';
 import { ADMIN_NAV } from '@/lib/admin-nav';
 import type { AdminBrand } from '@/lib/use-admin-brand';
 import type { ThemeMode } from '@/components/admin-layout-shell';
@@ -166,6 +167,18 @@ export function AdminTopbar({
           />
         )}
       </div>
+
+      {/* Return to POS — keeps billing session in its own tab */}
+      <Link
+        href="/pos"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors shrink-0"
+        title={`Open POS terminal (${APP_URLS.pos})`}
+      >
+        <Monitor className="h-4 w-4" />
+        Return to POS
+      </Link>
 
       {/* Quick actions */}
       <div className="relative hidden sm:block">

@@ -93,22 +93,27 @@ export class ReportsService {
 
   private async aggregatePeriod(range: { start: Date; end: Date }, filters: ReportFilters) {
     const where = this.orderWhere(range, filters);
-    const [total, cancelled, preparing, delivered, revenueAgg, discountAgg] = await Promise.all([
-      this.prisma.order.count({ where: { ...where, status: { not: OrderStatus.CANCELLED } } }),
-      this.prisma.order.count({ where: { ...where, status: OrderStatus.CANCELLED } }),
-      this.prisma.order.count({
-        where: { ...where, status: { in: [OrderStatus.PREPARING, OrderStatus.ACCEPTED] } },
-      }),
-      this.prisma.order.count({ where: { ...where, status: OrderStatus.DELIVERED } }),
-      this.prisma.order.aggregate({
-        where: { ...where, status: { not: OrderStatus.CANCELLED } },
-        _sum: { grandTotal: true },
-      }),
-      this.prisma.order.aggregate({
-        where: { ...where, status: { not: OrderStatus.CANCELLED } },
-        _sum: { discount: true },
-      }),
-    ]);
+    const [total, cancelled, preparing, delivered, revenueAgg, discountAgg, packingAgg] =
+      await Promise.all([
+        this.prisma.order.count({ where: { ...where, status: { not: OrderStatus.CANCELLED } } }),
+        this.prisma.order.count({ where: { ...where, status: OrderStatus.CANCELLED } }),
+        this.prisma.order.count({
+          where: { ...where, status: { in: [OrderStatus.PREPARING, OrderStatus.ACCEPTED] } },
+        }),
+        this.prisma.order.count({ where: { ...where, status: OrderStatus.DELIVERED } }),
+        this.prisma.order.aggregate({
+          where: { ...where, status: { not: OrderStatus.CANCELLED } },
+          _sum: { grandTotal: true },
+        }),
+        this.prisma.order.aggregate({
+          where: { ...where, status: { not: OrderStatus.CANCELLED } },
+          _sum: { discount: true },
+        }),
+        this.prisma.order.aggregate({
+          where: { ...where, status: { not: OrderStatus.CANCELLED } },
+          _sum: { packingCharge: true },
+        }),
+      ]);
 
     const revenue = this.num(revenueAgg._sum.grandTotal);
     const foodCost = Math.round(revenue * 0.35);
@@ -124,6 +129,7 @@ export class ReportsService {
       preparing,
       delivered,
       discounts: this.num(discountAgg._sum.discount),
+      packingRevenue: this.num(packingAgg._sum.packingCharge),
     };
   }
 
@@ -162,6 +168,10 @@ export class ReportsService {
         preparing: current.preparing,
         delivered: current.delivered,
         satisfaction,
+        packingRevenue: current.packingRevenue,
+        packingRevenueTrend: this.trend(current.packingRevenue, previous.packingRevenue),
+        avgPackingPerOrder:
+          current.orders > 0 ? Math.round(current.packingRevenue / current.orders) : 0,
       },
       live: liveStats,
     };
@@ -461,6 +471,61 @@ export class ReportsService {
     };
   }
 
+  async getPackingAnalytics(filters: ReportFilters = {}) {
+    const range = this.getDateRange(filters);
+    const where = this.orderWhere(range, filters);
+    const notCancelled = { status: { not: OrderStatus.CANCELLED } as const };
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const [periodAgg, todayAgg, monthAgg, orderCount, topItems] = await Promise.all([
+      this.prisma.order.aggregate({
+        where: { ...where, ...notCancelled },
+        _sum: { packingCharge: true, packedItemCount: true },
+      }),
+      this.prisma.order.aggregate({
+        where: { createdAt: { gte: todayStart }, ...notCancelled },
+        _sum: { packingCharge: true },
+      }),
+      this.prisma.order.aggregate({
+        where: { createdAt: { gte: monthStart }, ...notCancelled },
+        _sum: { packingCharge: true },
+      }),
+      this.prisma.order.count({ where: { ...where, ...notCancelled } }),
+      this.prisma.orderItem.groupBy({
+        by: ['productId', 'productName'],
+        where: {
+          order: {
+            createdAt: { gte: range.start, lte: range.end },
+            status: { not: OrderStatus.CANCELLED },
+          },
+        },
+        _sum: { quantity: true, packingCharge: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+      }),
+    ]);
+
+    const totalPackingRevenue = this.num(periodAgg._sum.packingCharge);
+
+    return {
+      totalPackingRevenue,
+      packingRevenueToday: this.num(todayAgg._sum.packingCharge),
+      packingRevenueThisMonth: this.num(monthAgg._sum.packingCharge),
+      avgPackingPerOrder: orderCount > 0 ? Math.round(totalPackingRevenue / orderCount) : 0,
+      totalPackedItems: this.num(periodAgg._sum.packedItemCount),
+      topPackedItems: topItems.slice(0, 10).map((item) => ({
+        productId: item.productId,
+        name: item.productName,
+        quantity: item._sum.quantity ?? 0,
+        packingRevenue: this.num(item._sum.packingCharge),
+      })),
+    };
+  }
+
   async getInsights() {
     return [
       {
@@ -578,5 +643,30 @@ export class ReportsService {
     ].join('\n');
     const productRows = products.map((p) => `"${p.name}",${p.quantity},${p.revenue}`).join('\n');
     return `${header}${rows}\n\nProduct,Qty,Revenue\n${productRows}`;
+  }
+
+  async getPosReports(period: 'today' | 'week' | 'month' = 'today') {
+    const start = new Date();
+    if (period === 'today') start.setHours(0, 0, 0, 0);
+    else if (period === 'week') start.setDate(start.getDate() - 7);
+    else start.setMonth(start.getMonth() - 1);
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        orderSource: 'POS',
+        createdAt: { gte: start },
+        billStatus: 'SETTLED',
+      },
+      include: { cashier: true, posTable: true, posDiscounts: true },
+    });
+
+    return {
+      totalSales: orders.reduce((s, o) => s + this.num(o.grandTotal), 0),
+      orderCount: orders.length,
+      totalDiscount: orders.reduce((s, o) => s + this.num(o.discount), 0),
+      avgBill: orders.length
+        ? Math.round(orders.reduce((s, o) => s + this.num(o.grandTotal), 0) / orders.length)
+        : 0,
+    };
   }
 }

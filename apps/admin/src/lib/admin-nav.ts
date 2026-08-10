@@ -4,6 +4,7 @@ import {
   ShoppingBag,
   ChefHat,
   Truck,
+  Monitor,
   UtensilsCrossed,
   Layers,
   Package,
@@ -27,6 +28,7 @@ import {
   Shield,
   Sparkles,
   Settings,
+  Smartphone,
 } from 'lucide-react';
 
 export interface AdminNavItem {
@@ -49,6 +51,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/orders', label: 'Orders', icon: ShoppingBag },
       { href: '/kitchen', label: 'Kitchen Display', icon: ChefHat, badge: 'KDS' },
       { href: '/delivery', label: 'Delivery', icon: Truck, badge: 'DMS' },
+      { href: '/pos', label: 'Restaurant POS', icon: Monitor, badge: 'POS' },
     ],
   },
   {
@@ -64,7 +67,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     title: 'Customers & Growth',
     items: [
       { href: '/customers', label: 'Customers', icon: Users },
-      { href: '/marketing', label: 'Marketing', icon: Megaphone },
+      { href: '/marketing', label: 'Announcements & Promotions', icon: Megaphone },
       { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     ],
   },
@@ -82,6 +85,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/cms/announcements', label: 'Announcements', icon: Bell },
       { href: '/cms/theme', label: 'Theme Builder', icon: Palette },
       { href: '/cms/seo', label: 'SEO Manager', icon: Search },
+      { href: '/cms/mobile', label: 'Mobile App', icon: Smartphone, badge: 'App' },
     ],
   },
   {

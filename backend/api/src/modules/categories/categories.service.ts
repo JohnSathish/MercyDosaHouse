@@ -104,11 +104,26 @@ export class CategoriesService {
   }
 
   /** Public API — lightweight list */
-  findAll(activeOnly = false) {
+  findAll(activeOnly = false, channel?: string) {
+    const where: {
+      isActive?: boolean;
+      status?: typeof CategoryStatus.PUBLISHED;
+      showOnWebsite?: boolean;
+      showInMobileApp?: boolean;
+    } = {};
+
+    if (activeOnly) {
+      where.isActive = true;
+      where.status = CategoryStatus.PUBLISHED;
+      if (channel === 'mobile') {
+        where.showInMobileApp = true;
+      } else {
+        where.showOnWebsite = true;
+      }
+    }
+
     return this.prisma.category.findMany({
-      where: activeOnly
-        ? { isActive: true, status: CategoryStatus.PUBLISHED, showOnWebsite: true }
-        : undefined,
+      where: Object.keys(where).length ? where : undefined,
       orderBy: { sortOrder: 'asc' },
       select: {
         id: true,
@@ -117,11 +132,14 @@ export class CategoriesService {
         description: true,
         imageUrl: true,
         icon: true,
+        mobileImageUrl: true,
+        thumbnailUrl: true,
         sortOrder: true,
         isActive: true,
         badge: true,
         isFeatured: true,
         isPopular: true,
+        showOnHome: true,
       },
     });
   }

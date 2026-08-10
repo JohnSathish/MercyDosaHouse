@@ -7,11 +7,12 @@ import { motion, AnimatePresence, useReducedMotion, type PanInfo } from 'framer-
 import { Star } from 'lucide-react';
 import { HERO_MENU_ITEMS, HERO_DEFAULT_INDEX, type HeroMenuItem } from '@/lib/hero-menu-items';
 import { HeroPriceCounter } from './hero-price-counter';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const SWIPE_THRESHOLD = 40;
 const AUTO_INTERVAL_MS = 4000;
 
-function MobileSlide({ item }: { item: HeroMenuItem }) {
+function MobileSlide({ item, preload }: { item: HeroMenuItem; preload?: boolean }) {
   return (
     <div className="w-[95%] mx-auto">
       <Link href={`/menu/${item.slug}`} className="block group">
@@ -30,7 +31,7 @@ function MobileSlide({ item }: { item: HeroMenuItem }) {
               alt={item.name}
               fill
               className="object-cover"
-              priority={item.featured}
+              priority={preload}
               sizes="(max-width: 768px) 95vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -91,6 +92,7 @@ function MobileSlide({ item }: { item: HeroMenuItem }) {
 
 export function HeroMobileCarousel() {
   const reducedMotion = useReducedMotion();
+  const isMobile = useMediaQuery('(max-width: 767px)');
   const [index, setIndex] = useState(HERO_DEFAULT_INDEX);
   const [direction, setDirection] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -154,7 +156,7 @@ export function HeroMobileCarousel() {
             onDragEnd={onDragEnd}
             className="cursor-grab active:cursor-grabbing"
           >
-            <MobileSlide item={item} />
+            <MobileSlide item={item} preload={isMobile === true && item.featured} />
           </motion.div>
         </AnimatePresence>
       </div>

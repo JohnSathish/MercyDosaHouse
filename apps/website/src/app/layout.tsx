@@ -4,9 +4,13 @@ import '@mdh/ui/globals.css';
 import { Providers } from '@/components/providers';
 import { SiteShell } from '@/components/site-shell';
 import { CmsContentProvider } from '@/components/cms/cms-content-provider';
+import { MarketingProvider } from '@/components/marketing/marketing-provider';
 import { BRAND } from '@mdh/utils';
+import { APP_URLS } from '@/lib/app-urls';
 import { api } from '@/lib/api';
 import { getPublishedSiteContent } from '@/lib/cms-content';
+import { getMarketingBundle } from '@/lib/marketing-content';
+import { RestaurantJsonLd } from '@/components/seo/restaurant-jsonld';
 import type { BusinessSettingsDto } from '@mdh/types';
 
 const poppins = Poppins({
@@ -29,6 +33,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URLS.website),
   title: {
     default: `${BRAND.name} — ${BRAND.tagline}`,
     template: `%s | ${BRAND.name}`,
@@ -48,7 +53,12 @@ export const metadata: Metadata = {
     description: BRAND.tagline,
     type: 'website',
     locale: 'en_IN',
+    url: APP_URLS.website,
+    siteName: BRAND.name,
     images: [{ url: '/images/logo.png', width: 512, height: 512, alt: BRAND.name }],
+  },
+  alternates: {
+    canonical: APP_URLS.website,
   },
 };
 
@@ -64,21 +74,34 @@ async function getSettings() {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [settings, cmsContent] = await Promise.all([getSettings(), getPublishedSiteContent()]);
+  const [settings, cmsContent, marketing] = await Promise.all([
+    getSettings(),
+    getPublishedSiteContent(),
+    getMarketingBundle(),
+  ]);
 
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        <RestaurantJsonLd
+          phone={settings?.phone}
+          address={settings?.address}
+          hours={settings?.openingHours}
+        />
+      </head>
       <body suppressHydrationWarning>
         <Providers>
           <CmsContentProvider content={cmsContent}>
-            <SiteShell
-              phone={settings?.phone}
-              whatsapp={settings?.whatsapp}
-              address={settings?.address}
-              hours={settings?.openingHours}
-            >
-              {children}
-            </SiteShell>
+            <MarketingProvider bundle={marketing}>
+              <SiteShell
+                phone={settings?.phone}
+                whatsapp={settings?.whatsapp}
+                address={settings?.address}
+                hours={settings?.openingHours}
+              >
+                {children}
+              </SiteShell>
+            </MarketingProvider>
           </CmsContentProvider>
         </Providers>
       </body>

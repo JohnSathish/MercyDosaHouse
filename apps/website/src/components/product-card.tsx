@@ -34,6 +34,7 @@ export function ProductCard({ product, badge, soldCount, index = 0 }: ProductCar
             src={getProductImage(product)}
             alt={product.name}
             fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
             className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
           />
           {badge && (

@@ -15,6 +15,7 @@ import {
   IndianRupee,
   Download,
   Brain,
+  Monitor,
 } from 'lucide-react';
 
 const REPORTS_NAV = [
@@ -22,6 +23,7 @@ const REPORTS_NAV = [
   { href: '/reports/sales', label: 'Sales', icon: TrendingUp },
   { href: '/reports/products', label: 'Products', icon: UtensilsCrossed },
   { href: '/reports/orders', label: 'Orders', icon: ShoppingBag },
+  { href: '/reports/pos', label: 'POS', icon: Monitor },
   { href: '/reports/customers', label: 'Customers', icon: Users },
   { href: '/reports/delivery', label: 'Delivery', icon: Truck },
   { href: '/reports/kitchen', label: 'Kitchen', icon: ChefHat },

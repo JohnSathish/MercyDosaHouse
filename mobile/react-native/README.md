@@ -1,23 +1,53 @@
-# React Native Mobile App (Phase 4)
+# Mercy Dosa House — Mobile Apps
 
-Android-first React Native app for Mercy Dosa House.
+Three synchronized Android apps sharing one CMS-driven backend:
 
-## Planned Features
+| App                    | Folder                       | Purpose                     |
+| ---------------------- | ---------------------------- | --------------------------- |
+| **Customer App**       | `mobile/customer/` (planned) | Ordering, tracking, loyalty |
+| **Mercy POS**          | `mobile/pos/` (planned)      | Cashier billing             |
+| **Kitchen & Delivery** | `mobile/staff/` (planned)    | KDS + delivery partner      |
 
-- Offline menu cache
-- Push notifications (Firebase FCM)
-- Live order tracking (Socket.IO)
-- Biometric login
-- Google Sign-In
+## CMS-Driven Architecture
 
-## Setup (when implemented)
+**No hardcoded business content.** All branding, homepage layout, offers, announcements, feature flags, payment methods, and store settings are fetched from:
 
-```bash
-cd mobile/react-native
-npx react-native init MercyDosaHouse --template react-native-template-typescript
-pnpm install
+```
+GET /mobile/config
 ```
 
-## API Integration
+Admin controls everything from **Admin Panel → Mobile App** (`/cms/mobile`).
 
-Use `@mdh/types` and `@mdh/sdk` patterns adapted for React Native with AsyncStorage for token storage.
+Shared client: `@mdh/mobile-shared` in `mobile/shared/`.
+
+## Remote Config Includes
+
+- App branding (name, logo, splash)
+- Theme colors & dark/light mode
+- Homepage section builder (enable/disable, reorder)
+- Offers, announcements, banners
+- Feature toggles (14 flags)
+- Delivery & business settings
+- Payment method enable/disable
+- Maintenance mode & force update
+- Store open/close & emergency notices
+- FAQs & help contacts
+
+## Live Data (not in config bundle)
+
+Menu items, prices, stock, and coupons are fetched separately from existing APIs — admin changes appear instantly without app updates:
+
+- `GET /categories?active=true&channel=mobile`
+- `GET /products?available=true`
+- `GET /coupons/validate`
+- `GET /orders/:id` + Socket.IO for tracking
+
+## Setup (Phase 1 — Customer App)
+
+```bash
+cd mobile/customer
+npx create-expo-app@latest . --template blank-typescript
+pnpm add @mdh/mobile-shared @mdh/types @mdh/sdk @mdh/utils
+```
+
+See `mobile/shared/README.md` for config bootstrap example.

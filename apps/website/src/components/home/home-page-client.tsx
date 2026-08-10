@@ -11,6 +11,11 @@ import {
   DeliveryStepsSection,
   StatsSection,
 } from './sections';
+import { HomeBoldPromoBanner } from '@/components/marketing/home-bold-promo-banner';
+import {
+  HomeDeliverySection,
+  PreOrderComingSoonSection,
+} from '@/components/marketing/home-sections';
 
 interface HomePageClientProps {
   products: ProductDto[];
@@ -23,14 +28,17 @@ export function HomePageClient({ products }: HomePageClientProps) {
   return (
     <>
       <HeroSection />
+      <HomeDeliverySection />
+      <PreOrderComingSoonSection />
+      <HomeBoldPromoBanner />
+      <PopularDosasSection products={products} />
       <OffersSection />
       <CategoriesSection />
-      <PopularDosasSection products={products} />
       <BestSellerSection product={bestSeller} />
       <BiryaniSection product={biryani} />
       <WhyChooseUsSection />
-      <StatsSection />
       <TestimonialsSection />
+      <StatsSection />
       <GalleryPreviewSection />
       <DeliveryStepsSection />
     </>

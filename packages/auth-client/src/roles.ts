@@ -51,6 +51,7 @@ export interface AppUrls {
   admin?: string;
   kitchen?: string;
   delivery?: string;
+  pos?: string;
 }
 
 const DEFAULT_URLS: AppUrls = {
@@ -58,6 +59,7 @@ const DEFAULT_URLS: AppUrls = {
   admin: 'http://localhost:3002',
   kitchen: 'http://localhost:3003',
   delivery: 'http://localhost:3004',
+  pos: 'http://localhost:3005',
 };
 
 /** Resolve post-login redirect URL based on user role */
@@ -79,7 +81,7 @@ export function getPostLoginRedirect(user: AuthUser | null, urls: AppUrls = {}):
     return `${u.delivery}/`;
   }
   if (user.roles.includes(ROLES.CASHIER)) {
-    return `${u.admin}/orders`;
+    return `${u.pos ?? u.admin}/`;
   }
   return `${u.website}/dashboard`;
 }

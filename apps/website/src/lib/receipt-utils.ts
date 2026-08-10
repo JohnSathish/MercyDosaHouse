@@ -1,7 +1,16 @@
 import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
 import type { OrderDto, BusinessSettingsDto } from '@mdh/types';
-import { BRAND, formatCurrency, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@mdh/utils';
+import {
+  BRAND,
+  formatCurrency,
+  ORDER_STATUS_LABELS,
+  PAYMENT_METHOD_LABELS,
+  formatPackingLabel,
+  buildReceiptQrPayload,
+  getReceiptQrCaption,
+  getReceiptQrSubcaption,
+} from '@mdh/utils';
 import { RECEIPT_LOGO_BUNDLED_SRC, RECEIPT_LOGO_PATH } from '@/lib/brand-assets';
 
 export { RECEIPT_LOGO_PATH } from '@/lib/brand-assets';
@@ -36,15 +45,24 @@ export async function loadReceiptLogoDataUrl(): Promise<string | null> {
   return null;
 }
 
-export function getReceiptQrPayload(order: OrderDto): string {
-  return JSON.stringify({
-    orderId: order.orderNumber,
-    customer: order.customerName,
-    phone: order.customerPhone,
+export function getReceiptQrPayload(
+  order: OrderDto,
+  settings?: Pick<BusinessSettingsDto, 'upiId' | 'businessName' | 'websiteUrl'>,
+): string {
+  const trackBase =
+    settings?.websiteUrl ||
+    (typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_WEBSITE_URL);
+  return buildReceiptQrPayload({
+    upiId: settings?.upiId,
+    payeeName: settings?.businessName ?? BRAND.name,
     amount: order.grandTotal,
-    status: ORDER_STATUS_LABELS[order.status] || order.status,
+    orderNumber: order.orderNumber,
+    note: `Order ${order.orderNumber}`,
+    trackUrl: trackBase ? `${trackBase.replace(/\/$/, '')}/track/${order.orderNumber}` : undefined,
   });
 }
+
+export { getReceiptQrCaption, getReceiptQrSubcaption };
 
 export async function generateQrDataUrl(text: string, size = 160): Promise<string> {
   return QRCode.toDataURL(text, {
@@ -72,20 +90,51 @@ function formatReceiptTime(date: string | Date) {
   }).format(d);
 }
 
+/** Estimate page height (mm) so footer/QR are never clipped. */
+function estimateReceiptPageHeight(order: OrderDto): number {
+  const lineHeight = 4.2;
+  let y = 26;
+
+  y += 3 * lineHeight + 3;
+  y += lineHeight + 2 * lineHeight;
+  y += Math.max(1, Math.ceil(order.deliveryAddress.length / 35)) * lineHeight + 4;
+
+  y += lineHeight;
+  for (const item of order.items) {
+    const name = `${item.quantity} x ${item.productName}${item.variantName ? ` (${item.variantName})` : ''}`;
+    y += Math.max(1, Math.ceil(name.length / 35)) * lineHeight;
+  }
+  y += 3;
+
+  let totalRows = 4;
+  if (order.packingCharge > 0) totalRows += 1;
+  if (order.discount > 0) totalRows += 1;
+  y += totalRows * lineHeight + 3;
+
+  y += 2 * lineHeight + 3;
+  y += 28 + 4;
+  y += 4 * lineHeight + 10;
+
+  return Math.ceil(Math.max(y, 130));
+}
+
 export async function generateReceiptPdf(
   order: OrderDto,
-  settings?: Pick<BusinessSettingsDto, 'phone' | 'businessName' | 'tagline'>,
+  settings?: Pick<
+    BusinessSettingsDto,
+    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
+  >,
   qrDataUrl?: string,
 ): Promise<Blob> {
-  const qr = qrDataUrl ?? (await generateQrDataUrl(getReceiptQrPayload(order)));
+  const qr = qrDataUrl ?? (await generateQrDataUrl(getReceiptQrPayload(order, settings)));
   const logoDataUrl = await loadReceiptLogoDataUrl();
   const businessName = settings?.businessName || BRAND.name;
   const tagline = settings?.tagline || 'Freshly Made South Indian Food';
   const phone = settings?.phone || order.customerPhone;
 
   const lineHeight = 4.2;
-  const baseHeight = 144 + order.items.length * lineHeight;
-  const doc = new jsPDF({ unit: 'mm', format: [80, baseHeight], orientation: 'portrait' });
+  const pageHeight = estimateReceiptPageHeight(order);
+  const doc = new jsPDF({ unit: 'mm', format: [80, pageHeight], orientation: 'portrait' });
 
   let y = 6;
   const center = 40;
@@ -166,7 +215,12 @@ export async function generateReceiptPdf(
 
   row('Subtotal', formatCurrency(order.subtotal));
   row('Delivery', formatCurrency(order.deliveryCharge));
-  if (order.packingCharge > 0) row('Packing', formatCurrency(order.packingCharge));
+  if (order.packingCharge > 0) {
+    row(
+      formatPackingLabel(order.packedItemCount ?? order.items.reduce((s, i) => s + i.quantity, 0)),
+      formatCurrency(order.packingCharge),
+    );
+  }
   if (order.discount > 0) row('Discount', `-${formatCurrency(order.discount)}`);
   doc.setFont('helvetica', 'bold');
   row('TOTAL', formatCurrency(order.grandTotal), true);
@@ -182,7 +236,7 @@ export async function generateReceiptPdf(
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text('Thank You ❤️', center, y, { align: 'center' });
+  doc.text('Thank You!', center, y, { align: 'center' });
   y += lineHeight;
   doc.text('Visit Again', center, y, { align: 'center' });
   y += lineHeight;
@@ -197,7 +251,10 @@ export async function generateReceiptPdf(
 
 export async function downloadReceiptPdf(
   order: OrderDto,
-  settings?: Pick<BusinessSettingsDto, 'phone' | 'businessName' | 'tagline'>,
+  settings?: Pick<
+    BusinessSettingsDto,
+    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
+  >,
 ) {
   const blob = await generateReceiptPdf(order, settings);
   const url = URL.createObjectURL(blob);

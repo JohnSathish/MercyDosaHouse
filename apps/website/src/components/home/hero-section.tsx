@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { FiStar, FiTruck, FiClock, FiCoffee } from 'react-icons/fi';
+import { FiStar, FiClock, FiCoffee } from 'react-icons/fi';
 import { Button } from '@mdh/ui';
 import { BRAND } from '@mdh/utils';
 import { AnimatedCounter } from './hero-animated-counter';
@@ -96,7 +96,6 @@ function HeroLeftContent({ compact = false }: { compact?: boolean }) {
         <span className="text-white/90 font-medium ml-1 text-sm sm:text-base">4.9 Rating</span>
       </div>
 
-      {/* Animated stats */}
       <div
         className={`grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8 max-w-md ${compact ? 'mx-auto' : ''}`}
       >
@@ -125,7 +124,7 @@ function HeroLeftContent({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
 
-      <div className={`flex flex-wrap gap-3 mb-6 sm:mb-8 ${compact ? 'justify-center px-2' : ''}`}>
+      <div className={`flex flex-wrap gap-3 mb-5 sm:mb-6 ${compact ? 'justify-center px-2' : ''}`}>
         <HeroCtaButton href={hero.ctaPrimary?.href ?? '/menu'} variant="primary">
           {hero.ctaPrimary?.label ?? 'Order Now'}
         </HeroCtaButton>
@@ -138,9 +137,8 @@ function HeroLeftContent({ compact = false }: { compact?: boolean }) {
         className={`flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm ${compact ? 'justify-center' : ''}`}
       >
         {[
-          { icon: FiTruck, text: 'Free Delivery above ₹299' },
-          { icon: FiClock, text: '25–30 Minutes' },
-          { icon: FiCoffee, text: 'Fresh Ingredients' },
+          { icon: FiClock, text: 'Freshly Made to Order' },
+          { icon: FiCoffee, text: 'Premium Ingredients' },
         ].map(({ icon: Icon, text }) => (
           <span
             key={text}
@@ -157,11 +155,11 @@ function HeroLeftContent({ compact = false }: { compact?: boolean }) {
 
 export function HeroSection() {
   return (
-    <section className="hero-pattern text-white pt-8 pb-10 md:pt-12 md:pb-16 overflow-x-hidden relative min-h-0 md:min-h-[85vh] flex items-center">
+    <section className="hero-pattern text-white pt-8 pb-10 md:pt-10 md:pb-12 overflow-x-hidden relative min-h-0 md:min-h-[58vh] flex items-center">
       <HeroOrderNotification />
       <div className="container mx-auto px-4 w-full">
-        {/* Mobile: carousel */}
-        <div className="md:hidden flex flex-col gap-8">
+        {/* Mobile: carousel below compact hero text */}
+        <div className="md:hidden flex flex-col gap-6">
           <HeroLeftContent compact />
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
@@ -172,14 +170,14 @@ export function HeroSection() {
           </motion.div>
         </div>
 
-        {/* Tablet & desktop: two-column with orbit */}
-        <div className="hidden md:grid md:grid-cols-2 gap-6 lg:gap-8 xl:gap-14 items-center">
+        {/* Tablet & desktop: two-column with orbit showcase */}
+        <div className="hidden md:grid md:grid-cols-2 gap-6 lg:gap-10 xl:gap-12 items-center">
           <HeroLeftContent />
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.85, delay: 0.12 }}
-            className="relative flex justify-center md:justify-end pb-4 w-full"
+            className="relative flex justify-center md:justify-end pb-2 w-full"
           >
             <HeroOrbitShowcase radius={200} />
           </motion.div>

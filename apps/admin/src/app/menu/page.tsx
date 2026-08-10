@@ -14,6 +14,7 @@ export default function MenuManagementPage() {
     name: '',
     slug: '',
     price: '',
+    packingCharge: '20',
     categoryId: '',
     description: '',
   });
@@ -33,13 +34,26 @@ export default function MenuManagementPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       setShowForm(false);
-      setForm({ name: '', slug: '', price: '', categoryId: '', description: '' });
+      setForm({
+        name: '',
+        slug: '',
+        price: '',
+        packingCharge: '20',
+        categoryId: '',
+        description: '',
+      });
     },
   });
 
   const toggleAvailability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
       api.patch(`/products/${id}`, { isAvailable }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
+  });
+
+  const updatePacking = useMutation({
+    mutationFn: ({ id, packingCharge }: { id: string; packingCharge: number }) =>
+      api.patch(`/products/${id}`, { packingCharge }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
   });
 
@@ -79,6 +93,15 @@ export default function MenuManagementPage() {
                 />
               </div>
               <div>
+                <Label>Packing Charge (₹)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.packingCharge}
+                  onChange={(e) => setForm({ ...form, packingCharge: e.target.value })}
+                />
+              </div>
+              <div>
                 <Label>Category</Label>
                 <Select
                   value={form.categoryId}
@@ -98,6 +121,7 @@ export default function MenuManagementPage() {
                 createProduct.mutate({
                   ...form,
                   price: parseFloat(form.price),
+                  packingCharge: parseFloat(form.packingCharge) || 20,
                   foodType: 'VEG',
                   spiceLevel: 'MILD',
                   prepTimeMinutes: 15,
@@ -113,12 +137,27 @@ export default function MenuManagementPage() {
       <div className="space-y-3">
         {products?.data.map((p) => (
           <Card key={p.id}>
-            <CardContent className="p-4 flex justify-between items-center">
-              <div>
+            <CardContent className="p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <div className="flex-1">
                 <p className="font-semibold">{p.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {formatCurrency(p.price)} — {p.category?.name}
                 </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Label className="text-xs whitespace-nowrap">Packing ₹</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-8 w-20 text-sm"
+                    defaultValue={p.packingCharge ?? 20}
+                    onBlur={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!Number.isNaN(val) && val !== (p.packingCharge ?? 20)) {
+                        updatePacking.mutate({ id: p.id, packingCharge: val });
+                      }
+                    }}
+                  />
+                </div>
               </div>
               <Button
                 size="sm"

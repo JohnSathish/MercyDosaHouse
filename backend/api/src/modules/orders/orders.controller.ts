@@ -1,31 +1,88 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { OrderStatus, TrackingStatus } from '@prisma/client';
 import { OrdersService } from './orders.service';
 import { Public, RequirePermissions, RequestUser } from '../../common/guards';
+import { PrismaService } from '../../prisma/prisma.service';
 
 type AuthRequest = { user?: RequestUser };
 
 @ApiTags('orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(private ordersService: OrdersService) {}
+  constructor(
+    private ordersService: OrdersService,
+    private prisma: PrismaService,
+  ) {}
+
+  @Public()
+  @Post('quote')
+  quote(@Body() body: Record<string, unknown>, @Req() req: { user?: RequestUser }) {
+    const items = body.items as { productId: string; variantId?: string; quantity: number }[];
+    const scheduledAt = body.scheduledDeliveryAt as string | undefined;
+    return this.ordersService.quote({
+      items,
+      userId: req.user?.id,
+      couponCode: body.couponCode as string | undefined,
+      scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      rewardPointsUsed: body.rewardPointsUsed as number | undefined,
+    });
+  }
 
   @Public()
   @Post()
-  create(@Body() body: Record<string, unknown>, @Req() req: { user?: RequestUser }) {
+  async create(@Body() body: Record<string, unknown>, @Req() req: { user?: RequestUser }) {
     const items = body.items as { productId: string; variantId?: string; quantity: number }[];
-    const address = body.address as {
-      contactName?: string;
-      mobileNumber?: string;
-      line1: string;
-      line2?: string;
-      landmark?: string;
-      city: string;
-      state?: string;
-      pincode: string;
-      deliveryNotes?: string;
-    };
+    const addressId = body.addressId as string | undefined;
+    let address = body.address as
+      | {
+          contactName?: string;
+          mobileNumber?: string;
+          line1: string;
+          line2?: string;
+          landmark?: string;
+          city: string;
+          state?: string;
+          pincode: string;
+          deliveryNotes?: string;
+        }
+      | undefined;
+
+    let customerName = body.customerName as string;
+    let customerPhone = body.customerPhone as string;
+
+    if (addressId && req.user?.id) {
+      const saved = await this.prisma.address.findFirst({
+        where: { id: addressId, userId: req.user.id },
+      });
+      if (!saved) throw new BadRequestException('Address not found');
+      address = {
+        contactName: saved.contactName,
+        mobileNumber: saved.mobileNumber,
+        line1: saved.line1,
+        line2: saved.line2 ?? undefined,
+        landmark: saved.landmark ?? undefined,
+        city: saved.city,
+        state: saved.state,
+        pincode: saved.pincode,
+        deliveryNotes: saved.deliveryNotes ?? undefined,
+      };
+      customerName = customerName || saved.contactName;
+      customerPhone = customerPhone || saved.mobileNumber;
+    }
+
+    if (!address) throw new BadRequestException('Delivery address is required');
+
     const deliveryAddress = [
       address.line1,
       address.line2,
@@ -37,15 +94,21 @@ export class OrdersController {
       .filter(Boolean)
       .join(', ');
 
+    const scheduledAt = body.scheduledDeliveryAt as string | undefined;
+
     return this.ordersService.create({
-      customerName: body.customerName as string,
-      customerPhone: body.customerPhone as string,
+      customerName,
+      customerPhone,
       deliveryAddress,
-      deliveryInstructions: body.deliveryInstructions as string | undefined,
+      deliveryInstructions:
+        (body.deliveryInstructions as string | undefined) || address.deliveryNotes,
       paymentMethod: body.paymentMethod as never,
       items,
       userId: req.user?.id,
       couponCode: body.couponCode as string | undefined,
+      addressId,
+      scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      rewardPointsUsed: body.rewardPointsUsed as number | undefined,
     });
   }
 

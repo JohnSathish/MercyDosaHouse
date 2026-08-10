@@ -15,6 +15,7 @@ import type {
   ProductPerformanceDto,
   ReportInsightDto,
   HeatmapDayDto,
+  PackingAnalyticsDto,
 } from '@mdh/types';
 import { ReportsFilterBar } from '@/components/reports/reports-filter-bar';
 import { ReportsKpiCards } from '@/components/reports/reports-kpi-cards';
@@ -79,6 +80,11 @@ export default function ReportsOverviewPage() {
     queryFn: () => api.get<HeatmapDayDto[]>('/reports/heatmap'),
   });
 
+  const { data: packing } = useQuery({
+    queryKey: ['reports-packing', period],
+    queryFn: () => api.get<PackingAnalyticsDto>(`/reports/packing?period=${period}`),
+  });
+
   async function exportReport() {
     const res = await api.get<{ csv: string }>(`/reports/export?${params}`);
     const blob = new Blob([res.csv], { type: 'text/csv' });
@@ -130,6 +136,22 @@ export default function ReportsOverviewPage() {
       </div>
 
       {heatmap && <HeatmapChart data={heatmap} />}
+
+      {packing && packing.topPackedItems.length > 0 && (
+        <div className="rounded-2xl border p-5 bg-white dark:bg-gray-900">
+          <h3 className="font-semibold mb-3">Top Packed Items</h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {packing.topPackedItems.slice(0, 6).map((item) => (
+              <div key={item.productId} className="rounded-lg border px-3 py-2 text-sm">
+                <p className="font-medium">{item.name}</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  {item.quantity} items · packing revenue tracked
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <h3 className="font-semibold mb-3">Top Products</h3>

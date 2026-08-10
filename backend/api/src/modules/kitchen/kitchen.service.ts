@@ -29,6 +29,7 @@ const orderInclude = {
       },
     },
   },
+  posTable: { select: { label: true } },
 } satisfies Prisma.OrderInclude;
 
 type OrderWithItems = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
@@ -64,6 +65,8 @@ export class KitchenService {
       kitchenStartedAt: order.kitchenStartedAt?.toISOString() ?? null,
       kitchenCompletedAt: order.kitchenCompletedAt?.toISOString() ?? null,
       queuePosition: order.queuePosition,
+      orderType: order.orderType,
+      tableLabel: order.posTable?.label ?? null,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       items: order.items.map((item) => ({

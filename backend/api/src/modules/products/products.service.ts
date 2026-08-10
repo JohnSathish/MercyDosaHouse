@@ -73,6 +73,7 @@ export class ProductsService {
     slug: string;
     description?: string;
     price: number;
+    packingCharge?: number;
     categoryId: string;
     foodType?: FoodType;
     spiceLevel?: SpiceLevel;
@@ -116,6 +117,7 @@ export class ProductsService {
     slug: string;
     description: string | null;
     price: Prisma.Decimal;
+    packingCharge: Prisma.Decimal;
     imageUrl: string | null;
     categoryId: string;
     category?: { id: string; name: string; slug: string } | null;
@@ -135,6 +137,7 @@ export class ProductsService {
       slug: product.slug,
       description: product.description,
       price: Number(product.price),
+      packingCharge: Number(product.packingCharge ?? 20),
       imageUrl: product.imageUrl,
       images: product.images?.map((i) => i.url) || [],
       categoryId: product.categoryId,

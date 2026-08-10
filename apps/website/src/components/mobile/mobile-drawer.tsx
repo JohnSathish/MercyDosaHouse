@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { SiteLogo } from '@/components/site-logo';
 import { useUiStore } from '@/lib/ui-store';
 import { isAuthenticated, logout, getStoredUser } from '@mdh/auth-client';
+import { getHeaderDisplayName } from '@/components/dashboard/types';
 import { API_URL } from '@/lib/api';
 import { cn } from '@mdh/ui';
 
@@ -53,7 +54,9 @@ export function MobileDrawer() {
         <SheetHeader>
           <SiteLogo size="md" showName href="/" />
           {authed && user && (
-            <p className="text-sm text-gray-500 mt-1">{user.name || user.phone}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {getHeaderDisplayName(user.name, user.phone) || user.phone}
+            </p>
           )}
         </SheetHeader>
 

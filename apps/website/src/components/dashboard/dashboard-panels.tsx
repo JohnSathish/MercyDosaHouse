@@ -13,7 +13,7 @@ import { EmptyState } from './empty-state';
 import { AddressFormDialog } from './address-form-dialog';
 import { StatCard } from './stat-card';
 import { getProductImage } from '@/lib/product-images';
-import { getLoyaltyTier, getRewardPoints } from './types';
+import { getHeaderDisplayName, getLoyaltyTier, getRewardPoints } from './types';
 import { useCartStore } from '@/lib/cart-store';
 import { api } from '@/lib/api';
 import { useToastStore } from '@/lib/toast-store';
@@ -22,7 +22,7 @@ import type { DashboardSection } from './types';
 const OFFERS = [
   { title: '10% OFF Pre-order', desc: 'Order one day ahead', type: 'offer' },
   { title: 'Buy 2 Masala Dosas', desc: 'Fresh spiced masala filling', type: 'offer' },
-  { title: 'Free delivery ₹299+', desc: 'On all orders above ₹299', type: 'announcement' },
+  { title: '5% OFF above ₹299', desc: 'Add a little more & save on food', type: 'offer' },
 ];
 
 interface DashboardContentProps {
@@ -197,7 +197,7 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
   return (
     <div className="flex items-center gap-4 p-3 rounded-xl bg-[#FFF8E8]/60 hover:bg-[#FFF8E8] transition-colors">
       <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-gray-100">
-        <Image src="/images/hero-dosa.png" alt="" fill className="object-cover" />
+        <Image src="/images/hero-dosa.png" alt="" fill sizes="56px" className="object-cover" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-[#1F2937] truncate">
@@ -247,7 +247,13 @@ function FavoriteMiniCard({ product }: { product: ProductDto }) {
   return (
     <div className="rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm card-lift">
       <div className="relative h-24">
-        <Image src={getProductImage(product)} alt={product.name} fill className="object-cover" />
+        <Image
+          src={getProductImage(product)}
+          alt={product.name}
+          fill
+          sizes="96px"
+          className="object-cover"
+        />
       </div>
       <div className="p-2">
         <p className="text-xs font-bold truncate">{product.name}</p>
@@ -317,6 +323,7 @@ export function FavoritesPanel({ favorites }: { favorites: ProductDto[] }) {
                 src={getProductImage(product)}
                 alt={product.name}
                 fill
+                sizes="(max-width: 640px) 50vw, 320px"
                 className="object-cover"
               />
             </div>
@@ -580,7 +587,7 @@ export function DashboardHeader({ userName }: { userName?: string | null }) {
     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
       <p className="text-secondary font-semibold text-sm mb-1">Welcome Back 👋</p>
       <h1 className="text-2xl md:text-3xl font-bold text-[#14532D]">
-        {userName?.split(' ')[0] || 'Guest'}
+        {getHeaderDisplayName(userName) || 'Guest'}
       </h1>
       <p className="text-gray-500 mt-1">Enjoy your favourite South Indian meals.</p>
       <p className="text-xs text-gray-400 mt-2">{today}</p>

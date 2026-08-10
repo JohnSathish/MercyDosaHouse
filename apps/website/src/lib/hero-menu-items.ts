@@ -142,7 +142,7 @@ export const HERO_MENU_ITEMS: HeroMenuItem[] = [
     slug: 'chicken-biryani',
     name: 'Chicken Biryani',
     image: '/images/chicken-biryani.png',
-    price: 230,
+    price: 270,
     description: 'Aromatic layered biryani with tender chicken.',
     rating: 4.9,
     category: 'Biryani',

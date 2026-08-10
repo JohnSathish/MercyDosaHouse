@@ -5,14 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@mdh/ui';
-import { formatCurrency, calculateOrderTotal } from '@mdh/utils';
-import { isAuthenticated } from '@mdh/auth-client';
+import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import type { BusinessSettingsDto } from '@mdh/types';
+import { useOrderCharges } from '@/hooks/use-order-charges';
 import { getProductImage } from '@/lib/product-images';
 import { getCheckoutEntryHref } from '@/lib/auth-redirect';
+import { PreOrderCartPromo } from '@/components/promo/pre-order-banner';
+import { OrderChargesInfoCard, OrderSummaryLines } from '@/components/order/order-charges';
 
 interface CartContentProps {
   onCheckout?: () => void;
@@ -20,22 +19,17 @@ interface CartContentProps {
 }
 
 export function CartContent({ onCheckout, compact }: CartContentProps) {
-  const { items, updateQuantity, removeItem, subtotal } = useCartStore();
-  const [checkoutHref, setCheckoutHref] = useState('/login?redirect=/checkout');
+  const { items, updateQuantity, removeItem, subtotal, packingTotal, packedItemCount } =
+    useCartStore();
+  const [checkoutHref, setCheckoutHref] = useState('/checkout');
 
   useEffect(() => {
-    setCheckoutHref(getCheckoutEntryHref(isAuthenticated()));
+    setCheckoutHref(getCheckoutEntryHref());
   }, []);
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => api.get<BusinessSettingsDto>('/settings/business'),
-  });
-
   const sub = subtotal();
-  const delivery = settings?.deliveryCharge || 30;
-  const packing = settings?.packingCharge || 10;
-  const total = calculateOrderTotal(sub, delivery, packing);
+  const packing = packingTotal();
+  const charges = useOrderCharges(sub, packing);
 
   if (items.length === 0) {
     return (
@@ -121,31 +115,38 @@ export function CartContent({ onCheckout, compact }: CartContentProps) {
         })}
       </div>
 
-      <div className="mt-4 rounded-2xl bg-white border border-gray-100 p-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Subtotal</span>
-          <span>{formatCurrency(sub)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Delivery</span>
-          <span>{formatCurrency(delivery)}</span>
-        </div>
-        {!compact && (
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Packing</span>
-            <span>{formatCurrency(packing)}</span>
-          </div>
+      <div className="px-1 mt-3">
+        <OrderChargesInfoCard
+          compact
+          baseDeliveryCharge={charges.baseDeliveryCharge}
+          deliveryIsFree={charges.deliveryIsFree}
+          freeDeliveryLimit={charges.freeDeliveryLimit}
+        />
+      </div>
+
+      <PreOrderCartPromo />
+
+      <div className="mt-4 rounded-2xl bg-white border border-gray-100 p-4">
+        <OrderSummaryLines
+          subtotal={sub}
+          delivery={charges.delivery}
+          packing={charges.packing}
+          total={charges.total}
+          deliveryIsFree={charges.deliveryIsFree}
+          packedItemCount={packedItemCount()}
+          showPacking={!compact || charges.packing > 0}
+        />
+        {charges.amountToFreeDelivery > 0 && (
+          <p className="text-xs text-[#F59E0B] mt-2">
+            Add {formatCurrency(charges.amountToFreeDelivery)} more for free delivery
+          </p>
         )}
-        <div className="flex justify-between font-bold text-lg pt-2 border-t border-dashed">
-          <span>Total</span>
-          <span className="text-[#14532D]">{formatCurrency(total)}</span>
-        </div>
-        <Link href={checkoutHref} onClick={onCheckout} className="block pt-2">
+        <Link href={checkoutHref} onClick={onCheckout} className="block pt-3">
           <Button
             size="lg"
             className="w-full min-h-[52px] rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] text-white font-semibold shadow-lg active:scale-[0.98] transition-transform"
           >
-            Checkout · {formatCurrency(total)}
+            Checkout · {formatCurrency(charges.total)}
           </Button>
         </Link>
       </div>

@@ -61,6 +61,7 @@ export const productSchema = z.object({
   slug: z.string().min(2),
   description: z.string().optional(),
   price: z.number().positive(),
+  packingCharge: z.number().min(0).optional(),
   categoryId: z.string().uuid(),
   foodType: z.nativeEnum(FoodType),
   spiceLevel: z.nativeEnum(SpiceLevel),

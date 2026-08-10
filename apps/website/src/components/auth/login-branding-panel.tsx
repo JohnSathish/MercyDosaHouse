@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Leaf, ShieldCheck, Clock, Award, Star, Users, Flame } from 'lucide-react';
 import { BRAND } from '@mdh/utils';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const SHOWCASE_ITEMS = [
   { src: '/images/idli-4-pieces.png', label: 'Soft Idli', tag: '4 pcs' },
@@ -26,6 +27,8 @@ const VALUE_PROPS = [
 ];
 
 export function LoginBrandingPanel() {
+  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+
   return (
     <div className="relative hidden lg:grid lg:grid-cols-2 min-h-[calc(100vh-4.5rem)] overflow-hidden bg-[#0f3d24]">
       {/* ── Background layers (clipped to panel) ── */}
@@ -109,7 +112,7 @@ export function LoginBrandingPanel() {
                 alt="Masala Dosa"
                 fill
                 className="object-cover"
-                priority
+                priority={isLargeScreen === true}
                 sizes="340px"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e18]/70 via-transparent to-transparent" />

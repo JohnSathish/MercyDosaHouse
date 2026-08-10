@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CouponsService } from './coupons.service';
 import { Public, RequirePermissions } from '../../common/guards';
@@ -19,6 +19,12 @@ export class CouponsController {
   @Post('validate')
   validate(@Body() body: { code: string; subtotal: number }) {
     return this.couponsService.validate(body.code, body.subtotal);
+  }
+
+  @Public()
+  @Get('available')
+  available(@Query('subtotal') subtotal?: string) {
+    return this.couponsService.getAvailable(parseFloat(subtotal || '0'));
   }
 
   @ApiBearerAuth()

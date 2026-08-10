@@ -7,6 +7,7 @@ import { FiTruck, FiShield, FiHeart, FiStar, FiCoffee, FiChevronDown } from 'rea
 import { AnimatedCounter } from './hero-animated-counter';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import { getSectionContent } from '@/lib/cms-content';
+import { BRAND } from '@mdh/utils';
 
 const WHY_ITEMS = [
   {
@@ -38,7 +39,7 @@ export function WhyChooseUsSection() {
     <section className="py-16 md:py-20 bg-white">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] text-center mb-12">
-          Why Choose Us
+          Why Choose {BRAND.name}
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
           {items.map((item, i) => (
@@ -79,7 +80,7 @@ export function TestimonialsSection() {
   return (
     <section className="py-16 bg-[#FFF8E8]">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-[#14532D] text-center mb-10">What Customers Say</h2>
+        <h2 className="text-3xl font-bold text-[#14532D] text-center mb-10">Customer Reviews</h2>
         <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((t, i) => (
             <motion.div

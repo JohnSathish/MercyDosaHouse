@@ -109,6 +109,7 @@ export interface ProductDto {
   prepTimeMinutes: number;
   isAvailable: boolean;
   isPopular: boolean;
+  packingCharge?: number;
   ingredients?: string | null;
   nutritionInfo?: string | null;
   variants?: ProductVariantDto[];
@@ -140,6 +141,8 @@ export interface OrderItemDto {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  unitPackingCharge?: number;
+  packingCharge?: number;
 }
 
 export interface OrderStatusHistoryDto {
@@ -163,7 +166,10 @@ export interface OrderDto {
   subtotal: number;
   deliveryCharge: number;
   packingCharge: number;
+  packedItemCount?: number;
   discount: number;
+  preOrderDiscount?: number;
+  scheduledDeliveryAt?: string | null;
   grandTotal: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
@@ -195,6 +201,24 @@ export interface BusinessSettingsDto {
   announcementBar?: string | null;
   footerCopyright?: string | null;
   socialLinks?: Record<string, string> | null;
+  gstNumber?: string | null;
+  websiteUrl?: string | null;
+  receiptShowLogo?: boolean;
+  receiptShowQr?: boolean;
+  receiptShowGst?: boolean;
+  receiptShowAddress?: boolean;
+  receiptShowCustomer?: boolean;
+  receiptShowCashier?: boolean;
+  receiptShowPayment?: boolean;
+  receiptFooterMessage?: string | null;
+  receiptFontSize?: 'small' | 'normal' | 'large';
+  receiptPaperWidth?: '58mm' | '80mm';
+  receiptCopies?: number;
+  receiptAutoPrintPayment?: boolean;
+  receiptAutoPrintKot?: boolean;
+  preOrderDiscountPct?: number;
+  preOrderMinDaysAhead?: number;
+  preOrderStackWithCoupons?: boolean;
 }
 
 export interface DashboardStatsDto {
@@ -253,5 +277,9 @@ export * from './customers';
 export * from './inventory';
 export * from './delivery';
 export * from './categories';
+export * from './mobile';
 export * from './reports';
 export * from './activity';
+export * from './checkout';
+export * from './pos';
+export * from './marketing';

@@ -22,6 +22,10 @@ import { CmsModule } from './modules/cms/cms.module';
 import { OffersModule } from './modules/offers/offers.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { PosModule } from './modules/pos/pos.module';
+import { MobileModule } from './modules/mobile/mobile.module';
+import { MarketingModule } from './modules/marketing/marketing.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard, PermissionsGuard } from './common/guards';
 
@@ -49,6 +53,10 @@ import { JwtAuthGuard, PermissionsGuard } from './common/guards';
     OffersModule,
     CustomersModule,
     InventoryModule,
+    PosModule,
+    MobileModule,
+    MarketingModule,
+    PaymentsModule,
   ],
   controllers: [HealthController],
   providers: [

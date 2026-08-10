@@ -12,6 +12,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
     "@mdh/auth-client": "workspace:*",
+    "@mdh/pos-ui": "workspace:*",
     "@mdh/sdk": "workspace:*",
     "@mdh/types": "workspace:*",
     "@mdh/ui": "workspace:*",

@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Query, Req } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { KitchenItemStatus, KitchenPriority, TrackingStatus } from '@prisma/client';
 import { KitchenService } from './kitchen.service';
-import { RequirePermissions } from '../../common/guards';
+import { RequirePermissions, RequestUser } from '../../common/guards';
 
 @ApiTags('kitchen')
 @ApiBearerAuth()

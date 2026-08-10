@@ -24,11 +24,60 @@ export function getCustomerId(userId: string): string {
   return userId.slice(-4).toUpperCase();
 }
 
-export function getInitials(name?: string | null): string {
-  if (!name) return 'MD';
-  return name
-    .split(' ')
-    .map((n) => n[0])
+const GENERIC_CUSTOMER_NAME = /^Customer\s+(\d{4})$/i;
+
+export function isGenericCustomerName(name?: string | null): boolean {
+  return !!name && GENERIC_CUSTOMER_NAME.test(name.trim());
+}
+
+/** Prefer address/guest contact name over auto-generated OTP profile names. */
+export function resolveCheckoutCustomerName(
+  contactName?: string | null,
+  profileName?: string | null,
+  fallback = 'Guest',
+): string {
+  const fromContact = contactName?.trim();
+  if (fromContact) return fromContact;
+  const fromProfile = profileName?.trim();
+  if (fromProfile && !isGenericCustomerName(fromProfile)) return fromProfile;
+  return fromProfile || fallback;
+}
+
+/** Display name for checkout banner and similar UI. */
+export function resolveCustomerDisplayName(
+  profileName?: string | null,
+  contactName?: string | null,
+  phone?: string | null,
+): string {
+  const resolved = resolveCheckoutCustomerName(contactName, profileName, '');
+  if (resolved) return resolved;
+  return phone ? `Customer ${phone.slice(-4)}` : 'Customer';
+}
+
+/** Compact label for nav/header — keeps auto-generated names like "Customer 3655" intact. */
+export function getHeaderDisplayName(name?: string | null, phone?: string | null): string {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return phone ? `Customer ${phone.slice(-4)}` : 'Profile';
+  }
+  if (isGenericCustomerName(trimmed)) {
+    return trimmed;
+  }
+  return trimmed.split(/\s+/)[0] ?? trimmed;
+}
+
+export function getInitials(name?: string | null, phone?: string | null): string {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return phone ? phone.slice(-2).toUpperCase() : 'MD';
+  }
+  const generic = trimmed.match(GENERIC_CUSTOMER_NAME);
+  if (generic?.[1]) {
+    return generic[1].slice(0, 2);
+  }
+  return trimmed
+    .split(/\s+/)
+    .map((part) => part[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();

@@ -2,17 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import type { OrderDto, BusinessSettingsDto } from '@mdh/types';
-import { BRAND, formatCurrency, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@mdh/utils';
+import {
+  BRAND,
+  formatCurrency,
+  ORDER_STATUS_LABELS,
+  PAYMENT_METHOD_LABELS,
+  formatPackingLabel,
+} from '@mdh/utils';
 import {
   generateQrDataUrl,
   getReceiptQrPayload,
+  getReceiptQrCaption,
+  getReceiptQrSubcaption,
   loadReceiptLogoDataUrl,
 } from '@/lib/receipt-utils';
 import { RECEIPT_LOGO_BUNDLED_SRC, RECEIPT_LOGO_PATH } from '@/lib/brand-assets';
 
 interface OrderReceiptProps {
   order: OrderDto;
-  settings?: Pick<BusinessSettingsDto, 'phone' | 'businessName' | 'tagline'>;
+  settings?: Pick<
+    BusinessSettingsDto,
+    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl' | 'preOrderDiscountPct'
+  >;
   id?: string;
 }
 
@@ -40,18 +51,18 @@ export function OrderReceipt({ order, settings, id = 'order-receipt' }: OrderRec
   const phone = settings?.phone || order.customerPhone;
 
   useEffect(() => {
-    generateQrDataUrl(getReceiptQrPayload(order)).then(setQrUrl);
+    generateQrDataUrl(getReceiptQrPayload(order, settings)).then(setQrUrl);
     loadReceiptLogoDataUrl().then((dataUrl) => {
       if (dataUrl) setLogoUrl(dataUrl);
     });
-  }, [order]);
+  }, [order, settings]);
 
   return (
     <div
       id={id}
-      className="mx-auto w-full max-w-[80mm] bg-white text-[#1F2937] font-sans text-sm shadow-lg rounded-lg overflow-hidden print:shadow-none print:rounded-none"
+      className="mx-auto w-full max-w-[80mm] bg-white text-[#1F2937] font-sans text-sm shadow-lg rounded-lg print:shadow-none print:rounded-none"
     >
-      <div className="bg-[#14532D] text-white px-4 py-4">
+      <div className="bg-[#14532D] text-white px-4 py-4 rounded-t-lg">
         <div className="flex items-center gap-3">
           {/* Native img with bundled src + data URL — works on screen, print, and PDF */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -121,10 +132,28 @@ export function OrderReceipt({ order, settings, id = 'order-receipt' }: OrderRec
         <ReceiptRow label="Subtotal" value={formatCurrency(order.subtotal)} />
         <ReceiptRow label="Delivery" value={formatCurrency(order.deliveryCharge)} />
         {order.packingCharge > 0 && (
-          <ReceiptRow label="Packing" value={formatCurrency(order.packingCharge)} />
+          <ReceiptRow
+            label={formatPackingLabel(
+              order.packedItemCount ?? order.items.reduce((s, i) => s + i.quantity, 0),
+            )}
+            value={formatCurrency(order.packingCharge)}
+          />
         )}
         {order.discount > 0 && (
-          <ReceiptRow label="Discount" value={`-${formatCurrency(order.discount)}`} />
+          <>
+            {(order.preOrderDiscount ?? 0) > 0 && (
+              <ReceiptRow
+                label={`Pre-Order Discount (${settings?.preOrderDiscountPct ?? 10}%)`}
+                value={`-${formatCurrency(order.preOrderDiscount!)}`}
+              />
+            )}
+            {order.discount - (order.preOrderDiscount ?? 0) > 0 && (
+              <ReceiptRow
+                label="Other Discounts"
+                value={`-${formatCurrency(order.discount - (order.preOrderDiscount ?? 0))}`}
+              />
+            )}
+          </>
         )}
         <div className="flex justify-between font-bold text-base pt-1 text-[#14532D]">
           <span>TOTAL</span>
@@ -154,14 +183,26 @@ export function OrderReceipt({ order, settings, id = 'order-receipt' }: OrderRec
         ) : (
           <div className="w-32 h-32 bg-muted animate-pulse rounded" />
         )}
-        <p className="text-xs text-muted-foreground mt-2 text-center">Scan for order details</p>
+        <p className="text-xs text-muted-foreground mt-2 text-center">
+          {getReceiptQrCaption(settings?.upiId)}
+        </p>
+        {getReceiptQrSubcaption(settings?.upiId) && (
+          <p className="text-[10px] text-muted-foreground mt-1 text-center font-mono">
+            {getReceiptQrSubcaption(settings?.upiId)}
+          </p>
+        )}
+        {settings?.upiId && (
+          <p className="text-xs font-semibold text-[#14532D] mt-1 text-center">
+            Pay {formatCurrency(order.grandTotal)}
+          </p>
+        )}
       </div>
 
-      <div className="bg-[#FFF8E8] border-t border-[#F59E0B]/30 px-4 py-4 text-center">
-        <p className="font-semibold text-[#14532D]">Thank You ❤️</p>
-        <p className="text-sm text-muted-foreground">Visit Again</p>
-        <p className="font-bold text-[#14532D] mt-1">{businessName}</p>
-        <p className="text-sm">{phone}</p>
+      <div className="bg-[#FFF8E8] border-t border-[#F59E0B]/30 px-4 py-5 pb-6 text-center rounded-b-lg">
+        <p className="font-semibold text-base text-[#14532D]">Thank You!</p>
+        <p className="text-sm text-muted-foreground mt-1">Visit Again</p>
+        <p className="font-bold text-[#14532D] mt-2">{businessName}</p>
+        <p className="text-sm text-[#1F2937] mt-0.5">{phone}</p>
       </div>
     </div>
   );

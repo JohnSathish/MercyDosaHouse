@@ -12,7 +12,9 @@ function hostnameFrom(url: string) {
 }
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   transpilePackages: ['@mdh/ui', '@mdh/types', '@mdh/utils', '@mdh/sdk', '@mdh/auth-client'],
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: hostnameFrom(websiteUrl), pathname: '/**' },

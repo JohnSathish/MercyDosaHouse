@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { LayoutDashboard, ShoppingBag, Heart, MapPin, Ticket, Bell, Settings } from 'lucide-react';
 import { Badge } from '@mdh/ui';
@@ -30,6 +31,26 @@ interface DashboardSidebarProps {
   mobile?: boolean;
 }
 
+function formatMemberSince(createdAt?: string | null): string {
+  if (!createdAt) return 'Recently';
+  const d = new Date(createdAt);
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return `${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
 export function DashboardSidebar({
   user,
   active,
@@ -38,10 +59,18 @@ export function DashboardSidebar({
   orderCount,
   mobile,
 }: DashboardSidebarProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const displayUser = mounted ? user : null;
   const tier = getLoyaltyTier(orderCount);
-  const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-    : 'Recently';
+  const memberSince = formatMemberSince(displayUser?.createdAt);
+  const initials = displayUser
+    ? getInitials(displayUser.name, displayUser.phone ?? undefined)
+    : null;
 
   return (
     <aside
@@ -52,15 +81,21 @@ export function DashboardSidebar({
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-4">
           <Avatar className="h-14 w-14 ring-2 ring-secondary/30">
-            <AvatarFallback className="text-lg">{getInitials(user?.name)}</AvatarFallback>
+            <AvatarFallback className="text-lg" suppressHydrationWarning>
+              {initials ?? '·'}
+            </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <p className="font-bold text-[#14532D] truncate">{user?.name || 'Customer'}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.phone || user?.email}</p>
+            <p className="font-bold text-[#14532D] truncate" suppressHydrationWarning>
+              {displayUser?.name || 'Customer'}
+            </p>
+            <p className="text-xs text-gray-500 truncate" suppressHydrationWarning>
+              {displayUser?.phone || displayUser?.email || '\u00A0'}
+            </p>
           </div>
         </div>
         <div className="space-y-1.5 text-xs text-gray-500">
-          <p>ID: #{getCustomerId(user?.id || '0000')}</p>
+          <p suppressHydrationWarning>ID: #{getCustomerId(displayUser?.id || '0000')}</p>
           <p>Member since {memberSince}</p>
         </div>
         <Badge className={`mt-3 bg-gradient-to-r ${tier.color} text-white border-0`}>

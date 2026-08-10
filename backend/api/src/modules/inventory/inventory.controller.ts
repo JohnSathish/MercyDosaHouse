@@ -8,7 +8,7 @@ import {
   InventoryUnit,
 } from '@prisma/client';
 import { InventoryService } from './inventory.service';
-import { RequirePermissions } from '../../common/guards';
+import { RequirePermissions, RequestUser } from '../../common/guards';
 
 @ApiTags('inventory')
 @ApiBearerAuth()

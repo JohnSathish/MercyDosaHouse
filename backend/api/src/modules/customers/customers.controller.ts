@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { LoyaltyTier } from '@prisma/client';
 import { CustomersService } from './customers.service';
-import { RequirePermissions } from '../../common/guards';
+import { RequirePermissions, RequestUser } from '../../common/guards';
 
 @ApiTags('customers')
 @ApiBearerAuth()

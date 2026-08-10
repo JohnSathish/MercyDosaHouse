@@ -7,12 +7,16 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:core": "pnpm --filter @mdh/types build && pnpm --parallel --filter @mdh/api --filter @mdh/website --filter @mdh/admin run dev",
+    "dev:pos": "pnpm --filter @mdh/pos dev",
     "dev:website": "pnpm --filter @mdh/website dev",
     "dev:api": "pnpm --filter @mdh/api dev",
+    "dev:mobile": "pnpm --filter @mdh/mobile-shared build && pnpm --filter @mdh/customer-app start",
+    "build:mobile": "pnpm --filter @mdh/types build && pnpm --filter @mdh/mobile-shared build && pnpm --filter @mdh/customer-app export",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:prelaunch": "node e2e/pre-launch.mjs",
     "db:generate": "pnpm --filter @mdh/api exec prisma generate",
     "db:migrate": "pnpm --filter @mdh/api exec prisma migrate dev",
     "db:seed": "pnpm --filter @mdh/api exec prisma db seed",
@@ -38,6 +42,10 @@
       "prisma",
       "bcrypt",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "@mdh/customer-app>@types/react": "~18.3.12",
+      "@mdh/customer-app>react-dom": "18.3.1"
+    }
   }
 }

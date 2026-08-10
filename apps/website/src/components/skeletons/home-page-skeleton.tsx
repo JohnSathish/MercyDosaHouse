@@ -4,7 +4,7 @@ import { ProductGridSkeleton } from '@/components/skeletons/product-card-skeleto
 export function HomePageSkeleton() {
   return (
     <>
-      <section className="hero-pattern min-h-[85vh] pt-24 pb-16">
+      <section className="hero-pattern min-h-[58vh] pt-24 pb-16">
         <div className="container mx-auto px-4 grid lg:grid-cols-2 gap-10 items-center">
           <div className="space-y-4">
             <Skeleton className="h-4 w-40 bg-white/20" />

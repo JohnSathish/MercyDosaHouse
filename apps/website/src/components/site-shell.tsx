@@ -9,8 +9,8 @@ import { FloatingActions } from './mobile/floating-actions';
 import { SiteHeader } from './site-header';
 import { SiteFooter } from './site-footer';
 import { PwaRegister } from './mobile/pwa-register';
-import { AnnouncementBar } from '@/components/cms/announcement-bar';
-import { useCmsContent } from '@/components/cms/cms-content-provider';
+import { AnnouncementBar } from '@/components/marketing/announcement-bar';
+import { DeliveryPopup } from '@/components/marketing/delivery-popup';
 
 interface SiteShellProps {
   children: React.ReactNode;
@@ -25,14 +25,12 @@ function BottomNavFallback() {
 }
 
 export function SiteShell({ children, phone, whatsapp, address, hours }: SiteShellProps) {
-  const cms = useCmsContent();
-  const hasAnnouncement = Boolean(cms?.announcements.some((a) => a.type === 'BAR' && a.isActive));
-
-  const mainOffset = hasAnnouncement ? 'pt-[6.75rem] lg:pt-[7.25rem]' : 'pt-16 lg:pt-[4.5rem]';
+  const mainOffset = 'pt-[6.75rem] lg:pt-[7.25rem]';
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FFF8E8]">
       <PwaRegister />
+      <DeliveryPopup />
 
       {/* Fixed top stack: announcement + nav — always visible, never overlapped */}
       <div className="fixed top-0 left-0 right-0 z-50">

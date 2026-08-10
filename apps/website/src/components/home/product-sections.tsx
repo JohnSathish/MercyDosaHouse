@@ -22,7 +22,7 @@ export function PopularDosasSection({ products }: { products: ProductDto[] }) {
             <span className="text-secondary font-semibold text-sm uppercase tracking-wider">
               Customer Favourite
             </span>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] mt-1">Popular Dosas</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] mt-1">Popular Items</h2>
           </div>
           <Link href="/menu">
             <Button
@@ -71,6 +71,7 @@ export function BiryaniSection({ product }: { product?: ProductDto }) {
               src={getProductImage(product)}
               alt={product.name}
               fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover opacity-80"
             />
           </div>
@@ -110,6 +111,7 @@ export function BestSellerSection({ product }: { product?: ProductDto }) {
               src={getProductImage(product)}
               alt={product.name}
               fill
+              sizes="128px"
               className="object-cover"
             />
           </div>

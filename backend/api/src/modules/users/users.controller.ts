@@ -18,9 +18,22 @@ export class UsersController {
     return this.usersService.getProfile(req.user.id);
   }
 
+  @Get('me/checkout-profile')
+  getCheckoutProfile(@Req() req: { user: RequestUser }) {
+    return this.usersService.getCheckoutProfile(req.user.id);
+  }
+
   @Patch('me')
   updateProfile(@Req() req: { user: RequestUser }, @Body() body: { name?: string }) {
     return this.usersService.updateProfile(req.user.id, body);
+  }
+
+  @Patch('me/preferences')
+  updatePreferences(
+    @Req() req: { user: RequestUser },
+    @Body() body: { preferredPayment?: string; preferredDelivery?: string },
+  ) {
+    return this.usersService.updatePreferences(req.user.id, body as never);
   }
 
   @Get('me/addresses')

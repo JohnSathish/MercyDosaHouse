@@ -1,13 +1,24 @@
-import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  OnModuleInit,
+  Logger,
+} from '@nestjs/common';
 import { OrderStatus, PaymentMethod, PaymentStatus, TrackingStatus } from '@prisma/client';
+import { calculatePreOrderDiscount, calculateDeliveryCharge, isPreOrderEligible } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
+import { EmailService } from '../notifications/email.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private prisma: PrismaService,
     private gateway: OrdersGateway,
+    private emailService: EmailService,
   ) {}
 
   async onModuleInit() {
@@ -59,6 +70,39 @@ export class OrdersService implements OnModuleInit {
     return orders.map((order) => this.mapOrder(order));
   }
 
+  async quote(data: {
+    items: { productId: string; variantId?: string; quantity: number }[];
+    userId?: string;
+    couponCode?: string;
+    scheduledDeliveryAt?: Date;
+    rewardPointsUsed?: number;
+  }) {
+    if (!data.items.length) throw new BadRequestException('Cart is empty');
+    const pricing = await this.computePricing(data);
+    return {
+      subtotal: pricing.subtotal,
+      deliveryCharge: pricing.deliveryCharge,
+      packingCharge: pricing.packingCharge,
+      packedItemCount: pricing.packedItemCount,
+      preOrderDiscount: pricing.preOrderDiscount,
+      couponDiscount: pricing.couponDiscount,
+      rewardDiscount: pricing.rewardDiscount,
+      totalDiscount: pricing.totalDiscount,
+      grandTotal: pricing.grandTotal,
+      minOrderAmount: pricing.minOrderAmount,
+      items: pricing.orderItems.map((i) => ({
+        productId: i.productId,
+        variantId: i.variantId,
+        productName: i.productName,
+        variantName: i.variantName,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        totalPrice: i.totalPrice,
+        packingCharge: i.packingCharge,
+      })),
+    };
+  }
+
   async create(data: {
     customerName: string;
     customerPhone: string;
@@ -68,78 +112,13 @@ export class OrdersService implements OnModuleInit {
     items: { productId: string; variantId?: string; quantity: number }[];
     userId?: string;
     couponCode?: string;
+    addressId?: string;
+    scheduledDeliveryAt?: Date;
+    rewardPointsUsed?: number;
   }) {
     if (!data.items.length) throw new BadRequestException('Order must have items');
 
-    const settings = await this.prisma.businessSettings.findFirst();
-    const deliveryCharge = Number(settings?.deliveryCharge || 30);
-    const packingCharge = Number(settings?.packingCharge || 10);
-    const minOrder = Number(settings?.minOrderAmount || 100);
-
-    const productIds = data.items.map((i) => i.productId);
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, isAvailable: true },
-      include: { variants: true },
-    });
-
-    if (products.length !== new Set(productIds).size) {
-      throw new BadRequestException('Some products are unavailable');
-    }
-
-    let subtotal = 0;
-    const orderItems = data.items.map((item) => {
-      const product = products.find((p) => p.id === item.productId)!;
-      let unitPrice = Number(product.price);
-      let variantName: string | undefined;
-
-      if (item.variantId) {
-        const variant = product.variants.find((v) => v.id === item.variantId);
-        if (!variant || !variant.isAvailable) {
-          throw new BadRequestException(`Variant unavailable for ${product.name}`);
-        }
-        unitPrice = Number(variant.price);
-        variantName = variant.name;
-      }
-
-      const totalPrice = unitPrice * item.quantity;
-      subtotal += totalPrice;
-
-      return {
-        productId: item.productId,
-        variantId: item.variantId,
-        productName: product.name,
-        variantName,
-        quantity: item.quantity,
-        unitPrice,
-        totalPrice,
-      };
-    });
-
-    if (subtotal < minOrder) {
-      throw new BadRequestException(`Minimum order amount is ₹${minOrder}`);
-    }
-
-    let discount = 0;
-    let couponId: string | undefined;
-
-    if (data.couponCode) {
-      const coupon = await this.prisma.coupon.findUnique({
-        where: { code: data.couponCode, isActive: true },
-      });
-      if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
-        if (subtotal >= Number(coupon.minOrderAmount)) {
-          if (coupon.type === 'PERCENTAGE') {
-            discount = (subtotal * Number(coupon.value)) / 100;
-            if (coupon.maxDiscount) discount = Math.min(discount, Number(coupon.maxDiscount));
-          } else {
-            discount = Number(coupon.value);
-          }
-          couponId = coupon.id;
-        }
-      }
-    }
-
-    const grandTotal = subtotal + deliveryCharge + packingCharge - discount;
+    const pricing = await this.computePricing(data);
     const orderNumber = await this.generateOrderNumber();
     const branch = await this.prisma.branch.findFirst({ where: { isDefault: true } });
 
@@ -152,20 +131,22 @@ export class OrdersService implements OnModuleInit {
           customerName: data.customerName,
           customerPhone: data.customerPhone,
           deliveryAddress: data.deliveryAddress,
+          addressId: data.addressId,
+          scheduledDeliveryAt: data.scheduledDeliveryAt,
+          rewardPointsUsed: pricing.rewardPointsUsed,
           deliveryInstructions: data.deliveryInstructions,
-          subtotal,
-          deliveryCharge,
-          packingCharge,
-          discount,
-          grandTotal,
+          subtotal: pricing.subtotal,
+          deliveryCharge: pricing.deliveryCharge,
+          packingCharge: pricing.packingCharge,
+          packedItemCount: pricing.packedItemCount,
+          preOrderDiscount: pricing.preOrderDiscount,
+          discount: pricing.totalDiscount,
+          grandTotal: pricing.grandTotal,
           paymentMethod: data.paymentMethod,
-          paymentStatus:
-            data.paymentMethod === PaymentMethod.COD
-              ? PaymentStatus.PENDING
-              : PaymentStatus.PENDING,
-          couponId,
+          paymentStatus: PaymentStatus.PENDING,
+          couponId: pricing.couponId,
           deliveryOtp: String(Math.floor(1000 + Math.random() * 9000)),
-          items: { create: orderItems },
+          items: { create: pricing.orderItems },
         },
         include: { items: true, payment: true },
       });
@@ -175,14 +156,37 @@ export class OrdersService implements OnModuleInit {
           orderId: created.id,
           method: data.paymentMethod,
           status: PaymentStatus.PENDING,
-          amount: grandTotal,
+          amount: pricing.grandTotal,
         },
       });
 
-      if (couponId) {
+      if (pricing.couponId) {
         await tx.coupon.update({
-          where: { id: couponId },
+          where: { id: pricing.couponId },
           data: { usageCount: { increment: 1 } },
+        });
+      }
+
+      if (pricing.rewardPointsUsed > 0 && data.userId) {
+        const updatedUser = await tx.user.update({
+          where: { id: data.userId },
+          data: { loyaltyPoints: { decrement: pricing.rewardPointsUsed } },
+        });
+        await tx.rewardTransaction.create({
+          data: {
+            userId: data.userId,
+            type: 'REDEEM',
+            points: -pricing.rewardPointsUsed,
+            balance: updatedUser.loyaltyPoints,
+            description: `Redeemed on order ${orderNumber}`,
+          },
+        });
+      }
+
+      if (data.userId && data.paymentMethod) {
+        await tx.user.update({
+          where: { id: data.userId },
+          data: { preferredPayment: data.paymentMethod, lastOrderAt: new Date() },
         });
       }
 
@@ -198,7 +202,178 @@ export class OrdersService implements OnModuleInit {
     });
 
     this.gateway.emitNewOrder(order);
+    void this.sendOrderConfirmationEmail(order.orderNumber, pricing.grandTotal, data.userId);
     return this.findOne(order.id);
+  }
+
+  private async sendOrderConfirmationEmail(
+    orderNumber: string,
+    grandTotal: number,
+    userId?: string,
+  ) {
+    if (!userId) return;
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      if (!user?.email) return;
+
+      const result = await this.emailService.sendOrderConfirmation(
+        user.email,
+        orderNumber,
+        grandTotal,
+      );
+      if (!result.sent) {
+        this.logger.debug(`Order confirmation email skipped: ${result.error ?? 'not configured'}`);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Order confirmation email failed for ${orderNumber}: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+  }
+
+  private async computePricing(data: {
+    items: { productId: string; variantId?: string; quantity: number }[];
+    userId?: string;
+    couponCode?: string;
+    scheduledDeliveryAt?: Date;
+    rewardPointsUsed?: number;
+  }) {
+    const settings = await this.prisma.businessSettings.findFirst();
+    const minOrder = Number(settings?.minOrderAmount || 100);
+
+    const productIds = data.items.map((i) => i.productId);
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds }, isAvailable: true },
+      include: { variants: true },
+    });
+
+    if (products.length !== new Set(productIds).size) {
+      throw new BadRequestException('Some products are unavailable');
+    }
+
+    let subtotal = 0;
+    let packingCharge = 0;
+    let packedItemCount = 0;
+    const orderItems = data.items.map((item) => {
+      const product = products.find((p) => p.id === item.productId)!;
+      let unitPrice = Number(product.price);
+      let variantName: string | undefined;
+      const unitPackingCharge = Number(product.packingCharge ?? 20);
+
+      if (item.variantId) {
+        const variant = product.variants.find((v) => v.id === item.variantId);
+        if (!variant || !variant.isAvailable) {
+          throw new BadRequestException(`Variant unavailable for ${product.name}`);
+        }
+        unitPrice = Number(variant.price);
+        variantName = variant.name;
+      }
+
+      const totalPrice = unitPrice * item.quantity;
+      const linePacking = unitPackingCharge * item.quantity;
+      subtotal += totalPrice;
+      packingCharge += linePacking;
+      packedItemCount += item.quantity;
+
+      return {
+        productId: item.productId,
+        variantId: item.variantId,
+        productName: product.name,
+        variantName,
+        quantity: item.quantity,
+        unitPrice,
+        totalPrice,
+        unitPackingCharge,
+        packingCharge: linePacking,
+      };
+    });
+
+    if (subtotal < minOrder) {
+      throw new BadRequestException(`Minimum order amount is ₹${minOrder}`);
+    }
+
+    const { amount: deliveryCharge } = calculateDeliveryCharge(subtotal, {
+      deliveryCharge: Number(settings?.deliveryCharge ?? 30),
+      freeDeliveryLimit: Number(settings?.freeDeliveryLimit ?? 299),
+      orderType: 'DELIVERY',
+    });
+
+    const preOrderConfig = {
+      discountPct: Number(settings?.preOrderDiscountPct ?? 10),
+      minDaysAhead: Number(settings?.preOrderMinDaysAhead ?? 1),
+      stackWithCoupons: settings?.preOrderStackWithCoupons === true,
+    };
+
+    let preOrderDiscount = 0;
+    if (
+      data.scheduledDeliveryAt &&
+      isPreOrderEligible(data.scheduledDeliveryAt, new Date(), preOrderConfig)
+    ) {
+      preOrderDiscount = calculatePreOrderDiscount(
+        subtotal,
+        data.scheduledDeliveryAt,
+        preOrderConfig,
+      );
+    }
+
+    let couponDiscount = 0;
+    let couponId: string | undefined;
+    const allowCoupon = preOrderConfig.stackWithCoupons || preOrderDiscount === 0;
+
+    if (data.couponCode && allowCoupon) {
+      const coupon = await this.prisma.coupon.findUnique({
+        where: { code: data.couponCode, isActive: true },
+      });
+      if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
+        if (subtotal >= Number(coupon.minOrderAmount)) {
+          if (coupon.type === 'PERCENTAGE') {
+            couponDiscount = (subtotal * Number(coupon.value)) / 100;
+            if (coupon.maxDiscount)
+              couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
+          } else {
+            couponDiscount = Number(coupon.value);
+          }
+          couponDiscount = Math.min(couponDiscount, subtotal);
+          couponId = coupon.id;
+        }
+      }
+    }
+
+    let rewardDiscount = 0;
+    const rewardPointsUsed = data.rewardPointsUsed ?? 0;
+    if (rewardPointsUsed > 0 && data.userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
+      if (!user) throw new BadRequestException('User not found');
+      if (user.loyaltyPoints < rewardPointsUsed) {
+        throw new BadRequestException('Insufficient reward points');
+      }
+      rewardDiscount = Math.min(
+        rewardPointsUsed,
+        subtotal + deliveryCharge + packingCharge - preOrderDiscount - couponDiscount,
+      );
+    }
+
+    const totalDiscount = preOrderDiscount + couponDiscount + rewardDiscount;
+    const grandTotal = Math.max(0, subtotal + deliveryCharge + packingCharge - totalDiscount);
+
+    return {
+      subtotal,
+      deliveryCharge,
+      packingCharge,
+      packedItemCount,
+      preOrderDiscount,
+      couponDiscount,
+      rewardDiscount,
+      rewardPointsUsed: rewardDiscount > 0 ? rewardPointsUsed : 0,
+      totalDiscount,
+      grandTotal,
+      couponId,
+      minOrderAmount: minOrder,
+      orderItems,
+    };
   }
 
   async findAll(filters?: { status?: OrderStatus; page?: number; limit?: number }) {
@@ -385,13 +560,16 @@ export class OrdersService implements OnModuleInit {
     trackingStatus: TrackingStatus | null;
     customerName: string;
     customerPhone: string;
-    deliveryAddress: string;
+    deliveryAddress: string | null;
     deliveryInstructions: string | null;
     rejectReason?: string | null;
     subtotal: { toNumber?: () => number } | number;
     deliveryCharge: { toNumber?: () => number } | number;
     packingCharge: { toNumber?: () => number } | number;
+    packedItemCount?: number;
+    preOrderDiscount?: { toNumber?: () => number } | number;
     discount: { toNumber?: () => number } | number;
+    scheduledDeliveryAt?: Date | null;
     grandTotal: { toNumber?: () => number } | number;
     paymentMethod: PaymentMethod;
     paymentStatus: PaymentStatus;
@@ -404,6 +582,8 @@ export class OrdersService implements OnModuleInit {
       quantity: number;
       unitPrice: { toNumber?: () => number } | number;
       totalPrice: { toNumber?: () => number } | number;
+      unitPackingCharge?: { toNumber?: () => number } | number;
+      packingCharge?: { toNumber?: () => number } | number;
     }[];
     statusHistory?: {
       id: string;
@@ -426,13 +606,16 @@ export class OrdersService implements OnModuleInit {
       trackingStatus: order.trackingStatus,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
-      deliveryAddress: order.deliveryAddress,
+      deliveryAddress: order.deliveryAddress ?? '',
       deliveryInstructions: order.deliveryInstructions,
       rejectReason: order.rejectReason ?? null,
       subtotal: toNum(order.subtotal),
       deliveryCharge: toNum(order.deliveryCharge),
       packingCharge: toNum(order.packingCharge),
+      packedItemCount: order.packedItemCount ?? 0,
+      preOrderDiscount: toNum(order.preOrderDiscount ?? 0),
       discount: toNum(order.discount),
+      scheduledDeliveryAt: order.scheduledDeliveryAt?.toISOString() ?? null,
       grandTotal: toNum(order.grandTotal),
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
@@ -445,6 +628,8 @@ export class OrdersService implements OnModuleInit {
         quantity: i.quantity,
         unitPrice: toNum(i.unitPrice),
         totalPrice: toNum(i.totalPrice),
+        unitPackingCharge: toNum(i.unitPackingCharge ?? 0),
+        packingCharge: toNum(i.packingCharge ?? 0),
       })),
       statusHistory: order.statusHistory?.map((h) => ({
         id: h.id,

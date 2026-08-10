@@ -26,6 +26,13 @@ const PERMISSIONS = [
   'cms.write',
   'inventory.read',
   'inventory.write',
+  'pos.read',
+  'pos.manage',
+  'pos.discount',
+  'pos.void',
+  'pos.refund',
+  'pos.shift',
+  'pos.price_override',
 ];
 
 const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -33,7 +40,14 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   MANAGER: PERMISSIONS.filter((p) => !p.startsWith('users.write')),
   KITCHEN_STAFF: ['orders.read', 'kitchen.manage', 'inventory.read', 'delivery.read'],
   DELIVERY_STAFF: ['orders.read', 'delivery.manage'],
-  CASHIER: ['orders.read', 'orders.write', 'products.read'],
+  CASHIER: [
+    'orders.read',
+    'orders.write',
+    'products.read',
+    'pos.read',
+    'pos.manage',
+    'pos.discount',
+  ],
   CUSTOMER: [],
 };
 
@@ -159,9 +173,16 @@ async function main() {
       badge: 'HOT' as const,
       isPopular: true,
     },
-    { name: 'Meals', slug: 'meals', sortOrder: 5, icon: '🍱', status: 'INACTIVE' as const },
-    { name: 'Beverages', slug: 'beverages', sortOrder: 6, icon: '🥤', status: 'INACTIVE' as const },
-    { name: 'Combos', slug: 'combos', sortOrder: 7, icon: '🎁', status: 'INACTIVE' as const },
+    {
+      name: 'Rice',
+      slug: 'rice',
+      sortOrder: 5,
+      icon: '🍚',
+      isPopular: true,
+    },
+    { name: 'Meals', slug: 'meals', sortOrder: 6, icon: '🍱', status: 'INACTIVE' as const },
+    { name: 'Beverages', slug: 'beverages', sortOrder: 7, icon: '🥤', status: 'INACTIVE' as const },
+    { name: 'Combos', slug: 'combos', sortOrder: 8, icon: '🎁', status: 'INACTIVE' as const },
   ];
 
   for (const cat of categories) {
@@ -227,6 +248,7 @@ async function main() {
   const idlyCat = await prisma.category.findUnique({ where: { slug: 'idly' } });
   const vadaCat = await prisma.category.findUnique({ where: { slug: 'vada' } });
   const biryaniCat = await prisma.category.findUnique({ where: { slug: 'biryani' } });
+  const riceMenuCat = await prisma.category.findUnique({ where: { slug: 'rice' } });
 
   const dosaSides = 'Served with Sambar, Coconut Chutney & Tomato Chutney';
 
@@ -310,6 +332,19 @@ async function main() {
       imageUrl: '/images/onion-dosa.png',
     },
     {
+      name: 'Egg Dosa',
+      slug: 'egg-dosa',
+      description: 'Crispy dosa topped with seasoned egg, served with sambar & chutneys.',
+      price: 100,
+      categoryId: dosaCat!.id,
+      foodType: FoodType.NON_VEG,
+      spiceLevel: SpiceLevel.MILD,
+      prepTimeMinutes: 12,
+      isPopular: true,
+      ingredients: dosaSides,
+      imageUrl: '/images/egg-dosa.png',
+    },
+    {
       name: 'Cheese Dosa',
       slug: 'cheese-dosa',
       description: 'Crispy dosa with generous melted cheese.',
@@ -347,17 +382,41 @@ async function main() {
       imageUrl: '/images/vada-4-pieces.png',
     },
     {
+      name: 'Masala Vada',
+      slug: 'masala-vada',
+      description: 'Crispy spiced lentil vadas served with chutney.',
+      price: 70,
+      categoryId: vadaCat!.id,
+      foodType: FoodType.VEG,
+      spiceLevel: SpiceLevel.MEDIUM,
+      prepTimeMinutes: 12,
+      isPopular: true,
+      imageUrl: '/images/masala-vada.png',
+    },
+    {
       name: 'Chicken Biryani',
       slug: 'chicken-biryani',
       description:
         'Aromatic & flavorful Chicken Biryani served with 1 Egg, 2 Pieces of Chicken & Onion Raitha.',
-      price: 230,
+      price: 270,
       categoryId: biryaniCat!.id,
       foodType: FoodType.NON_VEG,
       spiceLevel: SpiceLevel.MEDIUM,
       prepTimeMinutes: 25,
       isPopular: true,
       imageUrl: '/images/chicken-biryani.png',
+    },
+    {
+      name: 'Paneer Fried Rice',
+      slug: 'paneer-fried-rice',
+      description: 'Stir-fried basmati rice with paneer cubes, vegetables & Indo-Chinese flavours.',
+      price: 120,
+      categoryId: riceMenuCat!.id,
+      foodType: FoodType.VEG,
+      spiceLevel: SpiceLevel.MEDIUM,
+      prepTimeMinutes: 18,
+      isPopular: true,
+      imageUrl: '/images/paneer-fried-rice.png',
     },
   ];
 
@@ -368,6 +427,7 @@ async function main() {
         name: product.name,
         description: product.description,
         price: product.price,
+        packingCharge: product.slug === 'chicken-biryani' ? 25 : 20,
         categoryId: product.categoryId,
         foodType: product.foodType,
         spiceLevel: product.spiceLevel,
@@ -376,7 +436,10 @@ async function main() {
         ingredients: product.ingredients,
         isAvailable: true,
       },
-      create: product,
+      create: {
+        ...product,
+        packingCharge: product.slug === 'chicken-biryani' ? 25 : 20,
+      },
     });
   }
 
@@ -478,19 +541,37 @@ async function main() {
 
   const offers = [
     {
-      title: 'Buy 2 Masala Dosas',
-      description: 'Fresh spiced masala filling, crispy & hot',
-      buttonLabel: 'Order Now',
-      buttonUrl: '/menu',
+      title: 'Chicken Curry Dosa ₹150',
+      description: 'Order 2 hours ahead. Fresh preparation only after your order.',
+      buttonLabel: 'Pre-Order',
+      buttonUrl: '/checkout?preorder=1',
+      imageUrl: '/images/chicken-curry-dosa-promo.png',
+      sortOrder: 0,
+      type: 'BANNER' as const,
+    },
+    {
+      title: 'Veg Biryani ₹150',
+      description: 'Coming Soon — Order 2 hours ahead. Fresh preparation only after your order.',
+      buttonLabel: 'Pre-Order',
+      buttonUrl: '/checkout?preorder=1',
+      imageUrl: '/images/veg-biryani-promo.png',
       sortOrder: 1,
       type: 'BANNER' as const,
     },
     {
+      title: 'Buy 2 Masala Dosas',
+      description: 'Fresh spiced masala filling, crispy & hot',
+      buttonLabel: 'Order Now',
+      buttonUrl: '/menu',
+      sortOrder: 2,
+      type: 'BANNER' as const,
+    },
+    {
       title: 'Chicken Biryani',
-      description: 'Aromatic & flavorful — ₹230',
+      description: 'Aromatic & flavorful — ₹270',
       buttonLabel: 'Order Now',
       buttonUrl: '/menu/chicken-biryani',
-      sortOrder: 2,
+      sortOrder: 3,
       type: 'BANNER' as const,
     },
     {
@@ -499,7 +580,7 @@ async function main() {
       buttonLabel: 'Order Now',
       buttonUrl: '/menu',
       discountPct: 10,
-      sortOrder: 3,
+      sortOrder: 4,
       type: 'BANNER' as const,
     },
   ];
@@ -514,6 +595,12 @@ async function main() {
   }
 
   const galleryImages = [
+    {
+      title: 'Veg Biryani Promo',
+      imageUrl: '/images/veg-biryani-promo.png',
+      sortOrder: 0,
+      isFeatured: true,
+    },
     { title: 'Masala Dosa', imageUrl: '/images/hero-dosa.png', sortOrder: 1, isFeatured: true },
     {
       title: 'Chicken Biryani',
@@ -899,22 +986,171 @@ async function main() {
   await prisma.businessSettings.update({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     data: {
-      announcementBar: 'Free Delivery Above ₹299',
+      announcementBar: '🎉 5% OFF on Orders Above ₹299',
       freeDeliveryLimit: 299,
       footerCopyright: `© ${new Date().getFullYear()} Mercy Dosa House. All rights reserved.`,
     },
   });
 
-  const existingBar = await prisma.announcement.findFirst({ where: { type: 'BAR' } });
-  if (!existingBar) {
-    await prisma.announcement.create({
-      data: {
-        title: 'Free Delivery',
-        message: 'Free Delivery Above ₹299',
-        type: 'BAR',
-        isActive: true,
-      },
-    });
+  await prisma.announcement.updateMany({
+    where: { message: { contains: 'Free Delivery', mode: 'insensitive' } },
+    data: { isActive: false },
+  });
+
+  // Delivery configuration — admin-managed, not hard-coded in frontend
+  const deliveryConfigId = '00000000-0000-0000-0000-0000000000dc';
+  await prisma.deliveryConfig.upsert({
+    where: { id: deliveryConfigId },
+    update: {},
+    create: {
+      id: deliveryConfigId,
+      status: 'LIMITED_AREA',
+      areas: ['Walbakgre', 'Holy Cross Hospital Area'],
+      orderStartTime: '15:00',
+      orderEndTime: '16:00',
+      deliveryStartTime: '17:30',
+      deliveryEndTime: '18:00',
+      deliveryCharge: 30,
+      freeDeliveryThreshold: 299,
+      minOrderAmount: 100,
+      message:
+        'Home delivery is currently available in the Walbakgre and Holy Cross Hospital areas.',
+      expansionMessage: 'Coming soon to all areas of Tura!',
+      isActive: true,
+    },
+  });
+
+  const marketingAnnouncements = [
+    {
+      title: 'Free Delivery Advance Orders',
+      message: 'There will be no delivery charges on food orders placed one day in advance.',
+      shortMessage: 'Free delivery on 1-day advance orders',
+      icon: '🚚',
+      type: 'BAR' as const,
+      priorityLevel: 'PROMOTION' as const,
+      platform: 'WEBSITE' as const,
+      placements: ['HOME_BOLD_BANNER'],
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: false,
+      publishedAt: new Date(),
+    },
+    {
+      title: 'Home Delivery Update',
+      message: 'Home Delivery Update: Currently available in Walbakgre & Holy Cross Hospital Area',
+      shortMessage: 'Walbakgre & Holy Cross Hospital Area',
+      icon: '🚚',
+      type: 'BAR' as const,
+      priorityLevel: 'DELIVERY_UPDATE' as const,
+      platform: 'BOTH' as const,
+      placements: ['TOP_BAR', 'APP_HOME'],
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: true,
+      ctaText: 'Order Now',
+      ctaUrl: '/menu',
+      publishedAt: new Date(),
+    },
+    {
+      title: 'Home Delivery',
+      message:
+        'Home delivery is currently available in the Walbakgre and Holy Cross Hospital areas. We are expanding our delivery service to all areas of Tura soon.',
+      shortMessage: 'Walbakgre & Holy Cross Hospital Area',
+      icon: '🏠',
+      type: 'BAR' as const,
+      priorityLevel: 'DELIVERY_UPDATE' as const,
+      platform: 'BOTH' as const,
+      placements: ['DELIVERY_CARD'],
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: false,
+    },
+    {
+      title: 'Delivery Areas',
+      message:
+        'We currently deliver to Walbakgre and Holy Cross Hospital Area. Order between 3:00 PM – 4:00 PM for delivery between 5:30 PM – 6:00 PM.',
+      icon: '🚚',
+      type: 'POPUP' as const,
+      priorityLevel: 'DELIVERY_UPDATE' as const,
+      platform: 'BOTH' as const,
+      placements: ['POPUP', 'CHECKOUT'],
+      popupFrequency: 'ONCE_SESSION' as const,
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: true,
+      mandatory: false,
+      ctaText: 'View Menu',
+      ctaUrl: '/menu',
+      publishedAt: new Date(),
+    },
+    {
+      title: '5% Off 299',
+      message: '🎉 5% OFF on Orders Above ₹299',
+      icon: '🎉',
+      type: 'BAR' as const,
+      priorityLevel: 'PROMOTION' as const,
+      platform: 'BOTH' as const,
+      placements: ['TOP_BAR'],
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      linkUrl: '/menu',
+      dismissible: true,
+      publishedAt: new Date(),
+    },
+    {
+      title: 'Veg Biryani ₹150 — Coming Soon',
+      message:
+        '🍚 Veg Biryani at just ₹150 — Coming Soon! Order at least 2 hours in advance. We prepare fresh only after your order is placed.',
+      shortMessage: '₹150 · Pre-order 2 hrs ahead',
+      icon: '🍚',
+      type: 'BAR' as const,
+      priorityLevel: 'PROMOTION' as const,
+      platform: 'BOTH' as const,
+      placements: ['TOP_BAR', 'HERO_SECTION', 'APP_HOME'],
+      bannerImageUrl: '/images/veg-biryani-promo.png',
+      heroBannerImageUrl: '/images/veg-biryani-promo.png',
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: true,
+      ctaText: 'Pre-Order',
+      ctaUrl: '/checkout?preorder=1',
+      publishedAt: new Date(),
+    },
+    {
+      title: 'Chicken Curry Dosa ₹150',
+      message:
+        '🥘 Chicken Curry Dosa at ₹150 — Order at least 2 hours in advance. We prepare fresh only after your order is placed.',
+      shortMessage: '₹150 · Pre-order 2 hrs ahead',
+      icon: '🥘',
+      type: 'BAR' as const,
+      priorityLevel: 'PROMOTION' as const,
+      platform: 'BOTH' as const,
+      placements: ['TOP_BAR', 'HERO_SECTION', 'APP_HOME'],
+      bannerImageUrl: '/images/chicken-curry-dosa-promo.png',
+      heroBannerImageUrl: '/images/chicken-curry-dosa-promo.png',
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: true,
+      ctaText: 'Pre-Order',
+      ctaUrl: '/checkout?preorder=1',
+      publishedAt: new Date(),
+    },
+  ];
+
+  for (const item of marketingAnnouncements) {
+    const existing = await prisma.announcement.findFirst({ where: { title: item.title } });
+    const data = {
+      ...item,
+      analytics: { create: {} },
+    };
+    if (existing) {
+      await prisma.announcement.update({
+        where: { id: existing.id },
+        data: { ...item, analytics: undefined },
+      });
+    } else {
+      await prisma.announcement.create({ data });
+    }
   }
 
   // Delivery zones
@@ -1224,6 +1460,69 @@ async function main() {
         ],
       });
     }
+  }
+
+  const branchId = '00000000-0000-0000-0000-000000000001';
+  const floor = await prisma.posFloor.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000010' },
+    update: { name: 'Main Dining' },
+    create: {
+      id: '00000000-0000-0000-0000-000000000010',
+      branchId,
+      name: 'Main Dining',
+      sortOrder: 1,
+    },
+  });
+
+  const tableLabels = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+  for (let i = 0; i < tableLabels.length; i++) {
+    await prisma.posTable.upsert({
+      where: { id: `00000000-0000-0000-0000-0000000000${String(20 + i).padStart(2, '0')}` },
+      update: {},
+      create: {
+        id: `00000000-0000-0000-0000-0000000000${String(20 + i).padStart(2, '0')}`,
+        floorId: floor.id,
+        label: tableLabels[i],
+        capacity: i < 4 ? 2 : i < 8 ? 4 : 6,
+        posX: (i % 4) * 120,
+        posY: Math.floor(i / 4) * 100,
+        status: 'AVAILABLE',
+      },
+    });
+  }
+
+  await prisma.posTerminal.upsert({
+    where: { deviceKey: 'pos-terminal-1' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000030',
+      branchId,
+      name: 'Counter 1',
+      deviceKey: 'pos-terminal-1',
+    },
+  });
+
+  const cashierRole = await prisma.role.findUnique({ where: { name: UserRole.CASHIER } });
+  const cashierPassword = await bcrypt.hash('Cashier@123', 10);
+  await prisma.user.upsert({
+    where: { email: 'cashier@mercydosahouse.com' },
+    update: { name: 'POS Cashier', phone: '9000000002' },
+    create: {
+      email: 'cashier@mercydosahouse.com',
+      phone: '9000000002',
+      name: 'POS Cashier',
+      passwordHash: cashierPassword,
+      roleId: cashierRole!.id,
+      isActive: true,
+    },
+  });
+
+  for (const method of [PaymentMethod.CASH, PaymentMethod.CARD]) {
+    await prisma.paymentMethodConfig.upsert({
+      where: { method },
+      update: { isEnabled: true },
+      create: { method, isEnabled: true },
+    });
   }
 
   console.log('Seed completed successfully');

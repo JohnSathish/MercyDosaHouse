@@ -5,10 +5,26 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, Badge } from '@mdh/ui';
 import { CmsPageHeader } from '@/components/cms/cms-page-header';
 import { api } from '@/lib/api';
+import { APP_URLS } from '@/lib/app-urls';
 import type { DashboardStatsDto } from '@mdh/types';
-import { Globe, Image, Tag, MessageSquare, FileText, Palette, ArrowRight } from 'lucide-react';
+import {
+  Globe,
+  Image,
+  Tag,
+  MessageSquare,
+  FileText,
+  Palette,
+  ArrowRight,
+  Smartphone,
+} from 'lucide-react';
 
 const QUICK_LINKS = [
+  {
+    href: '/cms/mobile',
+    label: 'Mobile App Config',
+    icon: Smartphone,
+    desc: 'Remote config for Android apps',
+  },
   { href: '/cms/homepage', label: 'Home Page Builder', icon: Globe, desc: 'Hero, stats, sections' },
   { href: '/cms/offers', label: 'Offers & Promotions', icon: Tag, desc: 'Banners, flash sales' },
   { href: '/cms/gallery', label: 'Gallery', icon: Image, desc: 'Food photos & albums' },
@@ -76,12 +92,12 @@ export default function CmsDashboardPage() {
         <p className="text-sm text-gray-600">
           Changes publish instantly to the website when you click <strong>Publish</strong>. Visit{' '}
           <a
-            href="http://localhost:3000"
+            href={APP_URLS.website}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[#14532D] font-medium underline"
           >
-            localhost:3000
+            {APP_URLS.website.replace(/^https?:\/\//, '')}
           </a>{' '}
           to preview.
         </p>

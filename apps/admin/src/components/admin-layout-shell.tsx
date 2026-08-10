@@ -36,6 +36,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const isLoginPage = pathname === '/login';
+  const isPosPage = pathname.startsWith('/pos');
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
@@ -95,7 +96,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  if (isLoginPage) return <>{children}</>;
+  if (isLoginPage || isPosPage) return <>{children}</>;
 
   return (
     <div className="min-h-screen w-full flex bg-gray-50 dark:bg-gray-950">

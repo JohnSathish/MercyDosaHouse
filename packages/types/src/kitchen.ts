@@ -54,6 +54,8 @@ export interface KitchenOrderDto {
   rejectReason?: string | null;
   tokenNumber?: number | null;
   priority: KitchenPriority;
+  orderType?: string | null;
+  tableLabel?: string | null;
   kitchenStartedAt?: string | null;
   kitchenCompletedAt?: string | null;
   queuePosition: number;

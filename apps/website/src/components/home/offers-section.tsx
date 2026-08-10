@@ -18,16 +18,16 @@ const FALLBACK_OFFERS = [
   },
   {
     title: 'Chicken Biryani',
-    subtitle: 'Aromatic & flavorful — ₹230',
+    subtitle: 'Aromatic & flavorful — ₹270',
     cta: 'Order Now',
     href: '/menu/chicken-biryani',
     bg: 'from-emerald-600 to-green-500',
   },
   {
-    title: '10% OFF',
-    subtitle: 'Pre-order before one day',
-    cta: 'Order Now',
-    href: '/menu',
+    title: '10% Pre-Order OFF',
+    subtitle: 'Order at least 1 day ahead — save on all food items',
+    cta: 'Schedule Order',
+    href: '/checkout',
     bg: 'from-red-500 to-rose-500',
   },
 ];
@@ -45,6 +45,7 @@ function cmsOffersToCards(offers: OfferDto[]) {
     cta: o.buttonLabel ?? 'Order Now',
     href: o.buttonUrl ?? '/menu',
     bg: OFFER_GRADIENTS[i % OFFER_GRADIENTS.length],
+    imageUrl: o.imageUrl ?? undefined,
   }));
 }
 
@@ -61,7 +62,7 @@ export function OffersSection() {
           className="text-center mb-10"
         >
           <span className="text-secondary font-semibold text-sm uppercase tracking-wider">
-            🔥 Today&apos;s Offers
+            🎁 Today&apos;s Specials
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] mt-2">
             Special Deals For You
@@ -76,19 +77,27 @@ export function OffersSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${offer.bg} text-white p-6 card-lift shadow-lg`}
+              className={`relative overflow-hidden rounded-2xl ${offer.imageUrl ? 'bg-[#14532D]' : `bg-gradient-to-br ${offer.bg}`} text-white p-6 card-lift shadow-lg`}
             >
-              <span className="text-2xl mb-3 block">🔥</span>
-              <h3 className="text-xl font-bold mb-1">{offer.title}</h3>
-              <p className="text-white/90 text-sm mb-5">{offer.subtitle}</p>
-              <Link href={offer.href}>
-                <Button
-                  size="sm"
-                  className="bg-white text-[#1F2937] hover:bg-white/90 font-semibold min-h-[44px] rounded-xl"
-                >
-                  {offer.cta}
-                </Button>
-              </Link>
+              {offer.imageUrl ? (
+                <div className="absolute inset-0 opacity-40">
+                  <Image src={offer.imageUrl} alt="" fill className="object-cover" />
+                </div>
+              ) : (
+                <span className="text-2xl mb-3 block">🔥</span>
+              )}
+              <div className="relative z-10">
+                <h3 className="text-xl font-bold mb-1">{offer.title}</h3>
+                <p className="text-white/90 text-sm mb-5">{offer.subtitle}</p>
+                <Link href={offer.href}>
+                  <Button
+                    size="sm"
+                    className="bg-white text-[#1F2937] hover:bg-white/90 font-semibold min-h-[44px] rounded-xl"
+                  >
+                    {offer.cta}
+                  </Button>
+                </Link>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -102,9 +111,18 @@ export function OffersSection() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className={`snap-center shrink-0 w-[min(280px,82vw)] relative overflow-hidden rounded-3xl bg-gradient-to-br ${offer.bg} text-white p-5 shadow-lg active:scale-[0.98] transition-transform`}
+              className={`snap-center shrink-0 w-[min(280px,82vw)] relative overflow-hidden rounded-3xl ${offer.imageUrl ? 'bg-[#14532D]' : `bg-gradient-to-br ${offer.bg}`} text-white p-5 shadow-lg active:scale-[0.98] transition-transform`}
             >
-              <span className="text-3xl mb-2 block">🔥</span>
+              {offer.imageUrl ? (
+                <div className="relative h-28 -mx-5 -mt-5 mb-3 overflow-hidden rounded-t-3xl">
+                  <Image src={offer.imageUrl} alt="" fill className="object-cover" />
+                  <span className="absolute top-2 left-2 rounded-full bg-[#F59E0B] px-2 py-0.5 text-[10px] font-bold text-[#1F2937]">
+                    Coming Soon
+                  </span>
+                </div>
+              ) : (
+                <span className="text-3xl mb-2 block">🔥</span>
+              )}
               <h3 className="text-lg font-bold mb-1">{offer.title}</h3>
               <p className="text-white/90 text-sm mb-4">{offer.subtitle}</p>
               <Link href={offer.href}>
@@ -112,7 +130,7 @@ export function OffersSection() {
                   size="sm"
                   className="bg-white text-[#1F2937] hover:bg-white/90 font-semibold min-h-[44px] rounded-xl w-full"
                 >
-                  Order Now
+                  {offer.cta}
                 </Button>
               </Link>
             </motion.div>

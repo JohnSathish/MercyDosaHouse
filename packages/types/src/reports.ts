@@ -15,6 +15,9 @@ export interface ReportsKpiDto {
   preparing: number;
   delivered: number;
   satisfaction: number;
+  packingRevenue?: number;
+  packingRevenueTrend?: number;
+  avgPackingPerOrder?: number;
 }
 
 export interface ReportsLiveDto {
@@ -116,4 +119,20 @@ export interface ReportInsightDto {
 export interface HeatmapDayDto {
   day: string;
   hours: { hour: number; count: number }[];
+}
+
+export interface PackedItemStatDto {
+  productId: string;
+  name: string;
+  quantity: number;
+  packingRevenue: number;
+}
+
+export interface PackingAnalyticsDto {
+  totalPackingRevenue: number;
+  packingRevenueToday: number;
+  packingRevenueThisMonth: number;
+  avgPackingPerOrder: number;
+  totalPackedItems: number;
+  topPackedItems: PackedItemStatDto[];
 }

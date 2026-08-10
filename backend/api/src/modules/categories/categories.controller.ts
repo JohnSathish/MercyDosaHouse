@@ -10,8 +10,8 @@ export class CategoriesController {
 
   @Public()
   @Get()
-  findAll(@Query('active') active?: string) {
-    return this.categoriesService.findAll(active === 'true');
+  findAll(@Query('active') active?: string, @Query('channel') channel?: string) {
+    return this.categoriesService.findAll(active === 'true', channel);
   }
 
   @Get('dashboard')

@@ -17,9 +17,10 @@ RUN pnpm install --frozen-lockfile || pnpm install
 
 FROM base AS builder
 ARG APP_NAME=website
+ARG APP_PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter @mdh/types build
 RUN pnpm --filter @mdh/utils build
 RUN pnpm --filter @mdh/auth-client build
@@ -31,10 +32,11 @@ ARG APP_NAME=website
 ARG APP_PORT=3000
 ENV NODE_ENV=production
 ENV PORT=${APP_PORT}
+ENV APP_NAME=${APP_NAME}
 WORKDIR /app
 COPY --from=builder /app/apps/${APP_NAME}/.next/standalone ./
 COPY --from=builder /app/apps/${APP_NAME}/.next/static ./apps/${APP_NAME}/.next/static
 COPY --from=builder /app/apps/${APP_NAME}/public ./apps/${APP_NAME}/public
 
 EXPOSE ${APP_PORT}
-CMD ["node", "apps/website/server.js"]
+CMD ["sh", "-c", "node apps/${APP_NAME}/server.js"]

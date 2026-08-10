@@ -1,178 +1,84 @@
 'use client';
 
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import {
-  ChefHat,
-  Package,
-  BarChart3,
-  Users,
-  ClipboardList,
-  FileText,
-  TrendingUp,
-  Shield,
-} from 'lucide-react';
+import { ShoppingBag, UtensilsCrossed, Package, Truck, BarChart3, Monitor } from 'lucide-react';
 import { BRAND } from '@mdh/utils';
 
-const FLOATING = [
-  {
-    src: '/images/cheese-dosa.png',
-    label: 'Cheese Dosa',
-    top: '6%',
-    left: '5%',
-    delay: 0,
-    rotate: -6,
-  },
-  {
-    src: '/images/chicken-biryani.png',
-    label: 'Biryani',
-    top: '14%',
-    right: '2%',
-    delay: 0.6,
-    rotate: 8,
-  },
-  {
-    src: '/images/idli-4-pieces.png',
-    label: 'Idli',
-    bottom: '24%',
-    left: '2%',
-    delay: 1.2,
-    rotate: -4,
-  },
-  {
-    src: '/images/vada-4-pieces.png',
-    label: 'Vada',
-    bottom: '10%',
-    right: '6%',
-    delay: 1.8,
-    rotate: 6,
-  },
-];
-
 const FEATURES = [
-  { icon: ClipboardList, text: 'Manage Orders', desc: 'Live order board' },
-  { icon: Users, text: 'Customers', desc: 'Profiles & history' },
-  { icon: ChefHat, text: 'Menu', desc: 'Items & pricing' },
-  { icon: Package, text: 'Inventory', desc: 'Stock tracking' },
-  { icon: BarChart3, text: 'Analytics', desc: 'Sales insights' },
-  { icon: FileText, text: 'Reports', desc: 'Export & summaries' },
+  { icon: ShoppingBag, title: 'Manage Orders', desc: 'Track and fulfill orders' },
+  { icon: UtensilsCrossed, title: 'Menu & CMS', desc: 'Update items and offers' },
+  { icon: Package, title: 'Inventory', desc: 'Stock and ingredients' },
+  { icon: Truck, title: 'Delivery', desc: 'Manage riders and routes' },
+  { icon: BarChart3, title: 'Analytics', desc: 'Sales and insights' },
+  { icon: Monitor, title: 'POS System', desc: 'In-store billing' },
 ];
 
-const HIGHLIGHTS = [
-  { icon: TrendingUp, label: 'Real-time orders' },
-  { icon: Shield, label: 'Role-based access' },
-];
+const FOOD_PATTERN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.9' opacity='0.35'%3E%3Cellipse cx='20' cy='22' rx='12' ry='5'/%3E%3Cpath d='M8 22 Q20 12 32 22'/%3E%3Ccircle cx='58' cy='18' r='6'/%3E%3Cpath d='M52 38 L64 38 L58 48 Z'/%3E%3Crect x='14' y='52' width='16' height='10' rx='2'/%3E%3Cpath d='M48 58 Q58 50 68 58'/%3E%3C/g%3E%3C/svg%3E")`;
 
 export function LoginBrandingPanel() {
   return (
-    <div className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 text-white overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(245,158,11,0.22),transparent_50%)] pointer-events-none" />
-      <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/15 to-transparent pointer-events-none" />
+    <aside className="relative hidden lg:flex lg:w-[42%] xl:w-[40%] max-w-[520px] shrink-0 flex-col bg-[#0b4a2d] text-white overflow-hidden min-h-full">
+      <div
+        className="absolute inset-0 opacity-[0.18] pointer-events-none"
+        style={{ backgroundImage: FOOD_PATTERN, backgroundSize: '80px 80px' }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0b4a2d] via-[#0a4228] to-[#083820] pointer-events-none" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative z-10"
-      >
-        <div className="flex items-center gap-4 mb-8">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-[#F59E0B]/30 blur-md scale-110" />
-            <Image
-              src="/images/logo.png"
-              alt={BRAND.name}
-              width={76}
-              height={76}
-              className="relative rounded-full ring-4 ring-white/25 shadow-xl"
-            />
-          </div>
+      <div className="relative z-10 flex flex-col flex-1 px-10 xl:px-12 pt-10 xl:pt-12 pb-8 min-h-0">
+        <div className="flex items-center gap-4 mb-5 shrink-0">
+          <Image
+            src="/images/logo.png"
+            alt={BRAND.name}
+            width={52}
+            height={52}
+            className="rounded-full ring-2 ring-white/25 shadow-md shrink-0"
+            priority
+          />
           <div>
-            <h1 className="text-3xl xl:text-[2.15rem] font-bold tracking-tight">{BRAND.name}</h1>
-            <p className="text-[#F59E0B] font-semibold text-sm mt-1 tracking-wide">
-              Restaurant Management Dashboard
+            <h1 className="text-[1.35rem] xl:text-2xl font-bold tracking-tight leading-tight">
+              {BRAND.name}
+            </h1>
+            <p className="text-[#d4af37] text-[13px] font-medium mt-0.5">
+              Restaurant Management System
             </p>
           </div>
         </div>
 
-        <p className="text-white/80 text-lg max-w-lg mb-6 leading-relaxed">
-          Manage orders, menu, customers, and analytics — all in one premium admin workspace.
+        <p className="text-white/80 text-[13px] leading-relaxed max-w-[340px] mb-6 shrink-0">
+          Manage orders, menu, inventory, delivery, analytics, and POS billing — all from one
+          powerful admin workspace built for Mercy Dosa House.
         </p>
 
-        <div className="flex flex-wrap gap-2 mb-8">
-          {HIGHLIGHTS.map(({ icon: Icon, label }) => (
-            <span
-              key={label}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-xs font-medium text-white/90"
+        <div className="grid grid-cols-2 gap-3 max-w-[380px] shrink-0">
+          {FEATURES.map(({ icon: Icon, title, desc }) => (
+            <div
+              key={title}
+              className="flex items-start gap-3 rounded-xl bg-black/15 border border-white/[0.12] backdrop-blur-[2px] px-3.5 py-3"
             >
-              <Icon className="w-3.5 h-3.5 text-[#F59E0B]" />
-              {label}
-            </span>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 max-w-md">
-          {FEATURES.map(({ icon: Icon, text, desc }, i) => (
-            <motion.div
-              key={text}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.07 }}
-              whileHover={{ y: -3, scale: 1.02 }}
-              className="group flex items-start gap-3 bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl px-4 py-3.5 border border-white/10 hover:border-white/20 transition-all cursor-default"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F59E0B]/20 group-hover:bg-[#F59E0B]/30 transition-colors">
-                <Icon className="w-4 h-4 text-[#F59E0B]" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#d4af37]/20 border border-[#d4af37]/25">
+                <Icon className="h-[18px] w-[18px] text-[#d4af37]" strokeWidth={1.75} />
               </div>
-              <div>
-                <p className="text-sm font-semibold leading-tight">{text}</p>
-                <p className="text-[11px] text-white/55 mt-0.5">{desc}</p>
+              <div className="min-w-0 pt-0.5">
+                <p className="text-[13px] font-semibold leading-tight text-white">{title}</p>
+                <p className="text-[11px] text-white/45 mt-1 leading-snug">{desc}</p>
               </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Food showcase */}
-      <div className="relative h-56 xl:h-64 mt-8 shrink-0">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.88 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.35, duration: 0.7, type: 'spring', stiffness: 120 }}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 xl:w-52 xl:h-52 rounded-[1.75rem] overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.45)] border-4 border-white/25 z-10"
-        >
-          <Image
-            src="/images/hero-dosa.png"
-            alt="Masala Dosa"
-            fill
-            className="object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-          <p className="absolute bottom-3 left-3 text-xs font-bold text-white drop-shadow">
-            Signature Masala Dosa
-          </p>
-        </motion.div>
-
-        {FLOATING.map((item) => (
-          <motion.div
-            key={item.label}
-            animate={{ y: [0, -12, 0], rotate: [item.rotate, item.rotate + 4, item.rotate] }}
-            transition={{ repeat: Infinity, duration: 4.5, delay: item.delay, ease: 'easeInOut' }}
-            className="absolute z-20 bg-white/12 backdrop-blur-lg rounded-2xl p-2 border border-white/20 shadow-xl"
-            style={{
-              top: item.top,
-              left: item.left,
-              right: item.right,
-              bottom: item.bottom,
-            }}
-          >
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden mb-1.5 ring-2 ring-white/20">
-              <Image src={item.src} alt={item.label} fill className="object-cover" sizes="64px" />
             </div>
-            <p className="text-[10px] font-bold text-white text-center px-1">{item.label}</p>
-          </motion.div>
-        ))}
+          ))}
+        </div>
+
+        {/* Full dosa photo — small, uncropped */}
+        <div className="mt-auto pt-8 shrink-0">
+          <div className="relative w-full max-w-[300px] h-[130px] xl:h-[145px] rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.35)] ring-1 ring-white/15 bg-[#0b4a2d]">
+            <Image
+              src="/images/hero-dosa.png"
+              alt="Masala dosa with sambar and chutney"
+              fill
+              className="object-contain object-left-bottom p-1"
+              sizes="300px"
+            />
+          </div>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }

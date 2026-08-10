@@ -150,6 +150,8 @@ export default function SettingsPage() {
               'address',
               'openingHours',
               'upiId',
+              'gstNumber',
+              'websiteUrl',
             ] as const
           ).map((field) => (
             <div key={field}>
@@ -161,7 +163,7 @@ export default function SettingsPage() {
             </div>
           ))}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(['deliveryCharge', 'packingCharge', 'minOrderAmount'] as const).map((field) => (
+            {(['deliveryCharge', 'freeDeliveryLimit', 'minOrderAmount'] as const).map((field) => (
               <div key={field}>
                 <Label>{field.replace(/([A-Z])/g, ' $1').trim()}</Label>
                 <Input
@@ -172,8 +174,105 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Delivery charge applies to home-delivery orders. Free delivery threshold waives delivery
+            when subtotal meets the limit. Packing charges are configured per menu item under Menu
+            Management.
+          </p>
           <Button onClick={() => saveBusiness.mutate(form)} disabled={saveBusiness.isPending}>
             {saveBusiness.isPending ? 'Saving…' : 'Save Settings'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="dark:bg-gray-900">
+        <CardHeader>
+          <CardTitle className="text-lg">Thermal Receipt Printing</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Controls POS receipt layout, paper width, and auto-print behavior. Changes apply
+            immediately on POS terminals.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label>Paper width</Label>
+              <select
+                className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.receiptPaperWidth ?? '80mm'}
+                onChange={(e) =>
+                  setForm({ ...form, receiptPaperWidth: e.target.value as '58mm' | '80mm' })
+                }
+              >
+                <option value="80mm">80 mm (default)</option>
+                <option value="58mm">58 mm</option>
+              </select>
+            </div>
+            <div>
+              <Label>Font size</Label>
+              <select
+                className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={form.receiptFontSize ?? 'normal'}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    receiptFontSize: e.target.value as 'small' | 'normal' | 'large',
+                  })
+                }
+              >
+                <option value="small">Small</option>
+                <option value="normal">Normal</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+            <div>
+              <Label>Copies per print</Label>
+              <Input
+                type="number"
+                min={1}
+                max={5}
+                value={form.receiptCopies ?? 1}
+                onChange={(e) =>
+                  setForm({ ...form, receiptCopies: parseInt(e.target.value, 10) || 1 })
+                }
+              />
+            </div>
+            <div>
+              <Label>Footer message</Label>
+              <Input
+                value={form.receiptFooterMessage ?? 'Thank You!\nVisit Again'}
+                onChange={(e) => setForm({ ...form, receiptFooterMessage: e.target.value })}
+                placeholder="Thank You! / Visit Again"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+            {(
+              [
+                ['receiptShowLogo', 'Show logo'],
+                ['receiptShowQr', 'Show QR code'],
+                ['receiptShowGst', 'Show GST number'],
+                ['receiptShowAddress', 'Show address'],
+                ['receiptShowCustomer', 'Show customer'],
+                ['receiptShowCashier', 'Show cashier'],
+                ['receiptShowPayment', 'Show payment'],
+                ['receiptAutoPrintPayment', 'Auto-print after payment'],
+                ['receiptAutoPrintKot', 'Auto-print KOT'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form[key] !== false}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
+                  className="rounded"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <Button onClick={() => saveBusiness.mutate(form)} disabled={saveBusiness.isPending}>
+            {saveBusiness.isPending ? 'Saving…' : 'Save Receipt Settings'}
           </Button>
         </CardContent>
       </Card>

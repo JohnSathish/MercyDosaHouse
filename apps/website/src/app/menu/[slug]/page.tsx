@@ -65,7 +65,14 @@ export default function ProductDetailPage() {
 
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
           <div className="relative h-72 md:h-[420px] rounded-2xl overflow-hidden food-gradient shadow-xl">
-            <Image src={imageSrc} alt={product.name} fill className="object-cover" priority />
+            <Image
+              src={imageSrc}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover"
+              priority
+            />
             {product.isPopular && (
               <span className="absolute top-4 left-4 bg-secondary text-[#1F2937] text-xs font-bold px-3 py-1 rounded-full">
                 ⭐ Popular

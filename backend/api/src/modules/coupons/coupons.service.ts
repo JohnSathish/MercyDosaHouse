@@ -48,4 +48,42 @@ export class CouponsService {
 
     return { coupon, discount };
   }
+
+  async getAvailable(subtotal: number) {
+    const now = new Date();
+    const coupons = await this.prisma.coupon.findMany({
+      where: {
+        isActive: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const eligible = coupons
+      .filter((c) => {
+        if (c.usageLimit && c.usageCount >= c.usageLimit) return false;
+        if (subtotal < Number(c.minOrderAmount)) return false;
+        return true;
+      })
+      .map((coupon) => {
+        let discount = 0;
+        if (coupon.type === 'PERCENTAGE') {
+          discount = (subtotal * Number(coupon.value)) / 100;
+          if (coupon.maxDiscount) discount = Math.min(discount, Number(coupon.maxDiscount));
+        } else {
+          discount = Number(coupon.value);
+        }
+        return {
+          code: coupon.code,
+          type: coupon.type,
+          value: Number(coupon.value),
+          minOrderAmount: Number(coupon.minOrderAmount),
+          maxDiscount: coupon.maxDiscount ? Number(coupon.maxDiscount) : null,
+          discount,
+        };
+      })
+      .sort((a, b) => b.discount - a.discount);
+
+    return eligible;
+  }
 }

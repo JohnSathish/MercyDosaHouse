@@ -2,37 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import {
   Phone,
-  Shield,
   Lock,
   ArrowRight,
   Loader2,
-  Check,
-  Moon,
-  Sun,
-  ExternalLink,
-  Sparkles,
+  Mail,
+  Globe,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  ChefHat,
+  ShoppingBag,
+  Monitor,
+  Shield,
 } from 'lucide-react';
 import { Button, Input, Label } from '@mdh/ui';
 import {
+  login,
   sendOtp,
   verifyOtp,
   getStoredUser,
   clearAuth,
   getPostLoginRedirect,
   isAdminUser,
+  isAuthenticated,
 } from '@mdh/auth-client';
 import { API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { useToastStore } from '@/lib/toast-store';
 import { OtpInput } from './otp-input';
-import Image from 'next/image';
 import { BRAND } from '@mdh/utils';
 
 const phoneSchema = z.object({
@@ -46,18 +49,60 @@ const phoneSchema = z.object({
 
 type PhoneForm = z.infer<typeof phoneSchema>;
 
+const emailSchema = z.object({
+  email: z.string().email('Enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  remember: z.boolean().optional(),
+});
+
+type EmailForm = z.infer<typeof emailSchema>;
+
 const STAFF_ROLES = ['SUPER_ADMIN', 'MANAGER', 'KITCHEN_STAFF', 'DELIVERY_STAFF', 'CASHIER'];
 
-const TRUST_FEATURES = [
-  { icon: Shield, text: 'Secure Login' },
-  { icon: Sparkles, text: 'Fast Authentication' },
-  { icon: Lock, text: 'OTP Verification' },
-  { icon: Check, text: 'End-to-End Security' },
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'bn', label: 'Bengali' },
 ];
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  );
+}
+
+function MicrosoftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path fill="#F25022" d="M1 1h10v10H1z" />
+      <path fill="#7FBA00" d="M13 1h10v10H13z" />
+      <path fill="#00A4EF" d="M1 13h10v10H1z" />
+      <path fill="#FFB900" d="M13 13h10v10H13z" />
+    </svg>
+  );
+}
 
 export function AdminLoginForm() {
   const router = useRouter();
   const toast = useToastStore((s) => s.show);
+  const [authMode, setAuthMode] = useState<'email' | 'otp'>('email');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -65,7 +110,9 @@ export function AdminLoginForm() {
   const [error, setError] = useState('');
   const [otpError, setOtpError] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [darkMode, setDarkMode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [language, setLanguage] = useState('en');
+  const [langOpen, setLangOpen] = useState(false);
 
   const {
     register,
@@ -76,11 +123,27 @@ export function AdminLoginForm() {
     defaultValues: { remember: true },
   });
 
+  const {
+    register: registerEmail,
+    handleSubmit: handleEmailSubmit,
+    formState: { errors: emailErrors },
+  } = useForm<EmailForm>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { remember: true, email: 'admin@mercydosahouse.com' },
+  });
+
   useEffect(() => {
-    const prefersDark = localStorage.getItem('mdh_admin_dark') === 'true';
-    setDarkMode(prefersDark);
-    if (prefersDark) document.documentElement.classList.add('dark');
-  }, []);
+    if (!isAuthenticated()) return;
+    const user = getStoredUser();
+    if (!user) return;
+    const isStaff = user.roles?.some((r) => STAFF_ROLES.includes(r));
+    if (!isStaff) return;
+    if (isAdminUser(user)) {
+      router.replace('/');
+    } else {
+      window.location.href = getPostLoginRedirect(user, APP_URLS);
+    }
+  }, [router]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -88,11 +151,38 @@ export function AdminLoginForm() {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  const toggleDark = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    localStorage.setItem('mdh_admin_dark', String(next));
-    document.documentElement.classList.toggle('dark', next);
+  const finishStaffLogin = (user: ReturnType<typeof getStoredUser>) => {
+    const isStaff = user?.roles?.some((r) => STAFF_ROLES.includes(r));
+    if (!isStaff) {
+      clearAuth();
+      setOtpError(true);
+      setError(
+        'This account is not authorized for admin access. Use staff credentials or admin phone 9000000001.',
+      );
+      return false;
+    }
+    toast(`Welcome back ${user?.name?.split(' ')[0] || 'Admin'}!`);
+    if (isAdminUser(user)) {
+      window.location.href = '/';
+    } else {
+      window.location.href = getPostLoginRedirect(user, APP_URLS);
+    }
+    return true;
+  };
+
+  const onEmailLogin = async (data: EmailForm) => {
+    setLoading(true);
+    setError('');
+    setOtpError(false);
+    try {
+      await login(API_URL, { email: data.email, password: data.password });
+      if (data.remember) localStorage.setItem('mdh_admin_remember', 'true');
+      finishStaffLogin(getStoredUser());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const onSendOtp = async (data: PhoneForm) => {
@@ -123,20 +213,7 @@ export function AdminLoginForm() {
     setOtpError(false);
     try {
       await verifyOtp(API_URL, { phone, otp });
-      const user = getStoredUser();
-      const isStaff = user?.roles?.some((r) => STAFF_ROLES.includes(r));
-      if (!isStaff) {
-        clearAuth();
-        setOtpError(true);
-        setError('This phone number is not authorized for admin access.');
-        return;
-      }
-      toast(`Welcome back ${user?.name?.split(' ')[0] || 'Admin'}!`);
-      if (isAdminUser(user)) {
-        router.push('/');
-      } else {
-        window.location.href = getPostLoginRedirect(user, APP_URLS);
-      }
+      finishStaffLogin(getStoredUser());
     } catch (err) {
       setOtpError(true);
       setError(err instanceof Error ? err.message : 'Invalid OTP');
@@ -159,156 +236,306 @@ export function AdminLoginForm() {
     }
   };
 
-  const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || 'http://localhost:3000';
+  const handleSocialLogin = (provider: string) => {
+    toast(`${provider} sign-in coming soon`);
+  };
+
+  const selectedLang = LANGUAGES.find((l) => l.code === language)?.label ?? 'English';
 
   return (
-    <div className="flex flex-col justify-center items-center p-6 sm:p-10 lg:p-12 w-full min-h-screen lg:min-h-0">
-      {/* Mobile branding */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="lg:hidden flex items-center gap-3 mb-6 w-full max-w-[440px]"
-      >
-        <Image
-          src="/images/logo.png"
-          alt=""
-          width={52}
-          height={52}
-          className="rounded-full ring-2 ring-white/30"
-        />
-        <div>
-          <p className="font-bold text-white text-lg leading-tight">{BRAND.name}</p>
-          <p className="text-[#F59E0B] text-xs font-semibold uppercase tracking-wider">
-            Admin Dashboard
-          </p>
-        </div>
-      </motion.div>
+    <main className="relative flex flex-1 flex-col min-w-0 min-h-full lg:flex-[1] lg:min-w-[480px] bg-[#f4f5f7] overflow-y-auto">
+      {/* Subtle background texture */}
+      <div
+        className="absolute inset-0 opacity-[0.4] pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, #cbd5e1 1px, transparent 0)`,
+          backgroundSize: '28px 28px',
+        }}
+      />
+      <div className="absolute top-0 right-0 w-[420px] h-[420px] bg-[#0b4a2d]/[0.04] rounded-full blur-3xl pointer-events-none" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.55, ease: 'easeOut' }}
-        className="w-full max-w-[440px]"
-      >
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 mb-4">
-          {(['phone', 'otp'] as const).map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                  step === s || (step === 'otp' && s === 'phone')
-                    ? 'bg-[#F59E0B] text-[#1F2937] shadow-lg'
-                    : 'bg-white/15 text-white/60'
-                }`}
-              >
-                {step === 'otp' && s === 'phone' ? <Check className="w-4 h-4" /> : i + 1}
+      {/* Language selector */}
+      <div className="absolute top-6 right-6 xl:right-10 z-20">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setLangOpen((o) => !o)}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <Globe className="h-4 w-4 text-gray-400" />
+            <span className="text-gray-500">Language</span>
+            <span className="font-medium text-gray-800">{selectedLang}</span>
+            <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+          </button>
+          {langOpen && (
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-30"
+                aria-label="Close language menu"
+                onClick={() => setLangOpen(false)}
+              />
+              <div className="absolute right-0 top-full mt-1 z-40 w-36 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      setLanguage(lang.code);
+                      setLangOpen(false);
+                    }}
+                    className={`flex w-full px-3 py-2 text-sm hover:bg-gray-50 ${
+                      language === lang.code ? 'text-[#0b4a2d] font-semibold' : 'text-gray-700'
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
               </div>
-              {i === 0 && (
-                <div
-                  className={`h-0.5 w-10 rounded-full ${step === 'otp' ? 'bg-[#F59E0B]' : 'bg-white/20'}`}
-                />
-              )}
-            </div>
-          ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="relative z-10 flex flex-1 flex-col justify-center items-center px-6 py-10 sm:px-10 xl:px-16">
+        {/* Mobile branding */}
+        <div className="lg:hidden flex items-center gap-3 mb-6 w-full max-w-[480px]">
+          <Image
+            src="/images/logo.png"
+            alt=""
+            width={48}
+            height={48}
+            className="rounded-full ring-2 ring-[#0b4a2d]/20"
+          />
+          <div>
+            <p className="font-bold text-[#0b4a2d] text-lg leading-tight">{BRAND.name}</p>
+            <p className="text-[#d4af37] text-xs font-semibold">Restaurant Management System</p>
+          </div>
         </div>
 
-        <div className="relative rounded-3xl border border-white/20 bg-white/[0.97] dark:bg-gray-900/95 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.35)] overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-[#14532D] via-[#22c55e] to-[#F59E0B]" />
+        {/* Desktop portal header */}
+        <div className="hidden lg:flex items-center gap-3 mb-6 w-full max-w-[480px]">
+          <Image
+            src="/images/logo.png"
+            alt=""
+            width={44}
+            height={44}
+            className="rounded-full ring-2 ring-[#0b4a2d]/15"
+          />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#0b4a2d]/70">
+              Staff Portal
+            </p>
+            <p className="font-bold text-gray-900 text-lg leading-tight">Admin Workspace</p>
+          </div>
+        </div>
 
-          <div className="p-6 sm:p-8">
-            <AnimatePresence mode="wait">
-              {step === 'phone' ? (
-                <motion.div
-                  key="phone"
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.25 }}
+        <div className="w-full max-w-[480px]">
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-[0_8px_40px_rgba(15,23,42,0.08)] overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-[#0b4a2d] via-[#1a6b42] to-[#d4af37]" />
+            <div className="p-9 sm:p-10">
+              <p className="text-[15px] font-semibold text-[#0b4a2d] mb-1.5">Welcome Back!</p>
+              <h2 className="text-[1.85rem] sm:text-[2rem] font-bold text-gray-900 leading-tight mb-1.5">
+                Admin Sign In
+              </h2>
+              <p className="text-[15px] text-gray-500 mb-8">
+                Sign in to your admin account to continue
+              </p>
+
+              <div className="flex rounded-xl bg-gray-100/90 p-1.5 mb-7">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('email');
+                    setError('');
+                    setOtpError(false);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-3 text-[15px] font-semibold transition-all ${
+                    authMode === 'email'
+                      ? 'bg-[#0b4a2d] text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-800 bg-transparent'
+                  }`}
                 >
-                  <h2 className="text-2xl sm:text-[1.65rem] font-bold text-[#14532D] dark:text-white mb-1">
-                    Welcome Back 👋
-                  </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
-                    Sign in to continue to {BRAND.name} Admin Dashboard.
-                  </p>
+                  <Mail className="w-4 h-4" />
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('otp');
+                    setStep('phone');
+                    setError('');
+                    setOtpError(false);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-3 text-[15px] font-semibold transition-all ${
+                    authMode === 'otp'
+                      ? 'bg-[#0b4a2d] text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-800 bg-transparent'
+                  }`}
+                >
+                  <Phone className="w-4 h-4" />
+                  Phone / OTP
+                </button>
+              </div>
 
-                  <form onSubmit={handleSubmit(onSendOtp)} className="space-y-5">
-                    <div>
-                      <Label
-                        htmlFor="phone"
-                        className="text-gray-700 dark:text-gray-300 font-semibold text-sm"
-                      >
-                        Phone Number
-                      </Label>
-                      <div className="flex mt-2 rounded-2xl border-2 border-[#14532D]/10 bg-[#FFF8E8]/80 dark:bg-gray-800/80 overflow-hidden focus-within:border-[#14532D] focus-within:ring-2 focus-within:ring-[#14532D]/15 transition-all">
-                        <span className="flex items-center px-4 border-r border-[#14532D]/10 text-sm font-bold text-[#14532D] dark:text-[#F59E0B] shrink-0">
-                          +91
-                        </span>
-                        <div className="relative flex-1">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <Input
-                            id="phone"
-                            {...register('phone')}
-                            placeholder="9000000001"
-                            className="border-0 bg-transparent pl-10 h-12 rounded-none focus-visible:ring-0 text-base"
-                            maxLength={10}
-                            inputMode="numeric"
-                          />
-                        </div>
-                      </div>
-                      {errors.phone && (
-                        <p className="text-xs text-red-500 mt-1.5">{errors.phone.message}</p>
-                      )}
+              {authMode === 'email' ? (
+                <form onSubmit={handleEmailSubmit(onEmailLogin)} className="space-y-5">
+                  <div>
+                    <Label htmlFor="email" className="text-gray-700 font-medium text-[15px]">
+                      Email
+                    </Label>
+                    <div className="relative mt-1.5">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        {...registerEmail('email')}
+                        placeholder="admin@mercydosahouse.com"
+                        className="pl-10 h-12 text-[15px] rounded-xl border-gray-200 bg-gray-50/80 focus-visible:ring-[#0b4a2d]/15 focus-visible:border-[#0b4a2d]/30"
+                      />
                     </div>
+                    {emailErrors.email && (
+                      <p className="text-xs text-red-500 mt-1">{emailErrors.email.message}</p>
+                    )}
+                  </div>
 
-                    <label className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                  <div>
+                    <Label htmlFor="password" className="text-gray-700 font-medium text-[15px]">
+                      Password
+                    </Label>
+                    <div className="relative mt-1.5">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        {...registerEmail('password')}
+                        placeholder="Enter your password"
+                        className="pl-10 pr-10 h-12 text-[15px] rounded-xl border-gray-200 bg-gray-50/80 focus-visible:ring-[#0b4a2d]/15 focus-visible:border-[#0b4a2d]/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((s) => !s)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    {emailErrors.password && (
+                      <p className="text-xs text-red-500 mt-1">{emailErrors.password.message}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2.5 text-[15px] text-gray-600 cursor-pointer select-none">
                       <input
                         type="checkbox"
-                        {...register('remember')}
-                        className="h-4 w-4 rounded border-[#14532D]/30 text-[#14532D] focus:ring-[#14532D]/30"
+                        {...registerEmail('remember')}
+                        className="h-4 w-4 rounded border-gray-300 text-[#0b4a2d] focus:ring-[#0b4a2d]/30"
                       />
                       Remember this device
                     </label>
-
-                    {error && (
-                      <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl px-3 py-2">
-                        {error}
-                      </p>
-                    )}
-
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] hover:from-[#1a6b3c] hover:to-[#14532D] text-white font-semibold shadow-lg shadow-[#14532D]/25 hover:shadow-xl transition-all gap-2 active:scale-[0.98]"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toast('Please contact your administrator to reset your password.')
+                      }
+                      className="text-[15px] font-medium text-[#0b4a2d] hover:underline"
                     >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Sending...
-                        </>
-                      ) : (
-                        <>
-                          Send OTP <ArrowRight className="w-4 h-4" />
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </motion.div>
+                      Forgot Password?
+                    </button>
+                  </div>
+
+                  {error && (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                      {error}
+                    </p>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-12 text-[15px] rounded-xl bg-[#0b4a2d] hover:bg-[#093d26] text-white font-semibold shadow-sm gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Signing in...
+                      </>
+                    ) : (
+                      <>
+                        Sign In <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              ) : step === 'phone' ? (
+                <form onSubmit={handleSubmit(onSendOtp)} className="space-y-5">
+                  <div>
+                    <Label htmlFor="phone" className="text-gray-700 font-medium text-[15px]">
+                      Phone Number
+                    </Label>
+                    <div className="flex mt-1.5 rounded-xl border border-gray-200 bg-gray-50/80 overflow-hidden focus-within:border-[#0b4a2d]/30 focus-within:ring-2 focus-within:ring-[#0b4a2d]/10 transition-all">
+                      <span className="flex items-center px-3.5 border-r border-gray-200 text-sm font-semibold text-[#0b4a2d] shrink-0 bg-gray-100/80">
+                        +91
+                      </span>
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          id="phone"
+                          {...register('phone')}
+                          placeholder="9000000001"
+                          className="border-0 bg-transparent pl-9 h-12 text-[15px] rounded-none focus-visible:ring-0"
+                          maxLength={10}
+                          inputMode="numeric"
+                        />
+                      </div>
+                    </div>
+                    {errors.phone && (
+                      <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>
+                    )}
+                  </div>
+
+                  <label className="flex items-center gap-2.5 text-[15px] text-gray-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      {...register('remember')}
+                      className="h-4 w-4 rounded border-gray-300 text-[#0b4a2d] focus:ring-[#0b4a2d]/30"
+                    />
+                    Remember this device
+                  </label>
+
+                  {error && (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                      {error}
+                    </p>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-12 text-[15px] rounded-xl bg-[#0b4a2d] hover:bg-[#093d26] text-white font-semibold shadow-sm gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+                      </>
+                    ) : (
+                      <>
+                        Send OTP <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
               ) : (
-                <motion.div
-                  key="otp"
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <h2 className="text-xl font-bold text-[#14532D] dark:text-white mb-1">
-                    Enter Verification Code
-                  </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                    OTP sent to{' '}
-                    <span className="font-semibold text-[#14532D] dark:text-[#F59E0B]">
-                      +91 {phone}
-                    </span>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-500">
+                    OTP sent to <span className="font-semibold text-[#0b4a2d]">+91 {phone}</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -316,7 +543,7 @@ export function AdminLoginForm() {
                         setOtp('');
                         setError('');
                       }}
-                      className="ml-2 text-[#14532D] dark:text-[#F59E0B] font-medium hover:underline"
+                      className="ml-2 text-[#0b4a2d] font-medium hover:underline"
                     >
                       Change
                     </button>
@@ -325,22 +552,22 @@ export function AdminLoginForm() {
                   <OtpInput value={otp} onChange={setOtp} error={otpError} />
 
                   {process.env.NODE_ENV !== 'production' && (
-                    <p className="text-xs text-center text-gray-400 mt-3 bg-gray-50 dark:bg-gray-800 rounded-lg py-1.5">
+                    <p className="text-xs text-center text-gray-400 bg-gray-50 rounded-lg py-1.5">
                       Dev OTP: <span className="font-mono font-bold">123456</span>
                     </p>
                   )}
 
-                  <p className="text-center text-sm text-gray-500 mt-4">
+                  <p className="text-center text-sm text-gray-500">
                     {countdown > 0 ? (
                       <>
                         Resend OTP in{' '}
-                        <span className="font-semibold text-[#14532D]">{countdown}s</span>
+                        <span className="font-semibold text-[#0b4a2d]">{countdown}s</span>
                       </>
                     ) : (
                       <button
                         type="button"
                         onClick={resendOtp}
-                        className="text-[#14532D] dark:text-[#F59E0B] font-semibold hover:underline"
+                        className="text-[#0b4a2d] font-semibold hover:underline"
                       >
                         Resend OTP
                       </button>
@@ -348,7 +575,7 @@ export function AdminLoginForm() {
                   </p>
 
                   {error && (
-                    <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 rounded-xl px-3 py-2 text-center mt-3">
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-center">
                       {error}
                     </p>
                   )}
@@ -357,7 +584,7 @@ export function AdminLoginForm() {
                     type="button"
                     onClick={onVerifyOtp}
                     disabled={loading || otp.length !== 6}
-                    className="w-full h-12 mt-6 rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] text-white font-semibold gap-2 shadow-lg active:scale-[0.98] transition-transform"
+                    className="w-full h-12 text-[15px] rounded-xl bg-[#0b4a2d] hover:bg-[#093d26] text-white font-semibold gap-2"
                   >
                     {loading ? (
                       <>
@@ -369,74 +596,85 @@ export function AdminLoginForm() {
                       </>
                     )}
                   </Button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {step === 'phone' && (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase tracking-wider">
-                    <span className="bg-white dark:bg-gray-900 px-3 text-gray-400">or</span>
-                  </div>
                 </div>
+              )}
 
-                <Link href={websiteUrl} target="_blank" rel="noopener noreferrer" className="block">
-                  <Button
-                    variant="outline"
-                    className="w-full h-11 rounded-2xl border-2 border-gray-200 dark:border-gray-700 font-semibold hover:bg-[#FFF8E8] dark:hover:bg-gray-800 gap-2"
-                  >
-                    Continue as Guest
-                    <ExternalLink className="w-3.5 h-3.5 opacity-60" />
-                  </Button>
-                </Link>
-              </>
-            )}
+              {/* Social login — email mode only, phone step 1 only */}
+              {(authMode === 'email' || (authMode === 'otp' && step === 'phone')) && (
+                <>
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-white px-3 text-gray-400">or continue with</span>
+                    </div>
+                  </div>
 
-            <div className="flex items-center justify-center gap-2 mt-6 text-xs text-gray-500 dark:text-gray-400">
-              <Lock className="w-3.5 h-3.5 shrink-0" />
-              Your login is secured using OTP authentication.
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSocialLogin('Google')}
+                      className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <GoogleIcon className="h-4 w-4" />
+                      Google
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSocialLogin('Microsoft')}
+                      className="flex items-center justify-center gap-2 h-12 rounded-xl border border-gray-200 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <MicrosoftIcon className="h-4 w-4" />
+                      Microsoft
+                    </button>
+                  </div>
+                </>
+              )}
+
+              <div className="flex items-center justify-center gap-2 mt-6 text-xs text-gray-400">
+                <Lock className="w-3.5 h-3.5 shrink-0" />
+                Secure login protected by advanced encryption.
+              </div>
             </div>
+          </div>
 
-            <button
-              type="button"
-              onClick={toggleDark}
-              className="mt-4 mx-auto flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-              {darkMode ? 'Light mode' : 'Dark mode'}
-            </button>
+          {/* Dev credentials hint */}
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="mt-4 rounded-xl border border-[#0b4a2d]/15 bg-[#0b4a2d]/[0.04] px-4 py-3 text-xs text-gray-600">
+              <p className="font-semibold text-[#0b4a2d] mb-1 flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" /> Demo credentials
+              </p>
+              <p>
+                Email: <span className="font-mono">admin@mercydosahouse.com</span> · Password:{' '}
+                <span className="font-mono">Admin@12345</span>
+              </p>
+              <p className="mt-1">
+                Phone OTP: <span className="font-mono">9000000001</span> · OTP:{' '}
+                <span className="font-mono">123456</span>
+              </p>
+            </div>
+          )}
+
+          {/* Quick access after login */}
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {[
+              { icon: Monitor, label: 'POS', href: '/pos' },
+              { icon: ChefHat, label: 'Kitchen', href: '/kitchen' },
+              { icon: ShoppingBag, label: 'Orders', href: '/orders' },
+            ].map(({ icon: Icon, label, href }) => (
+              <a
+                key={label}
+                href={href}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-200 bg-white/80 px-2 py-3 text-center text-[11px] font-semibold text-gray-600 hover:border-[#0b4a2d]/30 hover:text-[#0b4a2d] hover:bg-white transition-colors shadow-sm"
+              >
+                <Icon className="h-4 w-4 text-[#0b4a2d]/70" />
+                {label}
+              </a>
+            ))}
           </div>
         </div>
-      </motion.div>
-
-      {/* Trust badges */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className="grid grid-cols-2 gap-x-4 gap-y-3 mt-8 w-full max-w-[440px]"
-      >
-        {TRUST_FEATURES.map(({ icon: Icon, text }) => (
-          <div
-            key={text}
-            className="flex items-center gap-2 rounded-xl bg-white/8 border border-white/10 px-3 py-2.5 backdrop-blur-sm"
-          >
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#F59E0B]/20">
-              <Icon className="w-3.5 h-3.5 text-[#F59E0B]" />
-            </div>
-            <span className="text-xs font-medium text-white/85">{text}</span>
-          </div>
-        ))}
-      </motion.div>
-
-      <div className="flex items-center gap-2 mt-6 text-white/50 text-xs">
-        <Shield className="w-4 h-4 text-[#F59E0B]/80" />
-        Enterprise-grade security
       </div>
-    </div>
+    </main>
   );
 }

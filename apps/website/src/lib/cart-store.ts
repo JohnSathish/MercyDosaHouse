@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ProductDto } from '@mdh/types';
+import { calculatePackedItemCount, calculatePackingTotal } from '@mdh/utils';
 
 export interface CartItem {
   productId: string;
@@ -15,8 +16,11 @@ interface CartState {
   removeItem: (productId: string, variantId?: string) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string) => void;
   clearCart: () => void;
+  mergeItems: (incoming: CartItem[]) => void;
   totalItems: () => number;
   subtotal: () => number;
+  packingTotal: () => number;
+  packedItemCount: () => number;
 }
 
 export const useCartStore = create<CartState>()(
@@ -57,6 +61,21 @@ export const useCartStore = create<CartState>()(
         });
       },
       clearCart: () => set({ items: [] }),
+      mergeItems: (incoming) => {
+        const current = get().items;
+        const merged = [...current];
+        for (const item of incoming) {
+          const idx = merged.findIndex(
+            (i) => i.productId === item.productId && i.variantId === item.variantId,
+          );
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], quantity: merged[idx].quantity + item.quantity };
+          } else {
+            merged.push(item);
+          }
+        }
+        set({ items: merged });
+      },
       totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
       subtotal: () =>
         get().items.reduce((sum, i) => {
@@ -65,6 +84,14 @@ export const useCartStore = create<CartState>()(
             : i.product.price;
           return sum + price * i.quantity;
         }, 0),
+      packingTotal: () =>
+        calculatePackingTotal(
+          get().items.map((i) => ({
+            quantity: i.quantity,
+            packingCharge: i.product.packingCharge ?? 20,
+          })),
+        ),
+      packedItemCount: () => calculatePackedItemCount(get().items),
     }),
     { name: 'mdh-cart' },
   ),

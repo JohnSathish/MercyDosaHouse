@@ -96,6 +96,20 @@ export class ReportsController {
     return this.reportsService.getInventoryAnalytics();
   }
 
+  @Get('packing')
+  getPacking(
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.reportsService.getPackingAnalytics(this.parseFilters(period, startDate, endDate));
+  }
+
+  @Get('pos')
+  getPosReports(@Query('period') period?: 'today' | 'week' | 'month') {
+    return this.reportsService.getPosReports(period ?? 'today');
+  }
+
   @Get('insights')
   getInsights() {
     return this.reportsService.getInsights();

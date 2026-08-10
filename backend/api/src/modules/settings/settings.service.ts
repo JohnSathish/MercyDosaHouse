@@ -65,36 +65,54 @@ export class SettingsService {
     };
   }
 
-  private mapSettings(s: {
-    businessName: string;
-    tagline: string;
-    phone: string | null;
-    whatsapp: string | null;
-    email: string | null;
-    address: string | null;
-    deliveryCharge: { toNumber?: () => number } | number;
-    packingCharge: { toNumber?: () => number } | number;
-    minOrderAmount: { toNumber?: () => number } | number;
-    openingHours: string | null;
-    upiId: string | null;
-    upiQrUrl: string | null;
-    googleMapsEmbed: string | null;
-  }) {
-    const n = (v: { toNumber?: () => number } | number) => (typeof v === 'number' ? v : Number(v));
+  private mapSettings(s: Record<string, unknown>) {
+    const n = (v: unknown) => (typeof v === 'number' ? v : Number(v));
     return {
-      businessName: s.businessName,
-      tagline: s.tagline,
-      phone: s.phone || '',
-      whatsapp: s.whatsapp || '',
-      email: s.email || '',
-      address: s.address || '',
+      businessName: String(s.businessName ?? 'Mercy Dosa House'),
+      tagline: String(s.tagline ?? ''),
+      phone: String(s.phone ?? ''),
+      whatsapp: String(s.whatsapp ?? ''),
+      email: String(s.email ?? ''),
+      address: String(s.address ?? ''),
       deliveryCharge: n(s.deliveryCharge),
       packingCharge: n(s.packingCharge),
       minOrderAmount: n(s.minOrderAmount),
-      openingHours: s.openingHours || '',
-      upiId: s.upiId,
-      upiQrUrl: s.upiQrUrl,
-      googleMapsEmbed: s.googleMapsEmbed,
+      freeDeliveryLimit: n(s.freeDeliveryLimit ?? 299),
+      deliveryRadiusKm: n(s.deliveryRadiusKm ?? 10),
+      estimatedDeliveryMinutes:
+        typeof s.estimatedDeliveryMinutes === 'number'
+          ? s.estimatedDeliveryMinutes
+          : Number(s.estimatedDeliveryMinutes ?? 30),
+      openingHours: String(s.openingHours ?? ''),
+      deliveryHours: (s.deliveryHours as string | null) ?? null,
+      upiId: s.upiId as string | null,
+      upiQrUrl: s.upiQrUrl as string | null,
+      googleMapsEmbed: s.googleMapsEmbed as string | null,
+      gstNumber: (s.gstNumber as string | null) ?? null,
+      websiteUrl: (s.websiteUrl as string | null) ?? null,
+      receiptShowLogo: s.receiptShowLogo !== false,
+      receiptShowQr: s.receiptShowQr !== false,
+      receiptShowGst: s.receiptShowGst !== false,
+      receiptShowAddress: s.receiptShowAddress !== false,
+      receiptShowCustomer: s.receiptShowCustomer !== false,
+      receiptShowCashier: s.receiptShowCashier !== false,
+      receiptShowPayment: s.receiptShowPayment !== false,
+      receiptFooterMessage: (s.receiptFooterMessage as string | null) ?? null,
+      receiptFontSize: (s.receiptFontSize as 'small' | 'normal' | 'large') ?? 'normal',
+      receiptPaperWidth: (s.receiptPaperWidth as '58mm' | '80mm') ?? '80mm',
+      receiptCopies:
+        typeof s.receiptCopies === 'number' ? s.receiptCopies : Number(s.receiptCopies ?? 1),
+      receiptAutoPrintPayment: s.receiptAutoPrintPayment === true,
+      receiptAutoPrintKot: s.receiptAutoPrintKot === true,
+      preOrderDiscountPct:
+        typeof s.preOrderDiscountPct === 'number'
+          ? s.preOrderDiscountPct
+          : Number(s.preOrderDiscountPct ?? 10),
+      preOrderMinDaysAhead:
+        typeof s.preOrderMinDaysAhead === 'number'
+          ? s.preOrderMinDaysAhead
+          : Number(s.preOrderMinDaysAhead ?? 1),
+      preOrderStackWithCoupons: s.preOrderStackWithCoupons === true,
     };
   }
 }

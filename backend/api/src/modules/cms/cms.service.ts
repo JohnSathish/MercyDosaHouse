@@ -47,7 +47,7 @@ export class CmsService {
           OR: [{ startsAt: null }, { startsAt: { lte: now } }],
           AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       }),
       this.prisma.navigationItem.findMany({
         where: { isActive: true },

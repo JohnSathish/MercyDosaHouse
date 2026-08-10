@@ -4,8 +4,8 @@ export function getSafeRedirect(path: string | null | undefined): string | null 
   return path;
 }
 
-export const CHECKOUT_LOGIN_REDIRECT = '/login?redirect=/checkout';
+export const CHECKOUT_PATH = '/checkout';
 
-export function getCheckoutEntryHref(isLoggedIn: boolean): string {
-  return isLoggedIn ? '/checkout' : CHECKOUT_LOGIN_REDIRECT;
+export function getCheckoutEntryHref(_isLoggedIn?: boolean): string {
+  return CHECKOUT_PATH;
 }

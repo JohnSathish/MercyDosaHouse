@@ -21,6 +21,7 @@ enum OrderStatus {
   ACCEPTED
   PREPARING
   READY
+  SERVED
   OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
@@ -53,6 +54,10 @@ enum PaymentMethod {
   UPI
   RAZORPAY
   CASHFREE
+  CASH
+  CARD
+  WALLET
+  SPLIT
 }
 
 enum PaymentStatus {
@@ -114,6 +119,54 @@ enum CouponType {
   FIXED
 }
 
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+  ONLINE_PICKUP
+  STAFF_MEAL
+}
+
+enum OrderSource {
+  WEBSITE
+  POS
+  QR_MENU
+  KIOSK
+}
+
+enum PosTableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+  BILLING
+  WAITING
+}
+
+enum PosBillStatus {
+  OPEN
+  HELD
+  SETTLED
+  VOIDED
+  REFUNDED
+}
+
+enum PosSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum PosDiscountType {
+  FLAT
+  PERCENTAGE
+  ITEM
+  BILL
+  HAPPY_HOUR
+  COUPON
+  STAFF
+  MANAGER
+}
+
 enum ContentStatus {
   DRAFT
   PUBLISHED
@@ -124,6 +177,33 @@ enum ContentStatus {
 enum AnnouncementType {
   BAR
   POPUP
+}
+
+enum AnnouncementPriorityLevel {
+  EMERGENCY
+  DELIVERY_UPDATE
+  IMPORTANT_NOTICE
+  PROMOTION
+  GENERAL
+}
+
+enum AnnouncementPlatform {
+  WEBSITE
+  ANDROID
+  BOTH
+}
+
+enum PopupFrequency {
+  ONCE_SESSION
+  ONCE_DAY
+  EVERY_VISIT
+}
+
+enum DeliveryAvailabilityStatus {
+  AVAILABLE
+  LIMITED_AREA
+  TEMPORARILY_UNAVAILABLE
+  COMING_SOON
 }
 
 enum OfferType {
@@ -192,6 +272,10 @@ model User {
   rewardTransactions RewardTransaction[]
   customerActivities CustomerActivity[]
   userCoupons        UserCoupon[]
+  posSessions        PosSession[]         @relation("PosCashier")
+  posOrders          Order[]              @relation("PosCashierOrders")
+  posDiscountsApproved PosDiscount[]      @relation("PosDiscountApprover")
+  managerPinHash     String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -250,8 +334,8 @@ model Address {
   id             String      @id @default(uuid())
   userId         String
   user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contactName    String
-  mobileNumber   String
+  contactName    String      @map("contact_name")
+  mobileNumber   String      @map("mobile_number")
   label          String?
   line1          String
   line2          String?
@@ -262,11 +346,12 @@ model Address {
   country        String      @default("India")
   latitude       Float?
   longitude      Float?
-  deliveryNotes  String?
-  addressType    AddressType @default(HOME)
+  deliveryNotes  String?     @map("delivery_notes")
+  addressType    AddressType @default(HOME) @map("address_type")
   isDefault      Boolean     @default(false)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  orders         Order[]
 
   @@map("addresses")
 }
@@ -279,6 +364,9 @@ model Branch {
   isActive  Boolean  @default(true)
   isDefault Boolean  @default(false)
   orders    Order[]
+  posFloors PosFloor[]
+  posTerminals PosTerminal[]
+  posSessions PosSession[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   locations InventoryLocation[]
@@ -436,6 +524,7 @@ model Product {
   slug            String           @unique
   description     String?
   price           Decimal          @db.Decimal(10, 2)
+  packingCharge   Decimal          @default(20) @db.Decimal(10, 2)
   imageUrl        String?
   categoryId      String
   category        Category         @relation(fields: [categoryId], references: [id])
@@ -515,17 +604,36 @@ model Order {
   user                 User?             @relation(fields: [userId], references: [id])
   branchId             String?
   branch               Branch?           @relation(fields: [branchId], references: [id])
+  orderType            OrderType         @default(DELIVERY)
+  orderSource          OrderSource       @default(WEBSITE)
   status               OrderStatus       @default(PENDING)
   trackingStatus       TrackingStatus?
+  billStatus           PosBillStatus     @default(OPEN)
   customerName         String
   customerPhone        String
-  deliveryAddress      String
+  deliveryAddress      String?
+  addressId            String?
+  address              Address?          @relation(fields: [addressId], references: [id])
+  posTableId           String?
+  posTable             PosTable?         @relation(fields: [posTableId], references: [id])
+  posSessionId         String?
+  posSession           PosSession?       @relation(fields: [posSessionId], references: [id])
+  cashierId            String?
+  cashier              User?             @relation("PosCashierOrders", fields: [cashierId], references: [id])
+  covers               Int?
+  scheduledDeliveryAt  DateTime?
+  rewardPointsUsed     Int               @default(0)
   deliveryInstructions String?
   subtotal             Decimal           @db.Decimal(10, 2)
   deliveryCharge       Decimal           @db.Decimal(10, 2)
   packingCharge        Decimal           @db.Decimal(10, 2)
+  taxAmount            Decimal           @default(0) @db.Decimal(10, 2)
+  cgstAmount           Decimal           @default(0) @db.Decimal(10, 2)
+  sgstAmount           Decimal           @default(0) @db.Decimal(10, 2)
   discount             Decimal           @default(0) @db.Decimal(10, 2)
+  preOrderDiscount     Decimal           @default(0) @db.Decimal(10, 2)
   grandTotal           Decimal           @db.Decimal(10, 2)
+  packedItemCount      Int               @default(0)
   paymentMethod        PaymentMethod
   paymentStatus        PaymentStatus     @default(PENDING)
   couponId             String?
@@ -536,9 +644,13 @@ model Order {
   priority             KitchenPriority @default(NORMAL)
   kitchenStartedAt     DateTime?
   kitchenCompletedAt   DateTime?
+  servedAt             DateTime?
+  completedAt          DateTime?
   queuePosition        Int             @default(0)
   items                OrderItem[]
   payment              Payment?
+  posPaymentLines      PosPaymentLine[]
+  posDiscounts         PosDiscount[]
   deliveryTracking     DeliveryTracking?
   statusHistory        OrderStatusHistory[]
   kitchenLogs          KitchenLog[]
@@ -561,6 +673,8 @@ model OrderItem {
   quantity             Int
   unitPrice            Decimal           @db.Decimal(10, 2)
   totalPrice           Decimal           @db.Decimal(10, 2)
+  unitPackingCharge    Decimal           @default(0) @db.Decimal(10, 2)
+  packingCharge        Decimal           @default(0) @db.Decimal(10, 2)
   kitchenStatus        KitchenItemStatus @default(WAITING)
   specialInstructions  String?
 
@@ -920,6 +1034,24 @@ model BusinessSettings {
   announcementBar         String?
   orderSequence           Int      @default(0)
   orderYear               Int      @default(2026)
+  gstNumber               String?
+  websiteUrl              String?
+  receiptShowLogo         Boolean  @default(true)
+  receiptShowQr           Boolean  @default(true)
+  receiptShowGst          Boolean  @default(true)
+  receiptShowAddress      Boolean  @default(true)
+  receiptShowCustomer     Boolean  @default(true)
+  receiptShowCashier      Boolean  @default(true)
+  receiptShowPayment      Boolean  @default(true)
+  receiptFooterMessage    String?
+  receiptFontSize         String   @default("normal")
+  receiptPaperWidth       String   @default("80mm")
+  receiptCopies           Int      @default(1)
+  receiptAutoPrintPayment Boolean  @default(false)
+  receiptAutoPrintKot     Boolean  @default(false)
+  preOrderDiscountPct     Int      @default(10)
+  preOrderMinDaysAhead    Int      @default(1)
+  preOrderStackWithCoupons Boolean @default(false)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -1137,18 +1269,89 @@ model Faq {
 }
 
 model Announcement {
-  id        String           @id @default(uuid())
-  title     String
-  message   String
-  type      AnnouncementType @default(BAR)
-  linkUrl   String?
-  startsAt  DateTime?
-  endsAt    DateTime?
-  isActive  Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id                 String                    @id @default(uuid())
+  title              String
+  message            String
+  shortMessage       String?
+  type               AnnouncementType          @default(BAR)
+  linkUrl            String?
+  icon               String?
+  bannerImageUrl     String?
+  heroBannerImageUrl String?
+  ctaText            String?
+  ctaUrl             String?
+  dailyStartTime     String?
+  dailyEndTime       String?
+  status             ContentStatus             @default(DRAFT)
+  priorityLevel      AnnouncementPriorityLevel @default(GENERAL)
+  priority           Int                       @default(0)
+  sortOrder          Int                       @default(0)
+  dismissible        Boolean                   @default(true)
+  mandatory          Boolean                   @default(false)
+  platform           AnnouncementPlatform      @default(BOTH)
+  placements         String[]                  @default([])
+  orderTypes         String[]                  @default(["ALL"])
+  popupFrequency     PopupFrequency?
+  startsAt           DateTime?
+  endsAt             DateTime?
+  publishedAt        DateTime?
+  isActive           Boolean                   @default(true)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  analytics          AnnouncementAnalytics?
+  dismissals         AnnouncementDismissal[]
 
   @@map("announcements")
+}
+
+model DeliveryConfig {
+  id                    String                     @id @default(uuid())
+  status                DeliveryAvailabilityStatus @default(LIMITED_AREA)
+  areas                 String[]                   @default([])
+  orderStartTime        String?
+  orderEndTime          String?
+  deliveryStartTime     String?
+  deliveryEndTime       String?
+  deliveryCharge        Decimal?                   @db.Decimal(10, 2)
+  freeDeliveryThreshold Decimal?                   @db.Decimal(10, 2)
+  minOrderAmount        Decimal?                   @db.Decimal(10, 2)
+  message               String?
+  expansionMessage      String?
+  isActive              Boolean                    @default(true)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@map("delivery_config")
+}
+
+model AnnouncementAnalytics {
+  id             String       @id @default(uuid())
+  announcementId String       @unique
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  impressions    Int          @default(0)
+  views          Int          @default(0)
+  dismissals     Int          @default(0)
+  ctaClicks      Int          @default(0)
+  conversions    Int          @default(0)
+  revenue        Decimal      @default(0) @db.Decimal(12, 2)
+  websiteViews   Int          @default(0)
+  androidViews   Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+
+  @@map("announcement_analytics")
+}
+
+model AnnouncementDismissal {
+  id             String       @id @default(uuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  sessionId      String?
+  userId         String?
+  platform       String       @default("WEBSITE")
+  dismissedAt    DateTime     @default(now())
+
+  @@unique([announcementId, sessionId])
+  @@map("announcement_dismissals")
 }
 
 model NavigationItem {
@@ -1177,6 +1380,51 @@ model ThemeSettings {
   updatedAt      DateTime @updatedAt
 
   @@map("theme_settings")
+}
+
+model MobileAppConfig {
+  id                       String    @id @default(uuid())
+  appName                  String    @default("Mercy Dosa House")
+  tagline                  String    @default("Crispy Dosas. Happy Hearts.")
+  logoUrl                  String?
+  splashLogoUrl            String?
+  splashBackgroundColor    String    @default("#14532D")
+  splashBackgroundImageUrl String?
+  appIconUrl               String?
+  configVersion            Int       @default(1)
+  refreshIntervalSeconds   Int       @default(300)
+  apiBaseUrl               String?
+  maintenanceMode          Boolean   @default(false)
+  maintenanceMessage       String?
+  maintenanceEndsAt        DateTime?
+  minAppVersion            String    @default("1.0.0")
+  latestAppVersion         String    @default("1.0.0")
+  forceUpdate              Boolean   @default(false)
+  softUpdateMessage        String?
+  storeOpen                Boolean   @default(true)
+  storeClosedMessage       String?
+  emergencyNotice          String?
+  darkModeDefault          Boolean   @default(false)
+  allowDarkMode            Boolean   @default(true)
+  allowLightMode           Boolean   @default(true)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@map("mobile_app_config")
+}
+
+model MobileFeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  label       String
+  description String?
+  enabled     Boolean  @default(true)
+  platform    String   @default("ALL")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("mobile_feature_flags")
 }
 
 model SeoMetadata {
@@ -1553,4 +1801,146 @@ model InventoryAudit {
   createdAt   DateTime @default(now())
 
   @@map("inventory_audit")
+}
+
+model PosFloor {
+  id         String     @id @default(uuid())
+  branchId   String
+  branch     Branch     @relation(fields: [branchId], references: [id])
+  name       String
+  layoutJson Json?
+  sortOrder  Int        @default(0)
+  isActive   Boolean    @default(true)
+  tables     PosTable[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("pos_floors")
+}
+
+model PosTable {
+  id           String         @id @default(uuid())
+  floorId      String
+  floor        PosFloor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  label        String
+  capacity     Int            @default(4)
+  status       PosTableStatus @default(AVAILABLE)
+  posX         Int            @default(0)
+  posY         Int            @default(0)
+  mergedIntoId String?
+  mergedInto   PosTable?      @relation("TableMerge", fields: [mergedIntoId], references: [id])
+  mergedTables PosTable[]     @relation("TableMerge")
+  qrCode       String?
+  orders       Order[]
+  holdBills    PosHoldBill[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([floorId, label])
+  @@map("pos_tables")
+}
+
+model PosTerminal {
+  id        String       @id @default(uuid())
+  branchId  String
+  branch    Branch       @relation(fields: [branchId], references: [id])
+  name      String
+  deviceKey String       @unique
+  isActive  Boolean      @default(true)
+  sessions  PosSession[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("pos_terminals")
+}
+
+model PosSession {
+  id            String           @id @default(uuid())
+  branchId      String
+  branch        Branch           @relation(fields: [branchId], references: [id])
+  terminalId    String?
+  terminal      PosTerminal?     @relation(fields: [terminalId], references: [id])
+  cashierId     String
+  cashier       User             @relation("PosCashier", fields: [cashierId], references: [id])
+  status        PosSessionStatus @default(OPEN)
+  openingFloat  Decimal          @default(0) @db.Decimal(10, 2)
+  closingCash   Decimal?         @db.Decimal(10, 2)
+  cashIn        Decimal          @default(0) @db.Decimal(10, 2)
+  cashOut       Decimal          @default(0) @db.Decimal(10, 2)
+  totalSales    Decimal          @default(0) @db.Decimal(10, 2)
+  totalRefunds  Decimal          @default(0) @db.Decimal(10, 2)
+  totalDiscount Decimal          @default(0) @db.Decimal(10, 2)
+  openedAt      DateTime         @default(now())
+  closedAt      DateTime?
+  orders        Order[]
+  holdBills     PosHoldBill[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@map("pos_sessions")
+}
+
+model PosHoldBill {
+  id          String      @id @default(uuid())
+  sessionId   String
+  session     PosSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tableId     String?
+  table       PosTable?   @relation(fields: [tableId], references: [id])
+  orderId     String?
+  payloadJson Json
+  label       String?
+  expiresAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("pos_hold_bills")
+}
+
+model PosPaymentLine {
+  id        String        @id @default(uuid())
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(10, 2)
+  reference String?
+  createdAt DateTime      @default(now())
+
+  @@map("pos_payment_lines")
+}
+
+model PosDiscount {
+  id           String          @id @default(uuid())
+  orderId      String
+  order        Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type         PosDiscountType
+  amount       Decimal         @db.Decimal(10, 2)
+  reason       String?
+  approvedById String?
+  approvedBy   User?           @relation("PosDiscountApprover", fields: [approvedById], references: [id])
+  createdAt    DateTime        @default(now())
+
+  @@map("pos_discounts")
+}
+
+model PosCashTransaction {
+  id        String   @id @default(uuid())
+  sessionId String
+  type      String
+  amount    Decimal  @db.Decimal(10, 2)
+  reason    String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@map("pos_cash_transactions")
+}
+
+model PosOfflineQueue {
+  id          String   @id @default(uuid())
+  terminalId  String
+  payloadJson Json
+  status      String   @default("PENDING")
+  syncedAt    DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("pos_offline_queue")
 }

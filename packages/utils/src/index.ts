@@ -38,6 +38,70 @@ export function calculateOrderTotal(
   return Math.max(0, subtotal + deliveryCharge + packingCharge - discount);
 }
 
+export type OnlineOrderType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY' | 'ONLINE_PICKUP';
+
+export interface DeliveryChargeOptions {
+  deliveryCharge: number;
+  freeDeliveryLimit?: number | null;
+  orderType?: OnlineOrderType;
+}
+
+export interface DeliveryChargeResult {
+  amount: number;
+  isFree: boolean;
+  freeDeliveryLimit: number;
+}
+
+/** Delivery fee for online orders — dine-in excluded; free when subtotal meets threshold. */
+export function calculateDeliveryCharge(
+  subtotal: number,
+  options: DeliveryChargeOptions,
+): DeliveryChargeResult {
+  const orderType = options.orderType ?? 'DELIVERY';
+  const freeDeliveryLimit = options.freeDeliveryLimit ?? 299;
+  const baseCharge = options.deliveryCharge ?? 30;
+
+  if (orderType === 'DINE_IN') {
+    return { amount: 0, isFree: true, freeDeliveryLimit };
+  }
+
+  if (freeDeliveryLimit > 0 && subtotal >= freeDeliveryLimit) {
+    return { amount: 0, isFree: true, freeDeliveryLimit };
+  }
+
+  return { amount: baseCharge, isFree: false, freeDeliveryLimit };
+}
+
+/** Packing applies to takeaway and delivery; not dine-in. */
+export function calculatePackingChargeForOrder(
+  packingTotal: number,
+  orderType: OnlineOrderType = 'DELIVERY',
+): number {
+  if (orderType === 'DINE_IN') return 0;
+  return packingTotal;
+}
+
+export const DEFAULT_PACKING_CHARGE_PER_ITEM = 20;
+
+/** Per-item packing: sum of (packingCharge × quantity) for each cart/order line */
+export interface PackingLineItem {
+  quantity: number;
+  packingCharge?: number | null;
+}
+
+export function calculatePackingTotal(items: PackingLineItem[]): number {
+  return items.reduce((sum, item) => sum + (item.packingCharge ?? 20) * item.quantity, 0);
+}
+
+export function calculatePackedItemCount(items: Pick<PackingLineItem, 'quantity'>[]): number {
+  return items.reduce((sum, item) => sum + item.quantity, 0);
+}
+
+export function formatPackingLabel(packedItemCount: number): string {
+  const n = packedItemCount;
+  return `Packing (${n} Item${n === 1 ? '' : 's'})`;
+}
+
 export function formatPhone(phone: string): string {
   const cleaned = phone.replace(/\D/g, '');
   if (cleaned.length === 10) return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
@@ -57,11 +121,19 @@ export function formatDate(date: string | Date): string {
   }).format(new Date(date));
 }
 
+export * from './billing';
+export * from './pre-order';
+export * from './upi-qr';
+
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   COD: 'Cash on Delivery',
   UPI: 'UPI',
   RAZORPAY: 'Razorpay',
   CASHFREE: 'Cashfree',
+  CASH: 'Cash',
+  CARD: 'Card',
+  WALLET: 'Wallet',
+  SPLIT: 'Split Payment',
 };
 
 export const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -69,6 +141,7 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   ACCEPTED: 'Accepted',
   PREPARING: 'Preparing',
   READY: 'Ready',
+  SERVED: 'Served',
   OUT_FOR_DELIVERY: 'Out for Delivery',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',

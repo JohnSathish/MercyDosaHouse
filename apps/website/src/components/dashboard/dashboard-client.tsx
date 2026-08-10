@@ -16,7 +16,6 @@ import {
 import { api, API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { useToastStore } from '@/lib/toast-store';
-import { useCartStore } from '@/lib/cart-store';
 import type { OrderDto, ProductDto, AddressDto } from '@mdh/types';
 import { DashboardSidebar } from './dashboard-sidebar';
 import { DashboardMobileNav } from './dashboard-mobile-nav';
@@ -48,18 +47,20 @@ function DashboardInner() {
   const searchParams = useSearchParams();
   const tab = (searchParams.get('tab') as DashboardSection) || 'dashboard';
   const [section, setSection] = useState<DashboardSection>(tab);
+  const [mounted, setMounted] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [storedUser, setStoredUser] = useState<ReturnType<typeof getStoredUser>>(null);
   const toast = useToastStore((s) => s.show);
-  const clearCart = useCartStore((s) => s.clearCart);
 
   useEffect(() => {
+    setMounted(true);
     setStoredUser(getStoredUser());
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     if (!isAuthenticated()) {
       router.replace('/login');
       return;
@@ -69,7 +70,7 @@ function DashboardInner() {
       const staffUrl = getStaffPortalRedirect(user, APP_URLS);
       if (staffUrl) window.location.href = staffUrl;
     }
-  }, [router]);
+  }, [mounted, router]);
 
   useEffect(() => {
     setSection(tab);
@@ -84,45 +85,46 @@ function DashboardInner() {
     [router],
   );
 
+  const authed = mounted && isAuthenticated();
+
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: () => api.get<UserProfile>('/users/me'),
-    enabled: isAuthenticated(),
+    enabled: authed,
   });
 
   const { data: orders = [] } = useQuery({
     queryKey: ['my-orders'],
     queryFn: () => api.get<OrderDto[]>('/users/me/orders'),
-    enabled: isAuthenticated(),
+    enabled: authed,
   });
 
   const { data: favorites = [] } = useQuery({
     queryKey: ['my-favorites'],
     queryFn: () => api.get<ProductDto[]>('/users/me/favorites'),
-    enabled: isAuthenticated(),
+    enabled: authed,
   });
 
   const { data: addresses = [] } = useQuery({
     queryKey: ['my-addresses'],
     queryFn: () => api.get<AddressDto[]>('/users/me/addresses'),
-    enabled: isAuthenticated(),
+    enabled: authed,
   });
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
     queryFn: () =>
       api.get<{ id: string; title: string; body: string; createdAt: string }[]>('/notifications'),
-    enabled: isAuthenticated(),
+    enabled: authed,
   });
 
-  const user = profile ?? storedUser;
-  const userName = profile?.name ?? storedUser?.name;
+  const user = mounted ? (profile ?? storedUser) : null;
+  const userName = mounted ? (profile?.name ?? storedUser?.name) : undefined;
 
   const handleLogout = async () => {
     setLogoutLoading(true);
     try {
       await logout(API_URL);
-      clearCart();
       setLogoutOpen(false);
       toast('Logged out successfully.');
       router.push('/');

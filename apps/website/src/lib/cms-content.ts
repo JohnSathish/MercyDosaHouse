@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import type { PublishedSiteContentDto, CmsSectionDto, HeroSectionContent } from '@mdh/types';
 
-const FALLBACK: PublishedSiteContentDto = {
+const EMPTY: PublishedSiteContentDto = {
   sections: [],
   pages: [],
   gallery: [],
@@ -30,7 +30,7 @@ export async function getPublishedSiteContent(): Promise<PublishedSiteContentDto
     cache = { data, expires: Date.now() + 60_000 };
     return data;
   } catch {
-    return FALLBACK;
+    return EMPTY;
   }
 }
 

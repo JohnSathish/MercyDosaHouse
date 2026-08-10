@@ -13,6 +13,7 @@ import {
   ChefHat,
   CheckCircle2,
   Star,
+  Package,
 } from 'lucide-react';
 import { cn } from '@mdh/ui';
 
@@ -49,6 +50,21 @@ const KPI_CARDS = [
     color: 'from-purple-500 to-purple-600',
     format: 'currency',
     trendKey: 'aovTrend',
+  },
+  {
+    key: 'packingRevenue',
+    label: 'Packing Revenue',
+    icon: Package,
+    color: 'from-lime-600 to-green-700',
+    format: 'currency',
+    trendKey: 'packingRevenueTrend',
+  },
+  {
+    key: 'avgPackingPerOrder',
+    label: 'Avg Packing / Order',
+    icon: Package,
+    color: 'from-green-600 to-emerald-700',
+    format: 'currency',
   },
   {
     key: 'netProfit',

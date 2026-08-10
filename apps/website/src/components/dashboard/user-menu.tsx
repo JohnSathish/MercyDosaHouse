@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, LogOut, User, ShoppingBag, Heart, Settings } from 'lucide-react';
 import { Button } from '@mdh/ui';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,12 +15,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogoutDialog } from '@/components/dashboard/logout-dialog';
-import { getInitials } from '@/components/dashboard/types';
+import {
+  getHeaderDisplayName,
+  getInitials,
+  resolveCustomerDisplayName,
+  type UserProfile,
+} from '@/components/dashboard/types';
+import type { AddressDto } from '@mdh/types';
 import { getStoredUser, isAuthenticated, logout, isCustomer, isAdminUser } from '@mdh/auth-client';
-import { API_URL } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { useToastStore } from '@/lib/toast-store';
-import { useCartStore } from '@/lib/cart-store';
 
 interface UserMenuProps {
   transparent?: boolean;
@@ -32,10 +38,16 @@ export function UserMenu({ transparent }: UserMenuProps) {
   const [loading, setLoading] = useState(false);
   const user = mounted ? getStoredUser() : null;
   const authenticated = mounted && isAuthenticated();
-  const clearCart = useCartStore((s) => s.clearCart);
   const toast = useToastStore((s) => s.show);
 
   useEffect(() => setMounted(true), []);
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => api.get<UserProfile>('/users/me'),
+    enabled: mounted && isAuthenticated(),
+    staleTime: 60_000,
+  });
 
   const loginButton = (
     <Link href="/login">
@@ -62,7 +74,6 @@ export function UserMenu({ transparent }: UserMenuProps) {
     setLoading(true);
     try {
       await logout(API_URL);
-      clearCart();
       setLogoutOpen(false);
       toast('Logged out successfully.');
       router.push('/');
@@ -72,7 +83,15 @@ export function UserMenu({ transparent }: UserMenuProps) {
     }
   };
 
-  const firstName = user.name?.split(' ')[0] || 'Profile';
+  const defaultAddress =
+    profile?.addresses?.find((a) => (a as AddressDto).isDefault) ?? profile?.addresses?.[0];
+  const resolvedName = resolveCustomerDisplayName(
+    profile?.name ?? user.name,
+    (defaultAddress as AddressDto | undefined)?.contactName,
+    profile?.phone ?? user.phone,
+  );
+  const displayName = getHeaderDisplayName(resolvedName, profile?.phone ?? user.phone);
+  const avatarInitials = getInitials(resolvedName, profile?.phone ?? user.phone);
   const isStaff = !isCustomer(user);
   const adminPortal = APP_URLS.admin;
 
@@ -87,9 +106,11 @@ export function UserMenu({ transparent }: UserMenuProps) {
             }`}
           >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
+              <AvatarFallback className="text-xs">{avatarInitials}</AvatarFallback>
             </Avatar>
-            <span className="hidden sm:inline text-sm font-semibold">{firstName}</span>
+            <span className="hidden sm:inline text-sm font-semibold max-w-[8rem] truncate">
+              {displayName}
+            </span>
             <ChevronDown className="w-4 h-4 opacity-70 hidden sm:block" />
           </button>
         </DropdownMenuTrigger>

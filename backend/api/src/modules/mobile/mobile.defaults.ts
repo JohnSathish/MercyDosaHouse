@@ -1,0 +1,71 @@
+export const DEFAULT_MOBILE_HOME_SECTIONS = [
+  { sectionKey: 'hero_banner', title: 'Hero Banner Slider', sortOrder: 1 },
+  { sectionKey: 'promotional_banners', title: 'Promotional Banners', sortOrder: 2 },
+  { sectionKey: 'categories', title: 'Categories', sortOrder: 3 },
+  { sectionKey: 'todays_offers', title: "Today's Offers", sortOrder: 4 },
+  { sectionKey: 'featured_items', title: 'Featured Items', sortOrder: 5 },
+  { sectionKey: 'popular_items', title: 'Popular Items', sortOrder: 6 },
+  { sectionKey: 'recommended_items', title: 'Recommended Items', sortOrder: 7 },
+  { sectionKey: 'recently_ordered', title: 'Recently Ordered', sortOrder: 8 },
+  { sectionKey: 'combos', title: 'Combos', sortOrder: 9 },
+  { sectionKey: 'new_arrivals', title: 'New Arrivals', sortOrder: 10 },
+  { sectionKey: 'festival_specials', title: 'Festival Specials', sortOrder: 11 },
+  { sectionKey: 'best_sellers', title: 'Best Sellers', sortOrder: 12 },
+] as const;
+
+export const DEFAULT_MOBILE_FEATURE_FLAGS = [
+  {
+    key: 'reviews',
+    label: 'Reviews',
+    description: 'Allow customers to write reviews',
+    sortOrder: 1,
+  },
+  { key: 'ratings', label: 'Ratings', description: 'Show product ratings', sortOrder: 2 },
+  { key: 'wishlist', label: 'Wishlist', description: 'Save favorite items', sortOrder: 3 },
+  {
+    key: 'loyalty',
+    label: 'Loyalty Program',
+    description: 'Reward points and tiers',
+    sortOrder: 4,
+  },
+  { key: 'referral', label: 'Referral', description: 'Refer-a-friend rewards', sortOrder: 5 },
+  { key: 'coupons', label: 'Coupons', description: 'Apply coupon codes at checkout', sortOrder: 6 },
+  {
+    key: 'scheduled_orders',
+    label: 'Scheduled Orders',
+    description: 'Schedule delivery date/time',
+    sortOrder: 7,
+  },
+  {
+    key: 'pre_order_discount',
+    label: 'Pre-Order Discount',
+    description: '10% off advance orders',
+    sortOrder: 8,
+  },
+  {
+    key: 'live_tracking',
+    label: 'Live Tracking',
+    description: 'Real-time delivery tracking',
+    sortOrder: 9,
+  },
+  {
+    key: 'whatsapp_support',
+    label: 'WhatsApp Support',
+    description: 'Contact via WhatsApp',
+    sortOrder: 10,
+  },
+  { key: 'chat', label: 'Live Chat', description: 'In-app chat support', sortOrder: 11 },
+  {
+    key: 'push_notifications',
+    label: 'Push Notifications',
+    description: 'FCM push alerts',
+    sortOrder: 12,
+  },
+  { key: 'google_login', label: 'Google Login', description: 'Sign in with Google', sortOrder: 13 },
+  {
+    key: 'guest_checkout',
+    label: 'Guest Checkout',
+    description: 'Order without account',
+    sortOrder: 14,
+  },
+] as const;

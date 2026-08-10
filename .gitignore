@@ -11,3 +11,10 @@ uploads
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+
+# Mobile / Android build artifacts
+**/android.local.bak/
+**/.gradle/
+mobile/**/android/app/build
+mobile/**/ios/Pods
+e2e/reports/*.json

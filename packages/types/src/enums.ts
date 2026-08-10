@@ -12,6 +12,7 @@ export enum OrderStatus {
   ACCEPTED = 'ACCEPTED',
   PREPARING = 'PREPARING',
   READY = 'READY',
+  SERVED = 'SERVED',
   OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
   DELIVERED = 'DELIVERED',
   CANCELLED = 'CANCELLED',
@@ -31,6 +32,10 @@ export enum PaymentMethod {
   UPI = 'UPI',
   RAZORPAY = 'RAZORPAY',
   CASHFREE = 'CASHFREE',
+  CASH = 'CASH',
+  CARD = 'CARD',
+  WALLET = 'WALLET',
+  SPLIT = 'SPLIT',
 }
 
 export enum PaymentStatus {
