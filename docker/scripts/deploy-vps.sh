@@ -34,7 +34,7 @@ source .env
 set +a
 
 echo "Building and starting containers (localhost ports only)..."
-docker compose -f "$COMPOSE_FILE" up -d --build
+docker compose --env-file .env -f "$COMPOSE_FILE" up -d --build
 
 echo "Waiting for API health..."
 for i in $(seq 1 30); do

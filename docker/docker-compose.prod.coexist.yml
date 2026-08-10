@@ -1,8 +1,8 @@
 # Production Docker Compose — coexists with other apps on the same VPS
 # Does NOT bind ports 80/443. Uses localhost-only ports for host nginx reverse proxy.
 #
-# Usage:
-#   docker compose -f docker/docker-compose.prod.coexist.yml up -d --build
+# Usage (from repo root):
+#   docker compose --env-file .env -f docker/docker-compose.prod.coexist.yml up -d --build
 
 services:
   postgres:
