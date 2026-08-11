@@ -769,6 +769,17 @@ model OrderEmailNotification {
   @@map("order_email_notifications")
 }
 
+model OrderNotificationRecipient {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+
+  @@map("order_notification_recipients")
+}
+
 model PaymentMethodConfig {
   id        String        @id @default(uuid())
   method    PaymentMethod @unique

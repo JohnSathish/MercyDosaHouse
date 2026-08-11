@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { contactFormSchema, CONTACT_FORM_SUBJECTS } from '@mdh/types';
 import { EmailService } from '../notifications/email.service';
+import { OrderNotificationRecipientsService } from '../notifications/order-notification-recipients.service';
 import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class ContactService {
   constructor(
     private emailService: EmailService,
     private settingsService: SettingsService,
-    private config: ConfigService,
+    private orderNotificationRecipients: OrderNotificationRecipientsService,
   ) {}
 
   getSubjects() {
@@ -35,15 +35,16 @@ export class ContactService {
 
     const data = parsed.data;
     const settings = await this.settingsService.getBusinessSettings();
-    const recipients = [
-      settings.email?.trim(),
-      ...(this.config.get<string>('ORDER_NOTIFICATION_RECIPIENTS') || '')
-        .split(',')
-        .map((e) => e.trim())
-        .filter(Boolean),
-    ].filter(Boolean) as string[];
+    const notificationEmails = await this.orderNotificationRecipients.getActiveRecipientEmails();
+    const recipients = [settings.email?.trim(), ...notificationEmails].filter(Boolean) as string[];
 
-    const to = [...new Set(recipients.length ? recipients : ['info@mercydosahouse.com'])];
+    const to = [...new Set(recipients.length ? recipients : [])];
+    if (!to.length) {
+      return {
+        sent: false,
+        error: 'Message could not be sent right now. Please call us or use WhatsApp.',
+      };
+    }
 
     if (!this.emailService.isConfigured()) {
       return {

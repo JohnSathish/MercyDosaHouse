@@ -1,8 +1,10 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@mdh/ui';
+import { Bell } from 'lucide-react';
 import { api } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { MediaUploader } from '@/components/cms/media-uploader';
@@ -88,9 +90,11 @@ export default function SettingsPage() {
     setThemeDraft((prev: Partial<ThemeSettingsDto>) => ({ ...prev, ...patch }));
 
   return (
-    <div className="w-full max-w-4xl space-y-8">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Business Settings</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+          Business Settings
+        </h1>
         <p className="text-muted-foreground text-sm mt-1">
           Manage restaurant details, brand assets, contact info, and operational configuration.
         </p>
@@ -203,16 +207,16 @@ export default function SettingsPage() {
 
       <Card className="dark:bg-gray-900">
         <CardHeader>
-          <CardTitle className="text-lg">Order Notification Email</CardTitle>
+          <CardTitle className="text-lg">Email Delivery (SMTP)</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Sends a confirmation email to business recipients when a new order is placed (COD
-            immediately; online payments after confirmation).
+            Order confirmation emails are sent via your configured SMTP provider when customers
+            place orders (COD immediately; online payments after confirmation).
           </p>
-          <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
+          <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-3 text-sm space-y-1">
             <p>
-              <span className="text-muted-foreground">Status:</span>{' '}
+              <span className="text-muted-foreground">SMTP status:</span>{' '}
               <span
                 className={
                   emailStatus?.configured
@@ -230,17 +234,30 @@ export default function SettingsPage() {
             ) : null}
             {emailStatus?.recipients?.length ? (
               <p className="text-xs text-muted-foreground">
-                Recipients: {emailStatus.recipients.join(', ')}
+                {emailStatus.recipients.length} active notification{' '}
+                {emailStatus.recipients.length === 1 ? 'address' : 'addresses'}
               </p>
-            ) : null}
+            ) : (
+              <p className="text-xs text-amber-600">No active notification emails configured.</p>
+            )}
           </div>
-          <Button
-            variant="outline"
-            onClick={() => testEmail.mutate()}
-            disabled={testEmail.isPending}
-          >
-            {testEmail.isPending ? 'Sending…' : 'Send Test Email'}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={() => testEmail.mutate()}
+              disabled={testEmail.isPending}
+            >
+              {testEmail.isPending ? 'Sending…' : 'Send Test Email'}
+            </Button>
+            <Link
+              href="/settings/notifications"
+              className="inline-flex items-center justify-center min-h-[44px] rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              <Bell className="h-4 w-4 mr-1.5" />
+              Manage Order Notification Emails
+            </Link>
+          </div>
           {testEmail.data?.sent && (
             <p className="text-sm text-emerald-600">Test email sent successfully.</p>
           )}

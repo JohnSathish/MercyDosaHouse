@@ -16,6 +16,7 @@ import {
   ORDER_CONFIRMED_TYPE,
   type OrderEmailPayload,
 } from './order-email.template';
+import { OrderNotificationRecipientsService } from './order-notification-recipients.service';
 
 const MAX_AUTO_ATTEMPTS = 3;
 const DEFERRED_PAYMENT_METHODS = new Set<PaymentMethod>([
@@ -33,6 +34,7 @@ export class OrderEmailNotificationService {
     private emailService: EmailService,
     private config: ConfigService,
     private audit: AuditService,
+    private orderNotificationRecipients: OrderNotificationRecipientsService,
   ) {}
 
   /** COD and similar — notify immediately after order is created. */
@@ -45,14 +47,9 @@ export class OrderEmailNotificationService {
     return DEFERRED_PAYMENT_METHODS.has(paymentMethod);
   }
 
-  getRecipients(): string[] {
-    const raw =
-      this.config.get<string>('ORDER_NOTIFICATION_RECIPIENTS') ||
-      'johnsathish16@gmail.com,nambikaimary96@gmail.com,alboraja@gmail.com';
-    return raw
-      .split(',')
-      .map((e) => e.trim())
-      .filter(Boolean);
+  /** Active order-notification recipients from admin configuration. */
+  async getRecipients(): Promise<string[]> {
+    return this.orderNotificationRecipients.getActiveRecipientEmails();
   }
 
   async notifyOrderConfirmed(orderId: string, options?: { force?: boolean }): Promise<void> {
@@ -87,9 +84,9 @@ export class OrderEmailNotificationService {
       return;
     }
 
-    const recipients = this.getRecipients();
+    const recipients = await this.getRecipients();
     if (!recipients.length) {
-      this.logger.warn('ORDER_NOTIFICATION_RECIPIENTS is empty — skipping order email');
+      this.logger.warn('No active order notification recipients — skipping order email');
       return;
     }
 
@@ -347,7 +344,7 @@ export class OrderEmailNotificationService {
         attemptCount: 0,
         lastError: null,
         sentAt: null,
-        recipients: this.getRecipients(),
+        recipients: [],
       };
     }
     return {

@@ -4,6 +4,7 @@ import { SettingsService } from './settings.service';
 import { Public, RequirePermissions, RequestUser } from '../../common/guards';
 import { EmailService } from '../notifications/email.service';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
+import { OrderNotificationRecipientsService } from '../notifications/order-notification-recipients.service';
 
 @ApiTags('settings')
 @Controller('settings')
@@ -12,6 +13,7 @@ export class SettingsController {
     private settingsService: SettingsService,
     private emailService: EmailService,
     private orderEmailNotification: OrderEmailNotificationService,
+    private orderNotificationRecipients: OrderNotificationRecipientsService,
   ) {}
 
   @Public()
@@ -92,22 +94,55 @@ export class SettingsController {
   @ApiBearerAuth()
   @RequirePermissions('settings.read')
   @Get('email/status')
-  getEmailStatus() {
+  async getEmailStatus() {
     return {
       ...this.emailService.getStatus(),
-      recipients: this.orderEmailNotification.getRecipients(),
+      recipients: await this.orderEmailNotification.getRecipients(),
     };
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.read')
+  @Get('order-notification-emails')
+  listOrderNotificationEmails() {
+    return this.orderNotificationRecipients.listAll();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Post('order-notification-emails')
+  createOrderNotificationEmail(@Body() body: { email: string }, @Req() req: { user: RequestUser }) {
+    return this.orderNotificationRecipients.create(body.email, req.user.id);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('order-notification-emails/:id')
+  updateOrderNotificationEmail(
+    @Param('id') id: string,
+    @Body() body: { email?: string; isActive?: boolean },
+  ) {
+    return this.orderNotificationRecipients.update(id, body);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Delete('order-notification-emails/:id')
+  async deleteOrderNotificationEmail(@Param('id') id: string) {
+    await this.orderNotificationRecipients.remove(id);
+    return { ok: true };
   }
 
   @ApiBearerAuth()
   @RequirePermissions('settings.write')
   @Post('email/test')
   async sendTestEmail(@Body() body: { to?: string }) {
-    const to = body.to?.trim() || this.orderEmailNotification.getRecipients()[0];
+    const active = await this.orderEmailNotification.getRecipients();
+    const to = body.to?.trim() || active[0];
     if (!to) {
       return {
         sent: false,
-        error: 'No recipient — set ORDER_NOTIFICATION_RECIPIENTS or pass { to }',
+        error: 'No active notification email — add one under Order Notification Emails',
       };
     }
     return this.emailService.send({

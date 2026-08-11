@@ -4,10 +4,23 @@ import { NotificationsController } from './notifications.controller';
 import { SmsService } from './sms.service';
 import { EmailService } from './email.service';
 import { OrderEmailNotificationService } from './order-email-notification.service';
+import { OrderNotificationRecipientsService } from './order-notification-recipients.service';
 
 @Module({
   controllers: [NotificationsController],
-  providers: [NotificationsService, SmsService, EmailService, OrderEmailNotificationService],
-  exports: [NotificationsService, SmsService, EmailService, OrderEmailNotificationService],
+  providers: [
+    NotificationsService,
+    SmsService,
+    EmailService,
+    OrderEmailNotificationService,
+    OrderNotificationRecipientsService,
+  ],
+  exports: [
+    NotificationsService,
+    SmsService,
+    EmailService,
+    OrderEmailNotificationService,
+    OrderNotificationRecipientsService,
+  ],
 })
 export class NotificationsModule {}

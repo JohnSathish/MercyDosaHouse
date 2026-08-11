@@ -301,3 +301,4 @@ export * from './activity';
 export * from './checkout';
 export * from './pos';
 export * from './marketing';
+export * from './notifications';
