@@ -1,6 +1,6 @@
 import { PaymentMethod } from './enums';
 import type { LoyaltyTier } from './customers';
-import type { AddressDto } from './index';
+import type { AddressDto } from './address';
 
 export type DeliveryTiming = 'now' | 'scheduled';
 

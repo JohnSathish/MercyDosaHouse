@@ -117,8 +117,8 @@ export default function AdminDashboardPage() {
 
       <RestaurantStatusPanel />
 
-      {/* KPI grid — auto-fit fills all available width */}
-      <div className="grid gap-3 lg:gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">
+      {/* KPI grid — 2 columns on phones, scales up on larger screens */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4 w-full">
         {primaryKpis.map((item) => (
           <StatCard key={item.label} {...item} trend="Live" />
         ))}

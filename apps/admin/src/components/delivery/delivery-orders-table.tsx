@@ -173,10 +173,115 @@ export function DeliveryOrdersTable({
     return <div className="h-64 rounded-xl bg-muted animate-pulse" />;
   }
 
+  const isWaiting = (order: DeliveryOrderDto) =>
+    !order.assignment || order.assignment.status === 'WAITING';
+
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border bg-white dark:bg-gray-900 shadow-sm overflow-x-auto">
-        <table className="w-full min-w-[1200px] text-sm">
+      {/* Mobile cards */}
+      <div className="grid gap-3 md:hidden">
+        {orders.length === 0 ? (
+          <div className="rounded-xl border bg-white dark:bg-gray-900 p-8 text-center text-muted-foreground text-sm">
+            No delivery orders found
+          </div>
+        ) : (
+          orders.map((order) => (
+            <div
+              key={order.id}
+              className="rounded-xl border bg-white dark:bg-gray-900 p-4 shadow-sm space-y-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-bold text-[#14532D]">{order.orderNumber}</p>
+                  <p className="font-semibold truncate">{order.customerName}</p>
+                  <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+                </div>
+                <DeliveryStatusBadge status={order.assignment?.status ?? 'WAITING'} />
+              </div>
+
+              <p className="text-xs text-muted-foreground line-clamp-2">{order.deliveryAddress}</p>
+              <p className="text-xs text-muted-foreground line-clamp-1">
+                {order.items.map((i) => `${i.quantity}× ${i.productName}`).join(', ')}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-bold">{formatCurrency(order.grandTotal)}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {order.paymentMethod}
+                </Badge>
+              </div>
+
+              {order.assignment?.executive?.name ? (
+                <p className="text-xs text-muted-foreground">
+                  Assigned: {order.assignment.executive.name}
+                  {order.assignment.etaMinutes != null
+                    ? ` · ETA ${order.assignment.etaMinutes} min`
+                    : ''}
+                </p>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="min-h-[44px] flex-1"
+                  onClick={() => onView?.(order.id)}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1" /> View
+                </Button>
+                {isWaiting(order) && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-[44px]"
+                      title="Auto assign"
+                      onClick={() => onAutoAssign?.(order.id)}
+                    >
+                      <Zap className="h-3.5 w-3.5 text-amber-500" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-[44px]"
+                      title="Manual assign"
+                      onClick={() => setAssigningId(assigningId === order.id ? null : order.id)}
+                    >
+                      <UserPlus className="h-3.5 w-3.5 text-blue-500" />
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {assigningId === order.id && executives.length > 0 && (
+                <div className="rounded-lg bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-2">
+                  <p className="text-xs font-semibold">Assign to executive:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {executives.map((e) => (
+                      <Button
+                        key={e.id}
+                        size="sm"
+                        variant="outline"
+                        className="text-xs min-h-[44px]"
+                        onClick={() => {
+                          onAssign?.(order.id, e.id);
+                          setAssigningId(null);
+                        }}
+                      >
+                        {e.user?.name ?? e.employeeId} ({e.activeOrders} active)
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-xl border bg-white dark:bg-gray-900 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[900px] text-sm">
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id} className="border-b bg-muted/40">

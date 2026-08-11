@@ -1,20 +1,24 @@
-import { Redirect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Redirect } from 'expo-router';
 import { useBootstrap } from '@/providers/bootstrap-context';
 
-/** Entry route — Stack is always mounted before redirect. */
+/** Entry route — wait for bootstrap, then redirect. */
 export default function IndexScreen() {
   const { phase, initialHref } = useBootstrap();
 
-  if (phase !== 'ready' || !initialHref) {
+  if (phase === 'loading' || !initialHref) {
     return (
       <View style={styles.placeholder}>
-        <ActivityIndicator color="#14532D" />
+        <ActivityIndicator color="#14532D" size="large" />
       </View>
     );
   }
 
-  return <Redirect href={initialHref} />;
+  return (
+    <Redirect
+      href={initialHref as '/(tabs)' | '/(auth)/login' | '/maintenance' | '/force-update'}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

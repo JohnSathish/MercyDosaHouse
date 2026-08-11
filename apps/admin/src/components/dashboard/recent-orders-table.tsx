@@ -38,8 +38,50 @@ export function RecentOrdersTable() {
         </Link>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full min-w-[900px] text-sm">
+        {/* Mobile card view */}
+        <div className="md:hidden divide-y">
+          {isLoading &&
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-4 space-y-2">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                <div className="h-3 w-full bg-muted animate-pulse rounded" />
+              </div>
+            ))}
+          {!isLoading && orders.length === 0 && (
+            <p className="px-4 py-8 text-center text-muted-foreground text-sm">
+              No orders yet today.
+            </p>
+          )}
+          {orders.map((order) => (
+            <div key={order.id} className="p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-[#14532D]">#{order.orderNumber}</p>
+                  <p className="text-sm font-medium truncate">{order.customerName}</p>
+                  <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+                </div>
+                <Badge
+                  variant="secondary"
+                  className={`text-[10px] shrink-0 ${STATUS_COLORS[order.status] ?? ''}`}
+                >
+                  {ORDER_STATUS_LABELS[order.status]}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-lg font-bold">{formatCurrency(order.grandTotal)}</p>
+                <Link href="/orders">
+                  <Button size="sm" variant="outline" className="min-h-[44px]">
+                    Manage
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto w-full">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-semibold">Order</th>

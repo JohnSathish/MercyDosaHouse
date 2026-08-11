@@ -158,8 +158,80 @@ export function OrdersTable({ orders, onStatusChange, onReject, loading }: Order
 
   return (
     <>
-      <div className="rounded-xl border bg-white overflow-x-auto">
-        <table className="w-full text-sm">
+      {/* Mobile card view */}
+      <div className="grid gap-3 md:hidden">
+        {loading && (
+          <div className="rounded-xl border bg-white p-8 text-center text-muted-foreground">
+            Loading orders…
+          </div>
+        )}
+        {!loading && orders.length === 0 && (
+          <div className="rounded-xl border bg-white p-8 text-center text-muted-foreground">
+            No orders found.
+          </div>
+        )}
+        {orders.map((order) => (
+          <div
+            key={order.id}
+            className="rounded-xl border bg-white dark:bg-gray-900 p-4 shadow-sm space-y-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-semibold text-[#14532D]">
+                  {order.orderNumber}
+                </p>
+                <p className="font-semibold truncate">{order.customerName}</p>
+                <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+              </div>
+              <Badge variant="outline">{ORDER_STATUS_LABELS[order.status]}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {order.items.map((i) => `${i.quantity}× ${i.productName}`).join(', ')}
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-lg font-bold">{formatCurrency(order.grandTotal)}</p>
+              <div className="flex flex-wrap gap-2">
+                {order.status === OrderStatus.PENDING && (
+                  <>
+                    <Button
+                      size="sm"
+                      className="min-h-[44px]"
+                      onClick={() => onStatusChange(order.id, OrderStatus.ACCEPTED)}
+                      disabled={loading}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="min-h-[44px]"
+                      onClick={() => setRejectId(order.id)}
+                      disabled={loading}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="min-h-[44px]"
+                  onClick={() => {
+                    setSelectedOrderId(order.id);
+                    setDrawerOpen(true);
+                  }}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-xl border bg-white overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-gray-50 border-b">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>

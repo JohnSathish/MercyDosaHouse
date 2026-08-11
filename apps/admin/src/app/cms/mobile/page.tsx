@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Label, Card, CardContent, Badge } from '@mdh/ui';
-import { CmsPageHeader } from '@/components/cms/cms-page-header';
 import { MediaUploader } from '@/components/cms/media-uploader';
+import { ScrollTabs } from '@/components/ui/scroll-tabs';
 import { api } from '@/lib/api';
 import { useToastStore } from '@/lib/toast-store';
 import type { CmsSectionDto, MobileFeatureFlagDto } from '@mdh/types';
@@ -65,7 +65,7 @@ function ToggleRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 cursor-pointer gap-4">
+    <label className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-200 px-4 py-3 cursor-pointer gap-3 min-h-[44px]">
       <div>
         <p className="font-medium text-[#14532D]">{label}</p>
         {description && <p className="text-xs text-gray-500">{description}</p>}
@@ -161,41 +161,42 @@ export default function MobileAppCmsPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <CmsPageHeader
-          title="Mobile App Configuration"
-          description="Control branding, homepage layout, feature toggles, and remote config for Android apps — no Play Store update needed."
-        />
-        <Badge variant="outline" className="gap-1 shrink-0 mt-1">
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2 sm:mb-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#14532D] break-words">
+            Mobile App Configuration
+          </h1>
+          <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+            Control branding, homepage layout, feature toggles, and remote config for Android apps —
+            no Play Store update needed.
+          </p>
+        </div>
+        <Badge variant="outline" className="gap-1 shrink-0 self-start">
           <Smartphone className="h-3.5 w-3.5" /> Config v{data.appConfig.configVersion}
         </Badge>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <Button
-            key={id}
-            variant={tab === id ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTab(id)}
-            className="gap-1.5"
-          >
-            <Icon className="h-4 w-4" /> {label}
-          </Button>
-        ))}
-      </div>
+      <ScrollTabs tabs={TABS} value={tab} onChange={setTab} className="mb-6" />
 
       {tab === 'branding' && (
-        <Card className="max-w-2xl">
-          <CardContent className="p-6 space-y-4">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-4 sm:p-6 space-y-4">
             <div>
               <Label>App Name</Label>
-              <Input value={config.appName} onChange={(e) => update({ appName: e.target.value })} />
+              <Input
+                value={config.appName}
+                onChange={(e) => update({ appName: e.target.value })}
+                className="min-h-[44px]"
+              />
             </div>
             <div>
               <Label>Tagline</Label>
-              <Input value={config.tagline} onChange={(e) => update({ tagline: e.target.value })} />
+              <Input
+                value={config.tagline}
+                onChange={(e) => update({ tagline: e.target.value })}
+                className="min-h-[44px]"
+              />
             </div>
             <div>
               <Label>Splash Background Color</Label>
@@ -203,34 +204,38 @@ export default function MobileAppCmsPage() {
                 type="color"
                 value={config.splashBackgroundColor}
                 onChange={(e) => update({ splashBackgroundColor: e.target.value })}
+                className="min-h-[44px] w-full cursor-pointer p-1"
               />
             </div>
             <div>
               <Label>App Logo URL</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={config.logoUrl ?? ''}
                   onChange={(e) => update({ logoUrl: e.target.value })}
+                  className="min-h-[44px] flex-1"
                 />
                 <MediaUploader onUploaded={(url) => update({ logoUrl: url })} />
               </div>
             </div>
             <div>
               <Label>Splash Logo URL</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={config.splashLogoUrl ?? ''}
                   onChange={(e) => update({ splashLogoUrl: e.target.value })}
+                  className="min-h-[44px] flex-1"
                 />
                 <MediaUploader onUploaded={(url) => update({ splashLogoUrl: url })} />
               </div>
             </div>
             <div>
               <Label>Splash Background Image URL</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={config.splashBackgroundImageUrl ?? ''}
                   onChange={(e) => update({ splashBackgroundImageUrl: e.target.value })}
+                  className="min-h-[44px] flex-1"
                 />
                 <MediaUploader onUploaded={(url) => update({ splashBackgroundImageUrl: url })} />
               </div>
@@ -242,13 +247,14 @@ export default function MobileAppCmsPage() {
                 min={60}
                 value={config.refreshIntervalSeconds}
                 onChange={(e) => update({ refreshIntervalSeconds: Number(e.target.value) })}
+                className="min-h-[44px]"
               />
               <p className="text-xs text-gray-500 mt-1">
                 How often the app re-fetches remote config in the background.
               </p>
             </div>
             <Button
-              className="bg-[#14532D]"
+              className="bg-[#14532D] w-full sm:w-auto min-h-[44px]"
               onClick={() => saveConfigMutation.mutate(draft ?? {})}
               disabled={!draft || saveConfigMutation.isPending}
             >
@@ -259,9 +265,9 @@ export default function MobileAppCmsPage() {
       )}
 
       {tab === 'homepage' && (
-        <div className="space-y-4 max-w-2xl">
+        <div className="space-y-4 w-full max-w-2xl">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <p className="text-sm text-gray-600 mb-4">
                 Reorder sections and toggle visibility without a Play Store release. Menu items,
                 prices, and offers are pulled live from Menu Management and Offers CMS.
@@ -272,7 +278,7 @@ export default function MobileAppCmsPage() {
                   .map((section, index) => (
                     <li
                       key={section.id}
-                      className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3"
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3"
                     >
                       <GripVertical className="h-4 w-4 text-gray-400 shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -314,9 +320,9 @@ export default function MobileAppCmsPage() {
                     </li>
                   ))}
               </ul>
-              <div className="flex gap-2 mt-4">
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
                 <Button
-                  className="bg-[#14532D]"
+                  className="bg-[#14532D] w-full sm:w-auto min-h-[44px]"
                   onClick={() => publishMutation.mutate()}
                   disabled={publishMutation.isPending}
                 >
@@ -329,8 +335,8 @@ export default function MobileAppCmsPage() {
       )}
 
       {tab === 'features' && (
-        <Card className="max-w-2xl">
-          <CardContent className="p-6 space-y-3">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-4 sm:p-6 space-y-3">
             <p className="text-sm text-gray-600 mb-2">
               Enable or disable mobile features remotely. Disabled features are hidden in the app
               instantly.
@@ -348,7 +354,7 @@ export default function MobileAppCmsPage() {
               );
             })}
             <Button
-              className="bg-[#14532D]"
+              className="bg-[#14532D] w-full sm:w-auto min-h-[44px]"
               onClick={() =>
                 saveFlagsMutation.mutate(
                   flags.map((f) => ({
@@ -366,9 +372,9 @@ export default function MobileAppCmsPage() {
       )}
 
       {tab === 'version' && (
-        <Card className="max-w-2xl">
-          <CardContent className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Minimum App Version</Label>
                 <Input
@@ -435,7 +441,7 @@ export default function MobileAppCmsPage() {
               />
             </div>
             <Button
-              className="bg-[#14532D]"
+              className="bg-[#14532D] w-full sm:w-auto min-h-[44px]"
               onClick={() => saveConfigMutation.mutate(draft ?? {})}
               disabled={!draft || saveConfigMutation.isPending}
             >

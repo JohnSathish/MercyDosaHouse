@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { PaymentMethod } from '@mdh/types';
 import type { CheckoutProfileDto, OrderDto } from '@mdh/types';
-import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
+import { STORE_CLOSED_ORDER_MESSAGE } from '@/lib/mobile-messages';
 import { DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
 import { formatCurrency, getScheduleDateOptions, firstPreOrderDate } from '@mdh/utils';
 import { api } from '@/lib/api';
@@ -92,7 +92,7 @@ export default function CheckoutScreen() {
 
   async function placeOrder() {
     if (!storeOpen) {
-      setError(config.store.storeClosedMessage?.trim() || DEFAULT_STORE_CLOSED_MESSAGE);
+      setError(config.store.storeClosedMessage?.trim() || STORE_CLOSED_ORDER_MESSAGE);
       return;
     }
     if (!items.length) return;

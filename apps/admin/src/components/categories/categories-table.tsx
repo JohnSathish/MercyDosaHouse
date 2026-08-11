@@ -140,40 +140,159 @@ export function CategoriesTable({
   });
 
   return (
-    <div className="rounded-2xl border bg-white dark:bg-gray-900 shadow-sm overflow-x-auto">
-      <table className="w-full min-w-[900px] text-sm">
-        <thead>
-          {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="border-b bg-muted/40">
-              {hg.headers.map((h) => (
-                <th
-                  key={h.id}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  {flexRender(h.column.columnDef.header, h.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              className={cn(
-                'border-b hover:bg-muted/20 transition-colors',
-                selected.has(row.original.id) && 'bg-[#14532D]/5',
-              )}
+    <>
+      <CategoriesMobileCards
+        categories={categories}
+        selected={selected}
+        onSelect={onSelect}
+        onEdit={onEdit}
+        onPreview={onPreview}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+      />
+
+      <div className="hidden md:block rounded-2xl border bg-white dark:bg-gray-900 shadow-sm overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            {table.getHeaderGroups().map((hg) => (
+              <tr key={hg.id} className="border-b bg-muted/40">
+                {hg.headers.map((h) => (
+                  <th
+                    key={h.id}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    {flexRender(h.column.columnDef.header, h.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                className={cn(
+                  'border-b hover:bg-muted/20 transition-colors',
+                  selected.has(row.original.id) && 'bg-[#14532D]/5',
+                )}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-4 py-3">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+export function CategoriesMobileCards({
+  categories,
+  selected,
+  onSelect,
+  onEdit,
+  onPreview,
+  onDuplicate,
+  onDelete,
+}: Omit<CategoriesTableProps, 'onSelectAll'>) {
+  if (categories.length === 0) {
+    return (
+      <div className="md:hidden rounded-xl border bg-white dark:bg-gray-900 p-8 text-center text-muted-foreground text-sm">
+        No categories found
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 md:hidden">
+      {categories.map((cat) => (
+        <div
+          key={cat.id}
+          className={cn(
+            'rounded-xl border bg-white dark:bg-gray-900 p-4 shadow-sm space-y-3',
+            selected.has(cat.id) && 'ring-2 ring-[#14532D]/30',
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={selected.has(cat.id)}
+              onChange={() => onSelect(cat.id)}
+              className="mt-1 h-5 w-5 shrink-0"
+              aria-label={`Select ${cat.name}`}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">
+                {cat.icon ?? '🍽'} {cat.name}
+              </p>
+              <p className="text-[10px] text-muted-foreground font-mono truncate">{cat.slug}</p>
+            </div>
+            <CategoryStatusBadge status={cat.status} />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div>
+              <p className="font-bold">{cat.itemCount}</p>
+              <p className="text-muted-foreground">Items</p>
+            </div>
+            <div>
+              <p className="font-bold">{formatCurrency(cat.analytics.revenue)}</p>
+              <p className="text-muted-foreground">Revenue</p>
+            </div>
+            <div>
+              <p className="font-bold">{cat.analytics.orders}</p>
+              <p className="text-muted-foreground">Orders</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {cat.badge ? <CategoryBadgePill badge={cat.badge} /> : null}
+            {cat.isFeatured ? (
+              <span className="text-xs text-muted-foreground">⭐ Featured</span>
+            ) : null}
+            <span className="text-xs text-muted-foreground ml-auto">#{cat.sortOrder}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[44px] flex-1"
+              onClick={() => onEdit?.(cat.id)}
             >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-4 py-3">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              <Edit className="h-3.5 w-3.5 mr-1" /> Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={() => onPreview?.(cat.id)}
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={() => onDuplicate?.(cat.id)}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={() => onDelete?.(cat.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+            </Button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

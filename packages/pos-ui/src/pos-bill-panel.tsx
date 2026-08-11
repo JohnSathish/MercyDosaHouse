@@ -60,6 +60,8 @@ interface PosBillPanelProps {
   onStaffNameChange?: (v: string) => void;
   pickupTime?: string;
   onPickupTimeChange?: (v: string) => void;
+  /** Full-width layout for mobile bottom sheet */
+  mobileMode?: boolean;
 }
 
 export function PosBillPanel({
@@ -103,6 +105,7 @@ export function PosBillPanel({
   onStaffNameChange,
   pickupTime,
   onPickupTimeChange,
+  mobileMode = false,
 }: PosBillPanelProps) {
   const tableLabel = selectedTableId
     ? tables.find((t) => t.id === selectedTableId)?.label
@@ -138,10 +141,13 @@ export function PosBillPanel({
       id="pos-bill-panel"
       tabIndex={-1}
       className={cn(
-        'shrink-0 w-80 xl:w-[22rem] 2xl:w-96 flex flex-col border-l overflow-hidden',
+        'shrink-0 flex flex-col border-l overflow-hidden',
+        mobileMode
+          ? 'w-full max-h-[85vh] rounded-t-2xl border-l-0 border-t'
+          : 'w-80 xl:w-[22rem] 2xl:w-96',
         darkMode ? 'bg-gray-900/95 border-gray-800' : 'bg-white border-gray-200',
       )}
-      style={{ boxShadow: '-4px 0 24px rgba(20,83,45,0.06)' }}
+      style={mobileMode ? undefined : { boxShadow: '-4px 0 24px rgba(20,83,45,0.06)' }}
     >
       {/* Header */}
       <div className={cn('p-3 border-b', darkMode ? 'border-gray-800' : 'border-gray-100')}>

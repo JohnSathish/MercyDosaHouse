@@ -46,7 +46,7 @@ export function PosCategorySidebar({
   return (
     <aside
       className={cn(
-        'shrink-0 flex flex-col border-r transition-all duration-300 overflow-hidden',
+        'hidden md:flex shrink-0 flex-col border-r transition-all duration-300 overflow-hidden',
         collapsed ? 'w-14' : 'w-56 lg:w-60',
         darkMode ? 'bg-gray-900/90 border-gray-800' : 'bg-white border-gray-200',
       )}

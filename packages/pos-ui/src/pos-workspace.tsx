@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button, cn } from '@mdh/ui';
 import { login } from '@mdh/auth-client';
+import { formatCurrency } from '@mdh/utils';
 import { PosTopNav } from './pos-top-nav';
 import { PosModeBar } from './pos-mode-bar';
 import { PosStatsBar } from './pos-stats-bar';
@@ -38,7 +39,7 @@ import { logout as authLogout } from '@mdh/auth-client';
 import { PosToastHost } from './pos-toast';
 import { usePosWorkspace } from './use-pos-workspace';
 import { POS_THEME } from './pos-theme';
-import { Copy, Printer } from 'lucide-react';
+import { Copy, Printer, ShoppingCart, X } from 'lucide-react';
 
 export interface PosApiClient {
   get<T>(path: string): Promise<T>;
@@ -200,6 +201,7 @@ export function PosWorkspace({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [mobileBillOpen, setMobileBillOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [terminalSettings, setTerminalSettings] = useState<PosTerminalSettings>(() =>
     typeof window !== 'undefined' ? loadTerminalSettings() : loadTerminalSettings(),
@@ -207,6 +209,7 @@ export function PosWorkspace({
 
   const openBillsCount = (bill?.items.length ? 1 : 0) + (holdBills?.length ?? 0);
   const unsavedBillsCount = bill?.items.length ? 1 : 0;
+  const billItemCount = bill?.items.reduce((n, i) => n + i.quantity, 0) ?? 0;
 
   const openSettings = useCallback(() => {
     setSettingsOpen(true);
@@ -558,49 +561,138 @@ export function PosWorkspace({
           loading={menuLoading && !menu.length}
         />
 
-        <PosBillPanel
-          bill={bill}
-          tables={tables}
-          selectedTableId={selectedTableId}
-          customerQuery={customerQuery}
-          customers={customers}
-          darkMode={darkMode}
-          isManager={isManager}
-          discountAmount={discountAmount}
-          managerPin={managerPin}
-          orderType={orderType}
-          deliveryAddress={deliveryAddress}
-          onDeliveryAddressChange={setDeliveryAddress}
-          customerAddresses={customerAddresses}
-          onCustomerQueryChange={setCustomerQuery}
-          onSelectCustomer={selectCustomer}
-          onSetWalkIn={setWalkInCustomer}
-          onNewBill={handleNewBill}
-          onHold={() => holdBill.mutate()}
-          onClear={handleClearBill}
-          onRecall={() => setHoldPanelOpen(true)}
-          onRecentBills={() => setRecentBillsOpen(true)}
-          onUpdateQty={handleUpdateQty}
-          onRemoveItem={handleRemoveItem}
-          onItemNotes={handleItemNotes}
-          onPay={() => void handleCheckout()}
-          onDiscountChange={setDiscountAmount}
-          onManagerPinChange={setManagerPin}
-          onApplyDiscount={() => applyDiscount.mutate()}
-          createPending={ws.createBill.isPending}
-          holdPending={holdBill.isPending}
-          guestCount={guestCount}
-          onGuestCountChange={handleGuestCountChange}
-          cashierName={cashierName}
-          liveTime={liveTime}
-          pendingCustomerName={pendingCustomer.name}
-          pendingCustomerPhone={pendingCustomer.phone}
-          staffName={staffName}
-          onStaffNameChange={setStaffName}
-          pickupTime={pickupTime}
-          onPickupTimeChange={setPickupTime}
-        />
+        <div className="hidden lg:flex shrink-0">
+          <PosBillPanel
+            bill={bill}
+            tables={tables}
+            selectedTableId={selectedTableId}
+            customerQuery={customerQuery}
+            customers={customers}
+            darkMode={darkMode}
+            isManager={isManager}
+            discountAmount={discountAmount}
+            managerPin={managerPin}
+            orderType={orderType}
+            deliveryAddress={deliveryAddress}
+            onDeliveryAddressChange={setDeliveryAddress}
+            customerAddresses={customerAddresses}
+            onCustomerQueryChange={setCustomerQuery}
+            onSelectCustomer={selectCustomer}
+            onSetWalkIn={setWalkInCustomer}
+            onNewBill={handleNewBill}
+            onHold={() => holdBill.mutate()}
+            onClear={handleClearBill}
+            onRecall={() => setHoldPanelOpen(true)}
+            onRecentBills={() => setRecentBillsOpen(true)}
+            onUpdateQty={handleUpdateQty}
+            onRemoveItem={handleRemoveItem}
+            onItemNotes={handleItemNotes}
+            onPay={() => void handleCheckout()}
+            onDiscountChange={setDiscountAmount}
+            onManagerPinChange={setManagerPin}
+            onApplyDiscount={() => applyDiscount.mutate()}
+            createPending={ws.createBill.isPending}
+            holdPending={holdBill.isPending}
+            guestCount={guestCount}
+            onGuestCountChange={handleGuestCountChange}
+            cashierName={cashierName}
+            liveTime={liveTime}
+            pendingCustomerName={pendingCustomer.name}
+            pendingCustomerPhone={pendingCustomer.phone}
+            staffName={staffName}
+            onStaffNameChange={setStaffName}
+            pickupTime={pickupTime}
+            onPickupTimeChange={setPickupTime}
+          />
+        </div>
       </div>
+
+      {/* Mobile bill bottom sheet */}
+      {mobileBillOpen && (
+        <div className="lg:hidden fixed inset-0 z-[200] flex flex-col justify-end">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label="Close bill"
+            onClick={() => setMobileBillOpen(false)}
+          />
+          <div className="relative z-10 flex justify-end px-3 pb-1">
+            <button
+              type="button"
+              onClick={() => setMobileBillOpen(false)}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-lg"
+              aria-label="Close bill panel"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <PosBillPanel
+            bill={bill}
+            tables={tables}
+            selectedTableId={selectedTableId}
+            customerQuery={customerQuery}
+            customers={customers}
+            darkMode={darkMode}
+            isManager={isManager}
+            discountAmount={discountAmount}
+            managerPin={managerPin}
+            orderType={orderType}
+            deliveryAddress={deliveryAddress}
+            onDeliveryAddressChange={setDeliveryAddress}
+            customerAddresses={customerAddresses}
+            onCustomerQueryChange={setCustomerQuery}
+            onSelectCustomer={selectCustomer}
+            onSetWalkIn={setWalkInCustomer}
+            onNewBill={handleNewBill}
+            onHold={() => holdBill.mutate()}
+            onClear={handleClearBill}
+            onRecall={() => setHoldPanelOpen(true)}
+            onRecentBills={() => setRecentBillsOpen(true)}
+            onUpdateQty={handleUpdateQty}
+            onRemoveItem={handleRemoveItem}
+            onItemNotes={handleItemNotes}
+            onPay={() => {
+              setMobileBillOpen(false);
+              void handleCheckout();
+            }}
+            onDiscountChange={setDiscountAmount}
+            onManagerPinChange={setManagerPin}
+            onApplyDiscount={() => applyDiscount.mutate()}
+            createPending={ws.createBill.isPending}
+            holdPending={holdBill.isPending}
+            guestCount={guestCount}
+            onGuestCountChange={handleGuestCountChange}
+            cashierName={cashierName}
+            liveTime={liveTime}
+            pendingCustomerName={pendingCustomer.name}
+            pendingCustomerPhone={pendingCustomer.phone}
+            staffName={staffName}
+            onStaffNameChange={setStaffName}
+            pickupTime={pickupTime}
+            onPickupTimeChange={setPickupTime}
+            mobileMode
+          />
+        </div>
+      )}
+
+      {/* Mobile cart FAB */}
+      <button
+        type="button"
+        onClick={() => setMobileBillOpen(true)}
+        className={cn(
+          'lg:hidden fixed bottom-20 right-4 z-[150] flex items-center gap-2 rounded-full px-4 py-3 min-h-[48px] shadow-xl font-bold text-white',
+          'bg-emerald-700 hover:bg-emerald-800 active:scale-95 transition-transform',
+        )}
+        aria-label="Open current bill"
+      >
+        <ShoppingCart className="h-5 w-5" />
+        Bill{billItemCount > 0 ? ` (${billItemCount})` : ''}
+        {bill ? (
+          <span className="text-emerald-100 text-sm font-semibold">
+            {formatCurrency(bill.grandTotal)}
+          </span>
+        ) : null}
+      </button>
 
       <PosBottomBar
         bill={bill}

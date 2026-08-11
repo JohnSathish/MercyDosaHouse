@@ -90,10 +90,10 @@ export function RestaurantStatusPanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2">
           <Button
             type="button"
-            className="bg-emerald-700 hover:bg-emerald-800"
+            className="bg-emerald-700 hover:bg-emerald-800 w-full sm:w-auto min-h-[44px]"
             disabled={open || mutation.isPending}
             onClick={() =>
               mutation.mutate({
@@ -109,6 +109,7 @@ export function RestaurantStatusPanel() {
           <Button
             type="button"
             variant="destructive"
+            className="w-full sm:w-auto min-h-[44px]"
             disabled={!open || mutation.isPending}
             onClick={() =>
               mutation.mutate({
@@ -172,6 +173,7 @@ export function RestaurantStatusPanel() {
           type="button"
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto min-h-[44px]"
           disabled={mutation.isPending}
           onClick={() =>
             mutation.mutate({

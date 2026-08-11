@@ -157,11 +157,87 @@ export function ActivityTable({
     return <div className="h-96 rounded-2xl bg-muted animate-pulse" />;
   }
 
+  const paginationBar = (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-t bg-muted/20">
+      <p className="text-xs text-muted-foreground">
+        {total.toLocaleString()} total · Page {page} of {totalPages || 1}
+      </p>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-[44px] flex-1 sm:flex-none"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-[44px] flex-1 sm:flex-none"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <div className="rounded-2xl border bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden rounded-2xl border bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+        {logs.length === 0 ? (
+          <p className="text-center py-12 text-muted-foreground text-sm">No activity logs found</p>
+        ) : (
+          <div className="divide-y">
+            {logs.map((log) => (
+              <button
+                key={log.id}
+                type="button"
+                onClick={() => {
+                  setSelected(log);
+                  setDrawerOpen(true);
+                }}
+                className="w-full text-left p-4 space-y-2 hover:bg-muted/30 active:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">
+                      {highlight(log.userName ?? 'System', search)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <ActivitySeverityBadge severity={log.severity} />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActivityModuleBadge module={log.module} />
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                    {log.action}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {highlight(log.description ?? '—', search)}
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase">{log.status}</span>
+                  <span className="text-xs text-[#14532D] font-semibold">View details →</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        {paginationBar}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-2xl border bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[1200px]">
+          <table className="w-full text-left min-w-[900px]">
             <thead className="bg-muted/50 border-b">
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id}>
@@ -208,31 +284,7 @@ export function ActivityTable({
           </table>
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
-          <p className="text-xs text-muted-foreground">
-            {total.toLocaleString()} total · Page {page} of {totalPages || 1}
-          </p>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              disabled={page <= 1}
-              onClick={() => onPageChange(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        {paginationBar}
       </div>
 
       <ActivityDetailDrawer log={selected} open={drawerOpen} onOpenChange={setDrawerOpen} />

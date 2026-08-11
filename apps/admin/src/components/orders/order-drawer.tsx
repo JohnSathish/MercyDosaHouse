@@ -68,7 +68,7 @@ export function OrderDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="w-full max-w-full sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{order.orderNumber}</SheetTitle>
           <Badge className="w-fit">{ORDER_STATUS_LABELS[order.status]}</Badge>

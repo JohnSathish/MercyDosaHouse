@@ -1,22 +1,20 @@
 import { View, Text, StyleSheet } from 'react-native';
-import {
-  DEFAULT_STORE_CLOSED_CUSTOMER_BODY,
-  DEFAULT_STORE_CLOSED_CUSTOMER_HEADLINE,
-} from '@mdh/types';
-import { useAppConfig } from '@/providers/config-context';
+import { STORE_CLOSED_BODY, STORE_CLOSED_HEADLINE } from '@/lib/mobile-messages';
+import { useBootstrap } from '@/providers/bootstrap-context';
 
 export function StoreClosedBanner() {
-  const config = useAppConfig();
-  const open = config.store.storeOpen !== false;
+  const { phase, config } = useBootstrap();
+  if (phase !== 'ready') return null;
 
+  const open = config.store.storeOpen !== false;
   if (open) return null;
 
-  const body = config.store.storeClosedMessage?.trim() || DEFAULT_STORE_CLOSED_CUSTOMER_BODY;
+  const body = config.store.storeClosedMessage?.trim() || STORE_CLOSED_BODY;
   const reopen = config.store.storeReopenMessage?.trim();
 
   return (
     <View style={styles.banner} accessibilityRole="alert">
-      <Text style={styles.title}>🔴 {DEFAULT_STORE_CLOSED_CUSTOMER_HEADLINE}</Text>
+      <Text style={styles.title}>🔴 {STORE_CLOSED_HEADLINE}</Text>
       <Text style={styles.body}>{body}</Text>
       {reopen ? <Text style={styles.reopen}>{reopen}</Text> : null}
     </View>

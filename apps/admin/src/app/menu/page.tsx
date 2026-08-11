@@ -58,10 +58,10 @@ export default function MenuManagementPage() {
   });
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Menu Management</h1>
-        <Button onClick={() => setShowForm(!showForm)}>
+    <div className="w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold">Menu Management</h1>
+        <Button className="w-full sm:w-auto min-h-[44px]" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : 'Add Product'}
         </Button>
       </div>
@@ -162,6 +162,7 @@ export default function MenuManagementPage() {
               <Button
                 size="sm"
                 variant={p.isAvailable ? 'outline' : 'secondary'}
+                className="w-full sm:w-auto min-h-[44px]"
                 onClick={() => toggleAvailability.mutate({ id: p.id, isAvailable: !p.isAvailable })}
               >
                 {p.isAvailable ? 'Available' : 'Unavailable'}

@@ -1,5 +1,5 @@
-import 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppProviders } from '@/providers/app-providers';
 import { BootstrapProvider, useBootstrap } from '@/providers/bootstrap-context';
@@ -50,37 +50,40 @@ function BootstrapShell({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <AppProviders>
-      <BootstrapProvider>
-        <BootstrapShell>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)/login" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="product/[id]" />
-            <Stack.Screen name="checkout" />
-            <Stack.Screen name="order/success" />
-            <Stack.Screen name="track/[orderNumber]" />
-            <Stack.Screen name="addresses/index" />
-            <Stack.Screen name="addresses/new" />
-            <Stack.Screen name="notifications" />
-            <Stack.Screen name="loyalty" />
-            <Stack.Screen name="settings" />
-            <Stack.Screen name="help" />
-            <Stack.Screen name="favorites" />
-            <Stack.Screen name="search" />
-            <Stack.Screen name="maintenance" options={{ gestureEnabled: false }} />
-            <Stack.Screen name="force-update" options={{ gestureEnabled: false }} />
-          </Stack>
-        </BootstrapShell>
-      </BootstrapProvider>
-    </AppProviders>
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <AppProviders>
+        <BootstrapProvider>
+          <BootstrapShell>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)/login" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="product/[id]" />
+              <Stack.Screen name="checkout" />
+              <Stack.Screen name="order/success" />
+              <Stack.Screen name="track/[orderNumber]" />
+              <Stack.Screen name="addresses/index" />
+              <Stack.Screen name="addresses/new" />
+              <Stack.Screen name="notifications" />
+              <Stack.Screen name="loyalty" />
+              <Stack.Screen name="settings" />
+              <Stack.Screen name="help" />
+              <Stack.Screen name="favorites" />
+              <Stack.Screen name="search" />
+              <Stack.Screen name="maintenance" options={{ gestureEnabled: false }} />
+              <Stack.Screen name="force-update" options={{ gestureEnabled: false }} />
+            </Stack>
+          </BootstrapShell>
+        </BootstrapProvider>
+      </AppProviders>
+    </GestureHandlerRootView>
   );
 }
 
 export { resetConfigStore };
 
 const styles = StyleSheet.create({
+  gestureRoot: { flex: 1 },
   appRoot: { flex: 1 },
   bootOverlay: {
     ...StyleSheet.absoluteFillObject,
