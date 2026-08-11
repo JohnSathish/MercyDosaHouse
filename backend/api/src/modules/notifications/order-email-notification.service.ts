@@ -48,7 +48,7 @@ export class OrderEmailNotificationService {
   getRecipients(): string[] {
     const raw =
       this.config.get<string>('ORDER_NOTIFICATION_RECIPIENTS') ||
-      'johnsathish16@gmail.com,SUDHABCA96@gmail.com,alboraja@gmail.com';
+      'johnsathish16@gmail.com,nambikaimary96@gmail.com,alboraja@gmail.com';
     return raw
       .split(',')
       .map((e) => e.trim())
