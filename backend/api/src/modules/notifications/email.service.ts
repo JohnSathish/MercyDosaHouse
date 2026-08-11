@@ -22,6 +22,12 @@ export interface SendEmailOptions {
   subject: string;
   text?: string;
   html?: string;
+  replyTo?: string;
+  attachments?: {
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }[];
 }
 
 @Injectable()
@@ -137,11 +143,9 @@ export class EmailService implements OnModuleInit {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from,
+        from: this.getFromAddress(),
+        ...options,
         to: options.to,
-        subject: options.subject,
-        text: options.text,
-        html: options.html,
       }),
     });
     if (!res.ok) {
@@ -203,6 +207,12 @@ export class EmailService implements OnModuleInit {
       subject: options.subject,
       text: options.text,
       html: options.html,
+      replyTo: options.replyTo,
+      attachments: options.attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
     });
   }
 }

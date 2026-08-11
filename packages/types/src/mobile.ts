@@ -62,6 +62,7 @@ export interface MobileVersionControlDto {
 export interface MobileStoreStatusDto {
   storeOpen: boolean;
   storeClosedMessage?: string | null;
+  storeReopenMessage?: string | null;
   emergencyNotice?: string | null;
   openingHours?: string | null;
   deliveryHours?: string | null;

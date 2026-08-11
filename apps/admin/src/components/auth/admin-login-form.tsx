@@ -30,7 +30,7 @@ import {
   clearAuth,
   getPostLoginRedirect,
   isAdminUser,
-  isAuthenticated,
+  ensureAuthenticated,
 } from '@mdh/auth-client';
 import { API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
@@ -113,6 +113,7 @@ export function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [language, setLanguage] = useState('en');
   const [langOpen, setLangOpen] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   const {
     register,
@@ -133,16 +134,31 @@ export function AdminLoginForm() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated()) return;
-    const user = getStoredUser();
-    if (!user) return;
-    const isStaff = user.roles?.some((r) => STAFF_ROLES.includes(r));
-    if (!isStaff) return;
-    if (isAdminUser(user)) {
-      router.replace('/');
-    } else {
-      window.location.href = getPostLoginRedirect(user, APP_URLS);
-    }
+    let cancelled = false;
+
+    void (async () => {
+      const user = await ensureAuthenticated(API_URL);
+      if (cancelled) return;
+
+      if (user) {
+        const isStaff = user.roles?.some((r) => STAFF_ROLES.includes(r));
+        if (isStaff) {
+          if (isAdminUser(user)) {
+            router.replace('/');
+            return;
+          }
+          window.location.href = getPostLoginRedirect(user, APP_URLS);
+          return;
+        }
+        clearAuth();
+      }
+
+      setSessionChecked(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -241,6 +257,14 @@ export function AdminLoginForm() {
   };
 
   const selectedLang = LANGUAGES.find((l) => l.code === language)?.label ?? 'English';
+
+  if (!sessionChecked) {
+    return (
+      <main className="relative flex flex-1 flex-col min-w-0 min-h-full lg:flex-[1] lg:min-w-[480px] bg-[#f4f5f7] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#14532D]" aria-label="Checking session" />
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex flex-1 flex-col min-w-0 min-h-full lg:flex-[1] lg:min-w-[480px] bg-[#f4f5f7] overflow-y-auto">

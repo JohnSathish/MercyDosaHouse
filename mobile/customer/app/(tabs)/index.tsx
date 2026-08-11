@@ -1,4 +1,5 @@
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { HomeSectionList } from '@/components/home-section-list';
 import { useAppConfig } from '@/providers/config-context';
 

@@ -70,16 +70,31 @@ export class MobileConfigStore {
   }
 
   private async fetchRemote(): Promise<MobileAppConfigDto> {
-    const res = await fetch(`${this.options.apiBaseUrl}/mobile/config`);
-    if (!res.ok) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+
+    try {
+      const res = await fetch(`${this.options.apiBaseUrl}/mobile/config`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        if (this.config) return this.config;
+        throw new Error('Failed to load mobile config');
+      }
+      const data = (await res.json()) as MobileAppConfigDto;
+      this.config = data;
+      await this.writeCache(data);
+      this.options.onConfigUpdated?.(data);
+      return data;
+    } catch (err) {
       if (this.config) return this.config;
-      throw new Error('Failed to load mobile config');
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Connection timed out. Check your internet and try again.');
+      }
+      throw err instanceof Error ? err : new Error('Failed to load mobile config');
+    } finally {
+      clearTimeout(timeout);
     }
-    const data = (await res.json()) as MobileAppConfigDto;
-    this.config = data;
-    await this.writeCache(data);
-    this.options.onConfigUpdated?.(data);
-    return data;
   }
 
   private async fetchVersion(): Promise<MobileConfigVersionDto> {
@@ -141,7 +156,6 @@ export function compareAppVersions(current: string, minimum: string): number {
 }
 
 export function shouldForceUpdate(currentVersion: string, config: MobileAppConfigDto): boolean {
-  if (config.maintenance.maintenanceMode) return true;
   if (!config.versionControl.forceUpdate) return false;
   return compareAppVersions(currentVersion, config.versionControl.minAppVersion) < 0;
 }

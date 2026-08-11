@@ -10,6 +10,7 @@ import { calculatePreOrderDiscount, calculateDeliveryCharge, isPreOrderEligible 
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -19,6 +20,7 @@ export class OrdersService implements OnModuleInit {
     private prisma: PrismaService,
     private gateway: OrdersGateway,
     private orderEmailNotification: OrderEmailNotificationService,
+    private settingsService: SettingsService,
   ) {}
 
   async onModuleInit() {
@@ -77,6 +79,7 @@ export class OrdersService implements OnModuleInit {
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
   }) {
+    await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Cart is empty');
     const pricing = await this.computePricing(data);
     return {
@@ -116,6 +119,7 @@ export class OrdersService implements OnModuleInit {
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
   }) {
+    await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Order must have items');
 
     const pricing = await this.computePricing(data);

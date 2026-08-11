@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
-import { Public, RequirePermissions } from '../../common/guards';
+import { Public, RequirePermissions, RequestUser } from '../../common/guards';
 import { EmailService } from '../notifications/email.service';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 
@@ -13,6 +13,29 @@ export class SettingsController {
     private emailService: EmailService,
     private orderEmailNotification: OrderEmailNotificationService,
   ) {}
+
+  @Public()
+  @Get('restaurant-status')
+  getRestaurantStatus() {
+    return this.settingsService.getRestaurantStatus();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('restaurant-status')
+  updateRestaurantStatus(
+    @Body()
+    body: {
+      storeOpen: boolean;
+      storeClosedMessage?: string | null;
+      storeReopenMessage?: string | null;
+      storeClosedReason?: string | null;
+      operatingSchedule?: Record<string, unknown> | null;
+    },
+    @Req() req: { user: RequestUser },
+  ) {
+    return this.settingsService.updateRestaurantStatus(body, req.user.id);
+  }
 
   @Public()
   @Get('business')

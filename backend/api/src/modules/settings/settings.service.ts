@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
 
 @Injectable()
 export class SettingsService {
@@ -11,6 +13,76 @@ export class SettingsService {
       settings = await this.prisma.businessSettings.create({ data: {} });
     }
     return this.mapSettings(settings);
+  }
+
+  /** Public: central restaurant open/closed status for all customer channels */
+  async getRestaurantStatus() {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      settings = await this.prisma.businessSettings.create({ data: {} });
+    }
+    return this.mapRestaurantStatus(settings);
+  }
+
+  async updateRestaurantStatus(
+    data: {
+      storeOpen: boolean;
+      storeClosedMessage?: string | null;
+      storeReopenMessage?: string | null;
+      storeClosedReason?: string | null;
+      operatingSchedule?: Record<string, unknown> | null;
+    },
+    changedById?: string,
+  ) {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      settings = await this.prisma.businessSettings.create({ data: {} });
+    }
+
+    const updated = await this.prisma.businessSettings.update({
+      where: { id: settings.id },
+      data: {
+        storeOpen: data.storeOpen,
+        storeClosedMessage: data.storeClosedMessage ?? undefined,
+        storeReopenMessage: data.storeReopenMessage ?? undefined,
+        storeClosedReason: data.storeClosedReason ?? undefined,
+        operatingSchedule:
+          data.operatingSchedule === undefined
+            ? undefined
+            : (data.operatingSchedule as Prisma.InputJsonValue),
+        storeStatusChangedAt: new Date(),
+        storeStatusChangedById: changedById ?? null,
+      },
+    });
+
+    // Keep legacy mobile config field in sync (single source of truth is BusinessSettings)
+    const appConfig = await this.prisma.mobileAppConfig.findFirst();
+    if (appConfig) {
+      await this.prisma.mobileAppConfig.update({
+        where: { id: appConfig.id },
+        data: {
+          storeOpen: data.storeOpen,
+          storeClosedMessage: data.storeClosedMessage ?? appConfig.storeClosedMessage,
+        },
+      });
+    }
+
+    return this.mapRestaurantStatus(updated);
+  }
+
+  /** Reject online customer orders when the restaurant is closed */
+  async assertAcceptingOnlineOrders() {
+    const status = await this.getRestaurantStatus();
+    if (!status.storeOpen) {
+      throw new BadRequestException(
+        status.storeClosedMessage?.trim() || DEFAULT_STORE_CLOSED_MESSAGE,
+      );
+    }
+  }
+
+  async isStoreOpen(): Promise<boolean> {
+    const status = await this.getRestaurantStatus();
+    return status.storeOpen;
   }
 
   async updateBusinessSettings(data: Record<string, unknown>) {
@@ -113,6 +185,40 @@ export class SettingsService {
           ? s.preOrderMinDaysAhead
           : Number(s.preOrderMinDaysAhead ?? 1),
       preOrderStackWithCoupons: s.preOrderStackWithCoupons === true,
+      storeOpen: s.storeOpen !== false,
+      storeClosedMessage: (s.storeClosedMessage as string | null) ?? null,
+      storeReopenMessage: (s.storeReopenMessage as string | null) ?? null,
+      storeClosedReason: (s.storeClosedReason as string | null) ?? null,
+      storeStatusChangedAt: s.storeStatusChangedAt
+        ? new Date(s.storeStatusChangedAt as string | Date).toISOString()
+        : null,
+      storeStatusChangedByName: null,
+      operatingSchedule: (s.operatingSchedule as Record<string, unknown> | null) ?? null,
+    };
+  }
+
+  private async mapRestaurantStatus(s: Record<string, unknown>) {
+    let changedByName: string | null = null;
+    const changedById = s.storeStatusChangedById as string | undefined;
+    if (changedById) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: changedById },
+        select: { name: true },
+      });
+      changedByName = user?.name ?? null;
+    }
+
+    return {
+      storeOpen: s.storeOpen !== false,
+      storeClosedMessage: (s.storeClosedMessage as string | null) ?? null,
+      storeReopenMessage: (s.storeReopenMessage as string | null) ?? null,
+      storeClosedReason: (s.storeClosedReason as string | null) ?? null,
+      storeStatusChangedAt: s.storeStatusChangedAt
+        ? new Date(s.storeStatusChangedAt as string | Date).toISOString()
+        : null,
+      storeStatusChangedByName: changedByName,
+      openingHours: (s.openingHours as string | null) ?? null,
+      operatingSchedule: (s.operatingSchedule as Record<string, unknown> | null) ?? null,
     };
   }
 }

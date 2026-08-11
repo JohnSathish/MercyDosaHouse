@@ -97,8 +97,9 @@ export class MobileService {
         softUpdateMessage: appConfig.softUpdateMessage,
       },
       store: {
-        storeOpen: appConfig.storeOpen,
-        storeClosedMessage: appConfig.storeClosedMessage,
+        storeOpen: business.storeOpen !== false,
+        storeClosedMessage: business.storeClosedMessage ?? appConfig.storeClosedMessage,
+        storeReopenMessage: business.storeReopenMessage ?? null,
         emergencyNotice: appConfig.emergencyNotice,
         openingHours: business.openingHours ?? null,
         deliveryHours: business.deliveryHours ?? null,
@@ -172,6 +173,22 @@ export class MobileService {
         configVersion: { increment: 1 },
       },
     });
+
+    if (typeof data.storeOpen === 'boolean') {
+      const business = await this.prisma.businessSettings.findFirst();
+      if (business) {
+        await this.prisma.businessSettings.update({
+          where: { id: business.id },
+          data: {
+            storeOpen: data.storeOpen,
+            storeClosedMessage:
+              typeof data.storeClosedMessage === 'string' ? data.storeClosedMessage : undefined,
+            storeStatusChangedAt: new Date(),
+          },
+        });
+      }
+    }
+
     return updated;
   }
 

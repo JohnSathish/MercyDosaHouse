@@ -1,15 +1,13 @@
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAppConfig } from '@/providers/config-context';
 import type { MarketingAnnouncementDto } from '@mdh/types';
+import { WEBSITE_URL } from '@/lib/constants';
 
 function resolveImageUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
   if (url.startsWith('http')) return url;
-  const websiteBase =
-    process.env.EXPO_PUBLIC_WEBSITE_URL ??
-    (Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000');
-  return `${websiteBase.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+  return `${WEBSITE_URL.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 function topBarAnnouncement(

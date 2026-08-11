@@ -1,54 +1,65 @@
-# Mercy Dosa House — Customer App (Phase 1)
+# Mercy Dosa House — Android Customer App
 
-Expo React Native Android app. **Fully CMS-driven** — branding, homepage, features, and pricing rules load from Admin.
+Production Expo app (`mobile/customer`) for ordering from https://mercydosahouse.com.
 
-## Quick Start
+## Production configuration
 
-```bash
-# 1. Start API (required)
-pnpm dev:api
+Set in `.env` (copy from `.env.example`):
 
-# 2. Start mobile app
-pnpm dev:mobile
-# Press 'a' → Android emulator
-# Or scan QR with Expo Go on your phone
+```env
+EXPO_PUBLIC_API_URL=https://mercydosahouse.com/api/v1
+EXPO_PUBLIC_WEBSITE_URL=https://mercydosahouse.com
 ```
 
-## Build
+These are baked in at **build time**. OTP, email, and payment credentials stay on the server — never in the app.
+
+## Build release APK (recommended: EAS cloud)
 
 ```bash
-# JS bundle export (validates build)
-pnpm build:mobile
-# Output: mobile/customer/dist/
-
-# Production APK (requires EAS account)
 cd mobile/customer
-pnpm build:android:cloud
+pnpm install
+npx eas-cli build --platform android --profile testing
 ```
 
-## Screens
+Download the APK from the Expo build page when complete.
 
-| Screen   | Description                                        |
-| -------- | -------------------------------------------------- |
-| Splash   | CMS branding + remote config bootstrap             |
-| Login    | OTP + guest checkout (CMS flag)                    |
-| Home     | CMS homepage sections (hero, categories, popular…) |
-| Menu     | Live categories & products from API                |
-| Product  | Item detail + add to cart                          |
-| Cart     | Live pricing (packing, delivery from CMS)          |
-| Checkout | Order summary (Phase 2: Razorpay/COD)              |
-| Orders   | Order history                                      |
-| Profile  | User info, support, logout                         |
+## Build release APK (local — requires Android SDK + JDK)
 
-## API
+```powershell
+$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
+$env:EXPO_PUBLIC_API_URL="https://mercydosahouse.com/api/v1"
+$env:EXPO_PUBLIC_WEBSITE_URL="https://mercydosahouse.com"
+$env:NODE_ENV="production"
 
-Base URL auto-appends `/api/v1`:
+cd mobile/customer
+pnpm prebuild:android    # generates android/ (not committed)
+pnpm bundle:android      # exports JS bundle to android assets
+cd android
+.\gradlew.bat assembleRelease -x createBundleReleaseJsAndAssets
+```
 
-| Environment      | `.env` value               |
-| ---------------- | -------------------------- |
-| Android emulator | `http://10.0.2.2:3001`     |
-| Physical device  | `http://<your-pc-ip>:3001` |
+APK path: `android/app/build/outputs/apk/release/app-release.apk`
 
-## Admin CMS
+Copy to releases folder:
 
-Configure without Play Store updates: **Admin → Mobile App** (`/cms/mobile`)
+```powershell
+mkdir releases -Force
+copy android\app\build\outputs\apk\release\app-release.apk releases\mercy-dosa-house-v1.0.1-testing.apk
+```
+
+## Dev (Expo Go / emulator)
+
+```bash
+pnpm dev:mobile   # from repo root
+```
+
+For local API on emulator only:
+
+```env
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3001/api/v1
+```
+
+## App ID
+
+- Package: `com.mercydosahouse.customer`
+- Version: `1.0.1` (versionCode 2)

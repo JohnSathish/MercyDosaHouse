@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { PaymentMethod } from '@mdh/types';
 import type { CheckoutProfileDto, OrderDto } from '@mdh/types';
+import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
 import { DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
 import { formatCurrency, getScheduleDateOptions, firstPreOrderDate } from '@mdh/utils';
 import { api } from '@/lib/api';
@@ -33,6 +34,7 @@ export default function CheckoutScreen() {
   const couponsEnabled = useFeatureFlag('coupons');
   const loyaltyEnabled = useFeatureFlag('loyalty');
   const scheduleEnabled = useFeatureFlag('scheduled_orders');
+  const storeOpen = config.store.storeOpen !== false;
 
   const [authed, setAuthed] = useState(false);
   const [couponInput, setCouponInput] = useState('');
@@ -89,6 +91,10 @@ export default function CheckoutScreen() {
   }
 
   async function placeOrder() {
+    if (!storeOpen) {
+      setError(config.store.storeClosedMessage?.trim() || DEFAULT_STORE_CLOSED_MESSAGE);
+      return;
+    }
     if (!items.length) return;
     if (
       session.deliveryTiming === 'scheduled' &&
@@ -370,14 +376,18 @@ export default function CheckoutScreen() {
 
       <View style={styles.footer}>
         <Pressable
-          style={[styles.placeBtn, { backgroundColor: colors.secondary }]}
+          style={[styles.placeBtn, { backgroundColor: storeOpen ? colors.secondary : '#9CA3AF' }]}
           onPress={placeOrder}
-          disabled={placing}
+          disabled={placing || !storeOpen}
         >
           {placing ? (
             <ActivityIndicator color="#1F2937" />
           ) : (
-            <Text style={styles.placeText}>Place Order · {formatCurrency(pricing.grandTotal)}</Text>
+            <Text style={styles.placeText}>
+              {storeOpen
+                ? `Place Order · ${formatCurrency(pricing.grandTotal)}`
+                : 'Restaurant Closed'}
+            </Text>
           )}
         </Pressable>
       </View>

@@ -19,6 +19,7 @@ import { MiniBarChart } from '@/components/dashboard/mini-bar-chart';
 import { RecentOrdersTable } from '@/components/dashboard/recent-orders-table';
 import { NotificationsFeed } from '@/components/dashboard/notifications-feed';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
+import { RestaurantStatusPanel } from '@/components/dashboard/restaurant-status-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@mdh/ui';
 
 export default function AdminDashboardPage() {
@@ -113,6 +114,8 @@ export default function AdminDashboardPage() {
   return (
     <div className="w-full min-h-full space-y-6">
       <DashboardGreeting />
+
+      <RestaurantStatusPanel />
 
       {/* KPI grid — auto-fit fills all available width */}
       <div className="grid gap-3 lg:gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))]">

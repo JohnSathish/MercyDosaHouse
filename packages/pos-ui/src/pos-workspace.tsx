@@ -25,6 +25,7 @@ import { PosLogoutModal } from './pos-logout-modal';
 import { PosLockScreen } from './pos-lock-screen';
 import { PosAppLauncher } from './pos-app-launcher';
 import { POS_ADMIN_LINKS, openAdminLink } from './pos-admin-links';
+import { PosRestaurantClosedBanner } from './pos-restaurant-closed-banner';
 import { ThermalReceiptPreview } from './thermal-receipt-preview';
 import {
   loadTerminalSettings,
@@ -490,6 +491,7 @@ export function PosWorkspace({
       style={darkMode ? undefined : { background: POS_THEME.bg }}
     >
       <PosToastHost darkMode={darkMode} />
+      <PosRestaurantClosedBanner api={api} />
 
       <PosTopNav
         cashierName={cashierName}

@@ -14,7 +14,12 @@ export class ApiClient {
     }
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    } catch {
+      throw new Error('Network error. Check your internet connection and try again.');
+    }
 
     if (res.status === 401 && !retried) {
       const refreshed = await refreshTokens();

@@ -1,19 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
-  getStoredUser,
-  isAuthenticated,
-  isAdminUser,
+  ensureAuthenticated,
   getPostLoginRedirect,
+  isAdminUser,
+  onAuthCleared,
 } from '@mdh/auth-client';
+import { API_URL } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { useAdminBrand } from '@/lib/use-admin-brand';
 import { AdminSidebar } from '@/components/admin-sidebar';
 import { AdminTopbar } from '@/components/admin-topbar';
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+
+type AuthStatus = 'checking' | 'allowed' | 'denied';
 
 const THEME_KEY = 'mdh-admin-theme';
 const SIDEBAR_KEY = 'mdh-admin-sidebar-collapsed';
@@ -35,8 +39,10 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const isLoginPage = pathname === '/login';
   const isPosPage = pathname.startsWith('/pos');
+  const isPublicPage = isLoginPage || isPosPage;
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
@@ -59,28 +65,42 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener('change', handler);
   }, [themeMode]);
 
-  useEffect(() => {
-    if (isLoginPage) return;
-
-    if (!isAuthenticated()) {
-      router.push('/login');
+  const verifyAccess = useCallback(async () => {
+    if (isPublicPage) {
+      setAuthStatus('allowed');
       return;
     }
 
-    const user = getStoredUser();
+    setAuthStatus('checking');
+    const user = await ensureAuthenticated(API_URL);
+
     if (!user) {
-      router.push('/login');
+      setAuthStatus('denied');
+      router.replace('/login');
       return;
     }
 
     if (!isAdminUser(user)) {
-      const redirect = getPostLoginRedirect(user, APP_URLS);
-      window.location.href = redirect;
+      setAuthStatus('denied');
+      window.location.href = getPostLoginRedirect(user, APP_URLS);
       return;
     }
 
     setUserName(user.name || user.email || 'Admin');
-  }, [isLoginPage, router, pathname]);
+    setAuthStatus('allowed');
+  }, [isPublicPage, router]);
+
+  useEffect(() => {
+    void verifyAccess();
+  }, [verifyAccess, pathname]);
+
+  useEffect(() => {
+    if (isPublicPage) return;
+    return onAuthCleared(() => {
+      setAuthStatus('denied');
+      router.replace('/login');
+    });
+  }, [isPublicPage, router]);
 
   const handleThemeChange = (mode: ThemeMode) => {
     setThemeMode(mode);
@@ -96,7 +116,23 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
     });
   };
 
-  if (isLoginPage || isPosPage) return <>{children}</>;
+  if (isPublicPage) return <>{children}</>;
+
+  if (authStatus === 'checking') {
+    return (
+      <div className="min-h-screen w-full flex bg-gray-50 dark:bg-gray-950">
+        <div className="hidden md:block w-64 shrink-0 border-r bg-white dark:bg-gray-900 animate-pulse" />
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="h-14 border-b bg-white dark:bg-gray-900 animate-pulse" />
+          <main className="flex-1 p-4 lg:p-6 xl:p-8">
+            <DashboardSkeleton />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (authStatus === 'denied') return null;
 
   return (
     <div className="min-h-screen w-full flex bg-gray-50 dark:bg-gray-950">

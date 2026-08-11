@@ -9,6 +9,7 @@ import {
 } from './enums';
 
 export * from './enums';
+export * from './restaurant-status';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -229,6 +230,13 @@ export interface BusinessSettingsDto {
   preOrderDiscountPct?: number;
   preOrderMinDaysAhead?: number;
   preOrderStackWithCoupons?: boolean;
+  storeOpen?: boolean;
+  storeClosedMessage?: string | null;
+  storeReopenMessage?: string | null;
+  storeClosedReason?: string | null;
+  storeStatusChangedAt?: string | null;
+  storeStatusChangedByName?: string | null;
+  operatingSchedule?: import('./restaurant-status').OperatingScheduleDto | null;
 }
 
 export interface DashboardStatsDto {

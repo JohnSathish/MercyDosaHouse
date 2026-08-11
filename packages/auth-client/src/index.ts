@@ -41,6 +41,9 @@ export function clearAuth(): void {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_KEY);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('mdh-auth-cleared'));
+  }
 }
 
 export async function login(
@@ -125,6 +128,45 @@ export async function logout(apiBase: string): Promise<void> {
 
 export function isAuthenticated(): boolean {
   return !!getAccessToken();
+}
+
+const AUTH_CLEARED_EVENT = 'mdh-auth-cleared';
+
+function isAccessTokenExpired(token: string, skewMs = 30_000): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { exp?: number };
+    if (!payload.exp) return false;
+    return payload.exp * 1000 <= Date.now() + skewMs;
+  } catch {
+    return true;
+  }
+}
+
+/** Reuse valid access token, refresh when expired, or clear stale auth. */
+export async function ensureAuthenticated(apiBase: string): Promise<AuthUser | null> {
+  const access = getAccessToken();
+  const refresh = getRefreshToken();
+
+  if (!access && !refresh) return null;
+
+  if (access && !isAccessTokenExpired(access)) {
+    const user = getStoredUser();
+    if (user) return user;
+  }
+
+  if (refresh) {
+    const tokens = await refreshTokens(apiBase);
+    if (tokens) return getStoredUser();
+  }
+
+  clearAuth();
+  return null;
+}
+
+export function onAuthCleared(listener: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  window.addEventListener(AUTH_CLEARED_EVENT, listener);
+  return () => window.removeEventListener(AUTH_CLEARED_EVENT, listener);
 }
 
 export type { AuthUser, AuthTokens } from '@mdh/types';

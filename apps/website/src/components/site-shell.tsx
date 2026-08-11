@@ -11,6 +11,7 @@ import { SiteFooter } from './site-footer';
 import { PwaRegister } from './mobile/pwa-register';
 import { AnnouncementBar } from '@/components/marketing/announcement-bar';
 import { DeliveryPopup } from '@/components/marketing/delivery-popup';
+import { RestaurantClosedBanner } from '@/components/restaurant/restaurant-closed-banner';
 
 interface SiteShellProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export function SiteShell({ children, phone, whatsapp, address, hours }: SiteShe
 
       {/* Fixed top stack: announcement + nav — always visible, never overlapped */}
       <div className="fixed top-0 left-0 right-0 z-50">
+        <RestaurantClosedBanner />
         <AnnouncementBar />
         <div className="hidden lg:block">
           <SiteHeader phone={phone} embedded />

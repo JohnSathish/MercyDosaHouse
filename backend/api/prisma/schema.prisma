@@ -1081,6 +1081,13 @@ model BusinessSettings {
   preOrderDiscountPct     Int      @default(10)
   preOrderMinDaysAhead    Int      @default(1)
   preOrderStackWithCoupons Boolean @default(false)
+  storeOpen               Boolean  @default(true)
+  storeClosedMessage      String?
+  storeReopenMessage      String?
+  storeClosedReason       String?
+  storeStatusChangedAt    DateTime?
+  storeStatusChangedById  String?
+  operatingSchedule       Json?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

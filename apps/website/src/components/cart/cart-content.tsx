@@ -12,6 +12,7 @@ import { getProductImage } from '@/lib/product-images';
 import { getCheckoutEntryHref } from '@/lib/auth-redirect';
 import { PreOrderCartPromo } from '@/components/promo/pre-order-banner';
 import { OrderChargesInfoCard, OrderSummaryLines } from '@/components/order/order-charges';
+import { useRestaurantStatus } from '@/lib/restaurant-status-context';
 
 interface CartContentProps {
   onCheckout?: () => void;
@@ -22,6 +23,7 @@ export function CartContent({ onCheckout, compact }: CartContentProps) {
   const { items, updateQuantity, removeItem, subtotal, packingTotal, packedItemCount } =
     useCartStore();
   const [checkoutHref, setCheckoutHref] = useState('/checkout');
+  const { isOpen: storeOpen } = useRestaurantStatus();
 
   useEffect(() => {
     setCheckoutHref(getCheckoutEntryHref());
@@ -141,14 +143,20 @@ export function CartContent({ onCheckout, compact }: CartContentProps) {
             Add {formatCurrency(charges.amountToFreeDelivery)} more for free delivery
           </p>
         )}
-        <Link href={checkoutHref} onClick={onCheckout} className="block pt-3">
-          <Button
-            size="lg"
-            className="w-full min-h-[52px] rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] text-white font-semibold shadow-lg active:scale-[0.98] transition-transform"
-          >
-            Checkout · {formatCurrency(charges.total)}
+        {storeOpen ? (
+          <Link href={checkoutHref} onClick={onCheckout} className="block pt-3">
+            <Button
+              size="lg"
+              className="w-full min-h-[52px] rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] text-white font-semibold shadow-lg active:scale-[0.98] transition-transform"
+            >
+              Checkout · {formatCurrency(charges.total)}
+            </Button>
+          </Link>
+        ) : (
+          <Button size="lg" disabled className="w-full min-h-[52px] rounded-2xl mt-3 opacity-70">
+            Restaurant Closed — Checkout Unavailable
           </Button>
-        </Link>
+        )}
       </div>
     </div>
   );

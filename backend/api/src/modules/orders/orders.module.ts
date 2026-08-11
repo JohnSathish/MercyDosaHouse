@@ -3,9 +3,10 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { OrdersGateway } from './orders.gateway';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, SettingsModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrdersGateway],
   exports: [OrdersService, OrdersGateway],

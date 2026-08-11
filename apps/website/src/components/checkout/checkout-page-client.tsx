@@ -57,6 +57,7 @@ import { useCheckoutStore } from '@/lib/checkout-store';
 import { api } from '@/lib/api';
 import { userQueryKey, clearUserSessionQueries } from '@/lib/auth-queries';
 import { useToastStore } from '@/lib/toast-store';
+import { useRestaurantStatus } from '@/lib/restaurant-status-context';
 import { saveLastOrder } from '@/lib/last-order';
 import { CheckoutLoginSheet } from './checkout-login-sheet';
 import { AddressFormDialog } from '@/components/dashboard/address-form-dialog';
@@ -126,6 +127,7 @@ export function CheckoutPageClient() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const toast = useToastStore((s) => s.show);
+  const { isOpen: storeOpen, orderBlockedMessage } = useRestaurantStatus();
 
   const items = useCartStore((s) => s.items);
   const getSubtotal = useCartStore((s) => s.subtotal);
@@ -425,6 +427,10 @@ export function CheckoutPageClient() {
   }
 
   async function placeOrder() {
+    if (!storeOpen) {
+      toast(orderBlockedMessage);
+      return;
+    }
     if (!items.length) return;
 
     if (
@@ -981,11 +987,13 @@ export function CheckoutPageClient() {
       {/* Desktop CTA */}
       <Button
         type="button"
-        onClick={() => setConfirmOpen(true)}
+        onClick={() => (storeOpen ? setConfirmOpen(true) : toast(orderBlockedMessage))}
         className="w-full mt-6 h-14 rounded-2xl bg-[#14532D] hover:bg-[#14532D]/90 text-lg font-semibold hidden lg:flex"
-        disabled={placing}
+        disabled={placing || !storeOpen}
       >
-        Review & Place Order · {formatCurrency(grandTotal)}
+        {storeOpen
+          ? `Review & Place Order · ${formatCurrency(grandTotal)}`
+          : 'Restaurant Closed — Orders Paused'}
       </Button>
 
       {/* Mobile sticky bar */}
@@ -999,11 +1007,17 @@ export function CheckoutPageClient() {
           </div>
           <Button
             type="button"
-            onClick={() => setConfirmOpen(true)}
-            disabled={placing}
+            onClick={() => (storeOpen ? setConfirmOpen(true) : toast(orderBlockedMessage))}
+            disabled={placing || !storeOpen}
             className="flex-1 min-h-[52px] rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] font-semibold"
           >
-            {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Place Order'}
+            {placing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : storeOpen ? (
+              'Place Order'
+            ) : (
+              'Closed'
+            )}
           </Button>
         </div>
       </div>
