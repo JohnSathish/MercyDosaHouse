@@ -7,7 +7,7 @@ DELETE FROM delivery_logs;
 DELETE FROM inventory_consumption
 WHERE "orderId" IN (SELECT id FROM orders);
 
-UPDATE reward_transactions SET "orderId" = NULL WHERE "orderId" IS NOT NULL;
+UPDATE customer_rewards SET "orderId" = NULL WHERE "orderId" IS NOT NULL;
 UPDATE pos_hold_bills SET "orderId" = NULL WHERE "orderId" IS NOT NULL;
 
 -- Cascades remove items, payments, status history, kitchen logs,
