@@ -8,7 +8,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'MDH Admin',
   slug: 'mercy-dosa-house-admin',
-  version: '1.0.3',
+  version: '1.0.4',
   orientation: 'default',
   scheme: 'mercydosa-admin',
   userInterfaceStyle: 'light',
@@ -25,7 +25,7 @@ module.exports = ({ config }) => ({
       backgroundColor: '#14532D',
     },
     package: 'com.mercydosahouse.admin',
-    versionCode: 4,
+    versionCode: 5,
     permissions: [
       'INTERNET',
       'ACCESS_NETWORK_STATE',
@@ -51,9 +51,11 @@ module.exports = ({ config }) => ({
       {
         icon: './assets/icon.png',
         color: '#14532D',
-        defaultChannel: 'orders',
+        defaultChannel: 'new_orders',
+        sounds: ['./assets/sounds/new_order.wav'],
       },
     ],
+    'expo-av',
     [
       'expo-build-properties',
       {

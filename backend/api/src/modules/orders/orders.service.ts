@@ -207,7 +207,14 @@ export class OrdersService implements OnModuleInit {
       },
     });
 
-    this.gateway.emitNewOrder(order);
+    this.gateway.emitNewOrder({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      customerName: order.customerName,
+      orderType: order.orderType,
+      grandTotal: Number(order.grandTotal),
+    });
     if (this.orderEmailNotification.shouldNotifyOnOrderCreate(data.paymentMethod)) {
       void this.orderEmailNotification.notifyOrderConfirmed(order.id);
       void this.notificationsService.notifyStaffNewOrder(order.id);

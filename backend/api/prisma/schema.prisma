@@ -1104,6 +1104,8 @@ model BusinessSettings {
   storeStatusChangedAt    DateTime?
   storeStatusChangedById  String?
   operatingSchedule       Json?
+  /// Remote defaults for admin Android new-order push (roles, master enable, sound)
+  staffPushConfig         Json?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

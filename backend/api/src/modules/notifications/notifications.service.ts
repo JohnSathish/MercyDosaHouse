@@ -1,14 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, OrderSource, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
-const STAFF_ROLES = [
-  'SUPER_ADMIN',
-  'MANAGER',
-  'KITCHEN_STAFF',
-  'CASHIER',
-  'DELIVERY_STAFF',
-] as const;
+export type StaffPushConfig = {
+  enabled: boolean;
+  ringtoneEnabled: boolean;
+  vibrationEnabled: boolean;
+  recipientRoles: string[];
+  channelId: string;
+  soundName: string;
+};
+
+export const DEFAULT_STAFF_PUSH_CONFIG: StaffPushConfig = {
+  enabled: true,
+  ringtoneEnabled: true,
+  vibrationEnabled: true,
+  recipientRoles: ['SUPER_ADMIN', 'MANAGER', 'KITCHEN_STAFF'],
+  channelId: 'new_orders',
+  soundName: 'new_order',
+};
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -39,44 +49,111 @@ export class NotificationsService {
       const tokens = await this.prisma.deviceToken.findMany({ where: { userId: params.userId } });
       await this.sendExpoPush(
         tokens.map((t) => t.token),
-        params.title,
-        params.body,
-        params.data,
+        {
+          title: params.title,
+          body: params.body,
+          data: params.data,
+          channelId: DEFAULT_STAFF_PUSH_CONFIG.channelId,
+          sound: `${DEFAULT_STAFF_PUSH_CONFIG.soundName}.wav`,
+          collapseId: undefined,
+        },
       );
     }
 
     return notification;
   }
 
+  async getStaffPushConfig(): Promise<StaffPushConfig> {
+    const settings = await this.prisma.businessSettings.findFirst();
+    const raw = (settings as { staffPushConfig?: unknown } | null)?.staffPushConfig;
+    return this.mergeStaffPushConfig(raw);
+  }
+
+  async updateStaffPushConfig(patch: Partial<StaffPushConfig>): Promise<StaffPushConfig> {
+    const current = await this.getStaffPushConfig();
+    const next: StaffPushConfig = {
+      ...current,
+      ...patch,
+      recipientRoles:
+        patch.recipientRoles?.length && patch.recipientRoles.length > 0
+          ? [...new Set(patch.recipientRoles.map((r) => r.trim().toUpperCase()).filter(Boolean))]
+          : current.recipientRoles,
+    };
+
+    const existing = await this.prisma.businessSettings.findFirst({ select: { id: true } });
+    if (existing) {
+      await this.prisma.businessSettings.update({
+        where: { id: existing.id },
+        data: { staffPushConfig: next } as never,
+      });
+    } else {
+      await this.prisma.businessSettings.create({
+        data: { staffPushConfig: next } as never,
+      });
+    }
+    return next;
+  }
+
   /**
    * Alert staff devices when a customer places (or pays for) an order.
-   * Uses Expo Push API for Expo tokens; also stores an in-app notification row per staff user.
+   * Skips when restaurant is closed for online/customer channels.
    */
   async notifyStaffNewOrder(orderId: string): Promise<void> {
     try {
+      const config = await this.getStaffPushConfig();
+      if (!config.enabled) {
+        this.logger.debug('Staff push disabled — skipping');
+        return;
+      }
+
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
         include: { items: true },
       });
       if (!order) return;
 
+      const restaurant = await this.prisma.businessSettings.findFirst({
+        select: { storeOpen: true },
+      });
+      // Online/customer channels are already blocked when closed; skip push as a safeguard.
+      if (restaurant && restaurant.storeOpen === false && order.orderSource !== OrderSource.POS) {
+        this.logger.debug(`Store closed — skip push for ${order.orderNumber}`);
+        return;
+      }
+
+      const roles = (
+        config.recipientRoles.length
+          ? config.recipientRoles
+          : DEFAULT_STAFF_PUSH_CONFIG.recipientRoles
+      ).filter((r): r is UserRole => (Object.values(UserRole) as string[]).includes(r));
+
       const staff = await this.prisma.user.findMany({
         where: {
           isActive: true,
-          role: { name: { in: [...STAFF_ROLES] } },
+          role: { name: { in: roles } },
         },
         select: { id: true },
       });
       if (!staff.length) return;
 
-      const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
-      const title = 'New order received';
-      const body = `${order.orderNumber} · ${itemCount} item${itemCount === 1 ? '' : 's'} · ₹${Number(order.grandTotal).toFixed(0)} · ${order.customerName || order.customerPhone}`;
+      const amount = `₹${Number(order.grandTotal).toFixed(0)}`;
+      const orderType = String(order.orderType ?? 'DELIVERY');
+      const customer = order.customerName || order.customerPhone || 'Customer';
+      const title = '🔔 New Order Received!';
+      const body = `You have a new order #${order.orderNumber}. Tap to view the order.`;
       const data = {
         type: 'NEW_ORDER',
         orderId: order.id,
         orderNumber: order.orderNumber,
+        customerName: customer,
+        orderType,
+        amount,
+        grandTotal: Number(order.grandTotal),
         screen: 'orders',
+        channelId: config.channelId,
+        soundName: config.soundName,
+        ringtoneEnabled: config.ringtoneEnabled,
+        vibrationEnabled: config.vibrationEnabled,
       };
 
       const staffIds = staff.map((s) => s.id);
@@ -97,13 +174,20 @@ export class NotificationsService {
 
       await this.sendExpoPush(
         tokens.map((t) => t.token),
-        title,
-        body,
-        data,
+        {
+          title,
+          body,
+          data,
+          channelId: config.channelId,
+          sound: config.ringtoneEnabled ? `${config.soundName}.wav` : null,
+          // Unique per order so multiple orders stack; same order retries replace
+          collapseId: `new-order-${order.id}`,
+          subtitle: `${customer} · ${orderType} · ${amount}`,
+        },
       );
 
       this.logger.log(
-        `Staff push for ${order.orderNumber}: ${tokens.length} device token(s), ${staffIds.length} staff`,
+        `Staff push for ${order.orderNumber}: ${tokens.length} device(s), roles=${roles.join(',')}`,
       );
     } catch (err) {
       this.logger.error(
@@ -117,7 +201,7 @@ export class NotificationsService {
     return this.prisma.notification.findMany({
       where: { OR: [{ userId }, { userId: null }] },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 80,
     });
   }
 
@@ -128,6 +212,25 @@ export class NotificationsService {
     });
   }
 
+  async markReadByOrderId(orderId: string, userId: string) {
+    const rows = await this.prisma.notification.findMany({
+      where: { userId, isRead: false },
+      select: { id: true, data: true },
+    });
+    const ids = rows
+      .filter((r) => {
+        const data = r.data as { orderId?: string } | null;
+        return data?.orderId === orderId;
+      })
+      .map((r) => r.id);
+    if (!ids.length) return { count: 0 };
+    const result = await this.prisma.notification.updateMany({
+      where: { id: { in: ids }, userId },
+      data: { isRead: true },
+    });
+    return result;
+  }
+
   registerDevice(userId: string, token: string, platform: string) {
     return this.prisma.deviceToken.upsert({
       where: { userId_token: { userId, token } },
@@ -136,17 +239,75 @@ export class NotificationsService {
     });
   }
 
+  async sendTestPushToUser(userId: string) {
+    const config = await this.getStaffPushConfig();
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId },
+      select: { token: true },
+    });
+    const title = '🔔 New Order Received!';
+    const body = 'You have a new order #MDH-TEST-000001. Tap to view the order.';
+    const data = {
+      type: 'NEW_ORDER',
+      orderId: 'test',
+      orderNumber: 'MDH-TEST-000001',
+      customerName: 'Test Customer',
+      orderType: 'DELIVERY',
+      amount: '₹199',
+      screen: 'orders',
+      channelId: config.channelId,
+      soundName: config.soundName,
+      ringtoneEnabled: config.ringtoneEnabled,
+      vibrationEnabled: config.vibrationEnabled,
+      isTest: true,
+    };
+    await this.sendExpoPush(
+      tokens.map((t) => t.token),
+      {
+        title,
+        body,
+        data,
+        channelId: config.channelId,
+        sound: config.ringtoneEnabled ? `${config.soundName}.wav` : null,
+        collapseId: `test-${Date.now()}`,
+        subtitle: 'Test Customer · DELIVERY · ₹199',
+      },
+    );
+    return { ok: true, devices: tokens.length };
+  }
+
+  private mergeStaffPushConfig(raw: unknown): StaffPushConfig {
+    const parsed = (raw && typeof raw === 'object' ? raw : {}) as Partial<StaffPushConfig>;
+    return {
+      enabled: parsed.enabled ?? DEFAULT_STAFF_PUSH_CONFIG.enabled,
+      ringtoneEnabled: parsed.ringtoneEnabled ?? DEFAULT_STAFF_PUSH_CONFIG.ringtoneEnabled,
+      vibrationEnabled: parsed.vibrationEnabled ?? DEFAULT_STAFF_PUSH_CONFIG.vibrationEnabled,
+      recipientRoles:
+        Array.isArray(parsed.recipientRoles) && parsed.recipientRoles.length
+          ? parsed.recipientRoles
+          : DEFAULT_STAFF_PUSH_CONFIG.recipientRoles,
+      channelId: parsed.channelId || DEFAULT_STAFF_PUSH_CONFIG.channelId,
+      soundName: parsed.soundName || DEFAULT_STAFF_PUSH_CONFIG.soundName,
+    };
+  }
+
   private async sendExpoPush(
     tokens: string[],
-    title: string,
-    body: string,
-    data?: Record<string, unknown>,
+    message: {
+      title: string;
+      body: string;
+      data?: Record<string, unknown>;
+      channelId: string;
+      sound: string | null;
+      collapseId?: string;
+      subtitle?: string;
+    },
   ) {
     const expoTokens = [...new Set(tokens.filter((t) => t.startsWith('ExponentPushToken')))];
     if (!expoTokens.length) {
       if (tokens.length) {
         this.logger.warn(
-          `Skipping push: ${tokens.length} token(s) are not Expo push tokens (FCM direct not configured)`,
+          `Skipping push: ${tokens.length} token(s) are not Expo push tokens (configure FCM credentials for bare tokens)`,
         );
       }
       return;
@@ -154,15 +315,17 @@ export class NotificationsService {
 
     const messages = expoTokens.map((to) => ({
       to,
-      sound: 'default' as const,
-      title,
-      body,
-      data: data ?? {},
-      channelId: 'orders',
+      title: message.title,
+      body: message.body,
+      subtitle: message.subtitle,
+      data: message.data ?? {},
+      sound: message.sound === null ? null : message.sound || 'default',
+      channelId: message.channelId,
       priority: 'high' as const,
+      collapseId: message.collapseId,
+      mutableContent: true,
     }));
 
-    // Expo accepts up to 100 messages per request
     for (let i = 0; i < messages.length; i += 100) {
       const chunk = messages.slice(i, i + 100);
       try {

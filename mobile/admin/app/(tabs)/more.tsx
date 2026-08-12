@@ -20,6 +20,7 @@ export default function MoreScreen() {
     ['Website CMS', '/cms', canManageMenu(user)],
     ['Reports', '/reports', true],
     ['Order Emails', '/emails', canManageMenu(user)],
+    ['Notifications', '/notification-settings', true],
     ['Settings', '/settings', canManageMenu(user)],
     ['Full POS', '/pos', canUsePos(user)],
   ].filter((x) => x[2]);

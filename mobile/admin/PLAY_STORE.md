@@ -1,15 +1,13 @@
 # MDH Admin — Google Play Console Guide
 
 Package: `com.mercydosahouse.admin`  
-Version: **1.0.3** (versionCode **4**) — Expo SDK **53**  
+Version: **1.0.4** (versionCode **5**) — Expo SDK **53**  
 Privacy policy: https://mercydosahouse.com/privacy
 
 ## Ready AAB
 
-- Expo build: https://expo.dev/accounts/johnsathish/projects/mercy-dosa-house-admin/builds/cb52f2e9-9b45-4776-9d0d-21744fe1c9b8
-- Artifact: https://expo.dev/artifacts/eas/JHeiJV8LzEiMDNsxXY36Zd70nm17XY_UIvM1O7ejlM4.aab
-- Local copy: `mobile/admin/releases/mdh-admin-v1.0.3-vc4-sdk53.aab`
-- (Previous vc3 was already used on Play Console — do not re-upload it)
+- Rebuild required for custom new-order ringtone (`assets/sounds/new_order.wav`)
+- Previous: `mobile/admin/releases/mdh-admin-v1.0.3-vc4-sdk53.aab` (no custom sound channel)
 
 ## Create app (Play Console)
 

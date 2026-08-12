@@ -22,7 +22,14 @@ export class OrdersGateway implements OnGatewayConnection {
     return { event: 'subscribed', data: orderId };
   }
 
-  emitNewOrder(order: { id: string; orderNumber: string; status: string }) {
+  emitNewOrder(order: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    customerName?: string;
+    orderType?: string;
+    grandTotal?: number | string;
+  }) {
     this.server.emit('newOrder', order);
   }
 

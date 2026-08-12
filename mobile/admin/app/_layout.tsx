@@ -113,6 +113,10 @@ export default function RootLayout() {
             name="settings/index"
             options={{ headerShown: true, title: 'Settings' }}
           />
+          <RootStack.Screen
+            name="notification-settings/index"
+            options={{ headerShown: true, title: 'Notifications' }}
+          />
           <RootStack.Screen name="pos/index" options={{ headerShown: true, title: 'POS' }} />
         </RootStack>
       </AuthGate>

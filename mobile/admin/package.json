@@ -1,6 +1,6 @@
 {
   "name": "@mdh/admin-app",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "main": "index.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "@tanstack/react-query": "^5.81.2",
     "expo": "~53.0.27",
     "expo-asset": "~11.1.7",
+    "expo-av": "~15.1.7",
     "expo-build-properties": "~0.14.8",
     "expo-constants": "~17.1.8",
     "expo-font": "~13.3.2",

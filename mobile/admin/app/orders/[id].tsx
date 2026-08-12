@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '@/lib/api';
+import { markOrderAlertRead } from '@/lib/notification-prefs';
 import { Card, EmptyState, LoadingBlock, Money, PrimaryButton, Screen, StatusChip } from '@/ui';
 import { formatInr, theme, timeAgo } from '@/ui/theme';
 
@@ -11,6 +12,12 @@ export default function OrderDetailScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    if (!id) return;
+    void markOrderAlertRead(String(id));
+    void api.post('/notifications/read-by-order', { orderId: String(id) }).catch(() => undefined);
+  }, [id]);
   const query = useQuery({
     queryKey: ['order', id],
     queryFn: () => api.get<any>(`/orders/${id}`),
