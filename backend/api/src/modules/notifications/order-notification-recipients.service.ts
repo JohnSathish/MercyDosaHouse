@@ -54,8 +54,13 @@ export class OrderNotificationRecipientsService {
 
   /** One-time import from env when table is empty (migration aid only). */
   async ensureSeededFromEnv(): Promise<void> {
+    await this.migrateLegacyRecipientEmails();
+
     const count = await this.prisma.orderNotificationRecipient.count();
-    if (count > 0) return;
+    if (count > 0) {
+      await this.ensureEmailPresent('nambikaimary96@gmail.com');
+      return;
+    }
 
     const raw = this.config.get<string>('ORDER_NOTIFICATION_RECIPIENTS') ?? '';
     const emails = [
@@ -66,11 +71,57 @@ export class OrderNotificationRecipientsService {
           .filter(Boolean),
       ),
     ];
+    if (!emails.includes('nambikaimary96@gmail.com')) {
+      emails.push('nambikaimary96@gmail.com');
+    }
     if (!emails.length) return;
 
     await this.prisma.orderNotificationRecipient.createMany({
       data: emails.map((email) => ({ email, isActive: true })),
       skipDuplicates: true,
+    });
+    this.invalidateCache();
+  }
+
+  /** Replace known legacy addresses and keep the restaurant owner inbox active. */
+  private async migrateLegacyRecipientEmails(): Promise<void> {
+    const legacy = await this.prisma.orderNotificationRecipient.findFirst({
+      where: { email: { equals: 'sudhabca96@gmail.com', mode: 'insensitive' } },
+    });
+    if (!legacy) return;
+
+    const target = await this.prisma.orderNotificationRecipient.findFirst({
+      where: { email: { equals: 'nambikaimary96@gmail.com', mode: 'insensitive' } },
+    });
+
+    if (target) {
+      await this.prisma.orderNotificationRecipient.delete({ where: { id: legacy.id } });
+    } else {
+      await this.prisma.orderNotificationRecipient.update({
+        where: { id: legacy.id },
+        data: { email: 'nambikaimary96@gmail.com', isActive: true },
+      });
+    }
+    this.invalidateCache();
+  }
+
+  private async ensureEmailPresent(emailRaw: string): Promise<void> {
+    const email = this.normalizeEmail(emailRaw);
+    const existing = await this.prisma.orderNotificationRecipient.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+    if (existing) {
+      if (!existing.isActive) {
+        await this.prisma.orderNotificationRecipient.update({
+          where: { id: existing.id },
+          data: { isActive: true },
+        });
+        this.invalidateCache();
+      }
+      return;
+    }
+    await this.prisma.orderNotificationRecipient.create({
+      data: { email, isActive: true },
     });
     this.invalidateCache();
   }

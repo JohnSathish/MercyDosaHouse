@@ -144,6 +144,22 @@ async function main() {
     },
   });
 
+  const orderNotificationEmails = [
+    'johnsathish16@gmail.com',
+    'nambikaimary96@gmail.com',
+    'alboraja@gmail.com',
+  ];
+  for (const email of orderNotificationEmails) {
+    await prisma.orderNotificationRecipient.upsert({
+      where: { email },
+      update: { isActive: true },
+      create: { email, isActive: true },
+    });
+  }
+  await prisma.orderNotificationRecipient.deleteMany({
+    where: { email: { equals: 'sudhabca96@gmail.com', mode: 'insensitive' } },
+  });
+
   for (const method of [PaymentMethod.COD, PaymentMethod.UPI]) {
     await prisma.paymentMethodConfig.upsert({
       where: { method },
