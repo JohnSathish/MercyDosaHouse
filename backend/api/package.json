@@ -12,7 +12,8 @@
     "test": "jest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "ts-node --project prisma/tsconfig.json --transpile-only prisma/seed.ts"
+    "prisma:seed": "ts-node --project prisma/tsconfig.json --transpile-only prisma/seed.ts",
+    "prisma:truncate-orders": "ts-node --project prisma/tsconfig.json --transpile-only prisma/scripts/truncate-orders.ts"
   },
   "prisma": {
     "seed": "ts-node --project prisma/tsconfig.json --transpile-only prisma/seed.ts"
