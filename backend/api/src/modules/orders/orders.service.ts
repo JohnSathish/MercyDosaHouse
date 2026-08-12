@@ -10,6 +10,7 @@ import { calculatePreOrderDiscount, calculateDeliveryCharge, isPreOrderEligible 
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class OrdersService implements OnModuleInit {
     private prisma: PrismaService,
     private gateway: OrdersGateway,
     private orderEmailNotification: OrderEmailNotificationService,
+    private notificationsService: NotificationsService,
     private settingsService: SettingsService,
   ) {}
 
@@ -208,6 +210,7 @@ export class OrdersService implements OnModuleInit {
     this.gateway.emitNewOrder(order);
     if (this.orderEmailNotification.shouldNotifyOnOrderCreate(data.paymentMethod)) {
       void this.orderEmailNotification.notifyOrderConfirmed(order.id);
+      void this.notificationsService.notifyStaffNewOrder(order.id);
     }
     return this.findOne(order.id);
   }
@@ -513,6 +516,7 @@ export class OrdersService implements OnModuleInit {
       data: { paymentStatus: PaymentStatus.COMPLETED },
     });
     void this.orderEmailNotification.notifyOrderConfirmed(id);
+    void this.notificationsService.notifyStaffNewOrder(id);
     return order;
   }
 

@@ -116,7 +116,12 @@ export function DeliveryPopup() {
                 <Link
                   href={item.ctaUrl ?? item.linkUrl ?? '/menu'}
                   className="inline-flex flex-1 items-center justify-center rounded-md bg-[#14532D] px-4 py-2 text-sm font-medium text-white hover:bg-[#14532D]/90"
-                  onClick={() => trackMarketingEvent(item.id, 'cta_click')}
+                  onClick={() => {
+                    void trackMarketingEvent(item.id, 'cta_click');
+                    // Close before client navigation — popup lives in the root shell and
+                    // otherwise stays open over /menu when using Next.js Link.
+                    void close();
+                  }}
                 >
                   {item.ctaText ?? 'Order Now'}
                 </Link>
