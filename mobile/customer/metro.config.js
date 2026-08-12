@@ -14,6 +14,29 @@ config.resolver.nodeModulesPaths = [
 config.resolver.unstable_enableSymlinks = true;
 config.resolver.disableHierarchicalLookup = false;
 
+/**
+ * Force a single React / RN instance for the customer app.
+ * Monorepo also has React 19 (website/admin) — without this, Metro can bundle
+ * two Reacts and crash immediately with:
+ * "Objects are not valid as a React child (found: object with keys {$$typeof...})"
+ */
+const singletonPackages = [
+  'react',
+  'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  'react-native',
+  'react-native-gesture-handler',
+  'react-native-safe-area-context',
+  'react-native-screens',
+  '@tanstack/react-query',
+  'zustand',
+  '@react-native-async-storage/async-storage',
+];
+
+function resolveFromApp(moduleName) {
+  return require.resolve(moduleName, { paths: [projectRoot] });
+}
+
 /** RN-safe types — avoids loading zod/schemas.ts at startup. */
 const workspaceSources = {
   '@mdh/types': path.join(monorepoRoot, 'packages/types/src/native-app.ts'),
@@ -26,6 +49,22 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (workspaceSources[moduleName]) {
     return { type: 'sourceFile', filePath: workspaceSources[moduleName] };
   }
+
+  if (
+    singletonPackages.includes(moduleName) ||
+    moduleName.startsWith('react-native/') ||
+    moduleName.startsWith('react/')
+  ) {
+    try {
+      return {
+        type: 'sourceFile',
+        filePath: resolveFromApp(moduleName),
+      };
+    } catch {
+      // fall through
+    }
+  }
+
   if (defaultResolve) {
     return defaultResolve(context, moduleName, platform);
   }

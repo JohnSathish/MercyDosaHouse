@@ -27,6 +27,7 @@ import { MobileModule } from './modules/mobile/mobile.module';
 import { MarketingModule } from './modules/marketing/marketing.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ContactModule } from './modules/contact/contact.module';
+import { VisitorsModule } from './modules/visitors/visitors.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard, PermissionsGuard } from './common/guards';
 
@@ -59,6 +60,7 @@ import { JwtAuthGuard, PermissionsGuard } from './common/guards';
     MarketingModule,
     PaymentsModule,
     ContactModule,
+    VisitorsModule,
   ],
   controllers: [HealthController],
   providers: [

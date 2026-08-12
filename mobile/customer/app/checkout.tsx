@@ -49,7 +49,15 @@ export default function CheckoutScreen() {
   });
 
   useEffect(() => {
-    void isAuthenticated().then(setAuthed);
+    void isAuthenticated().then((ok) => {
+      setAuthed(ok);
+      if (!ok) {
+        router.replace({
+          pathname: '/(auth)/login',
+          params: { returnTo: '/checkout' },
+        });
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -173,7 +181,7 @@ export default function CheckoutScreen() {
         )}
 
         {/* Address */}
-        <Section title="📍 Delivery Address">
+        <Section title="1. Delivery Address">
           {authed && profileLoading ? (
             <ActivityIndicator color={colors.primary} />
           ) : authed && profile?.addresses.length ? (
@@ -204,7 +212,7 @@ export default function CheckoutScreen() {
 
         {/* Schedule */}
         {scheduleEnabled ? (
-          <Section title="🕐 Delivery Time">
+          <Section title="2. Delivery Time">
             <View style={styles.row}>
               {(['now', 'scheduled'] as const).map((t) => (
                 <Pressable
@@ -261,7 +269,7 @@ export default function CheckoutScreen() {
         ) : null}
 
         {/* Payment */}
-        <Section title="💳 Payment">
+        <Section title="3. Payment Method">
           {PAYMENT_OPTIONS.filter((p) => {
             const methods = config.paymentMethods.filter((m) => m.isEnabled).map((m) => m.method);
             return methods.length === 0 || methods.includes(p.value);
@@ -324,7 +332,7 @@ export default function CheckoutScreen() {
         ) : null}
 
         {/* Summary */}
-        <Section title="📋 Order Summary">
+        <Section title="4. Order Summary">
           {items.map((i) => (
             <View key={`${i.productId}-${i.variantId}`} style={styles.line}>
               <Text style={styles.lineLabel}>

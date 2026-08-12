@@ -5,7 +5,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { APP_VERSION } from '@/lib/constants';
 import { DEFAULT_APP_CONFIG } from '@/lib/default-app-config';
 import { getConfigStore } from '@/lib/config-store';
-import { isAuthenticated } from '@/lib/auth-storage';
 import { ConfigProvider } from '@/providers/config-context';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -24,11 +23,11 @@ interface BootstrapContextValue {
 
 const BootstrapContext = createContext<BootstrapContextValue | null>(null);
 
+/** Guests land on Home; login is only required at checkout. */
 async function resolveInitialHref(config: MobileAppConfigDto): Promise<string> {
   if (config.maintenance.maintenanceMode) return '/maintenance';
   if (shouldForceUpdate(APP_VERSION, config)) return '/force-update';
-  const authed = await isAuthenticated();
-  return authed ? '/(tabs)' : '/(auth)/login';
+  return '/(tabs)';
 }
 
 export function BootstrapProvider({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,11 @@
-import { calculatePackingTotal, type PackingLineItem } from './index';
+/** Local packing fields — avoid importing from index (require cycle). */
+type PackingFields = { quantity: number; packingCharge?: number | null };
 
-export interface BillLineItem extends PackingLineItem {
+function packingTotalOf(items: PackingFields[]): number {
+  return items.reduce((sum, item) => sum + (item.packingCharge ?? 20) * item.quantity, 0);
+}
+
+export interface BillLineItem extends PackingFields {
   unitPrice: number;
   productId?: string;
   categoryGstPercent?: number | null;
@@ -91,7 +96,7 @@ export function calculatePosBillTotals(
 } {
   const mode = POS_MODE_CONFIG[options.orderType] ?? POS_MODE_CONFIG.TAKEAWAY;
   const subtotal = calculateSubtotal(items);
-  const packingCharge = mode.applyPacking ? calculatePackingTotal(items) : 0;
+  const packingCharge = mode.applyPacking ? packingTotalOf(items) : 0;
   const packedItemCount = items.reduce((s, i) => s + i.quantity, 0);
   const deliveryCharge = mode.applyDelivery ? (options.deliveryCharge ?? 30) : 0;
   const { taxAmount, cgstAmount, sgstAmount } = calculateGstLines(items);

@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppProviders } from '@/providers/app-providers';
 import { BootstrapProvider, useBootstrap } from '@/providers/bootstrap-context';
 import { resetConfigStore } from '@/lib/config-store';
 import { StoreClosedBanner } from '@/components/store-closed-banner';
+import { RemoteSplashOverlay } from '@/components/remote-splash-overlay';
 
 function OfflineBanner() {
   const { offline, retry } = useBootstrap();
@@ -25,13 +26,7 @@ function BootstrapShell({ children }: { children: React.ReactNode }) {
 
   return (
     <View style={styles.appRoot}>
-      {phase === 'loading' ? (
-        <View style={styles.bootOverlay}>
-          <ActivityIndicator size="large" color="#F59E0B" />
-          <Text style={styles.loadingText}>Mercy Dosa House</Text>
-          <Text style={styles.loadingSub}>Crispy Dosas. Happy Hearts.</Text>
-        </View>
-      ) : null}
+      {phase === 'loading' ? <RemoteSplashOverlay /> : null}
       {phase === 'ready' && error ? (
         <View style={styles.offlineBanner}>
           <Text style={styles.offlineText}>Using offline defaults — {error}</Text>
@@ -56,7 +51,7 @@ export default function RootLayout() {
           <BootstrapShell>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)/login" />
+              <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="product/[id]" />
               <Stack.Screen name="checkout" />
@@ -85,15 +80,6 @@ export { resetConfigStore };
 const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   appRoot: { flex: 1 },
-  bootOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#14532D',
-    zIndex: 10,
-  },
-  loadingText: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 16 },
-  loadingSub: { color: 'rgba(255,255,255,0.8)', marginTop: 4 },
   offlineBanner: {
     backgroundColor: '#FEF3C7',
     borderBottomColor: '#F59E0B',

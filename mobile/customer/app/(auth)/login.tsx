@@ -1,6 +1,7 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,18 +11,30 @@ import {
   View,
 } from 'react-native';
 import { sendOtp, verifyOtp } from '@/lib/auth-api';
-import { useAppConfig, useFeatureFlag, useThemeColors } from '@/providers/config-context';
+import { useAppConfig, useThemeColors } from '@/providers/config-context';
+import { WEBSITE_URL } from '@/lib/constants';
+import { resolveAssetUrl } from '@/ui/theme';
 
 export default function LoginScreen() {
   const config = useAppConfig();
   const colors = useThemeColors();
-  const guestCheckout = useFeatureFlag('guest_checkout');
+  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const returnTo = typeof params.returnTo === 'string' ? params.returnTo : '/(tabs)';
 
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const logoUri = resolveAssetUrl(
+    config.branding.logoUrl ?? config.branding.splashLogoUrl,
+    WEBSITE_URL,
+  );
+
+  function continueAfterAuth() {
+    router.replace(returnTo as '/(tabs)');
+  }
 
   async function handleSendOtp() {
     setLoading(true);
@@ -44,7 +57,7 @@ export default function LoginScreen() {
     setError(null);
     try {
       await verifyOtp({ phone, otp });
-      router.replace('/(tabs)');
+      continueAfterAuth();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid OTP');
     } finally {
@@ -58,7 +71,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <Text style={styles.logo}>🥞</Text>
+        {logoUri ? (
+          <Image source={{ uri: logoUri }} style={styles.logoImg} resizeMode="contain" />
+        ) : (
+          <Text style={styles.logo}>🥞</Text>
+        )}
         <Text style={styles.title}>{config.branding.appName}</Text>
         <Text style={styles.tagline}>{config.branding.tagline}</Text>
       </View>
@@ -106,11 +123,13 @@ export default function LoginScreen() {
           </Pressable>
         ) : null}
 
-        {guestCheckout ? (
-          <Pressable onPress={() => router.replace('/(tabs)')}>
-            <Text style={styles.guest}>Continue as Guest →</Text>
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() =>
+            router.replace(returnTo.includes('checkout') ? '/(tabs)' : (returnTo as '/(tabs)'))
+          }
+        >
+          <Text style={styles.guest}>Continue as Guest →</Text>
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
   );
@@ -120,6 +139,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 20 },
   header: { alignItems: 'center', marginBottom: 24 },
   logo: { fontSize: 48 },
+  logoImg: { width: 88, height: 88, borderRadius: 44 },
   title: { color: '#fff', fontSize: 26, fontWeight: '800', marginTop: 8 },
   tagline: { color: 'rgba(255,255,255,0.85)', marginTop: 4 },
   card: {

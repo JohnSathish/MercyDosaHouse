@@ -3,6 +3,9 @@ import { FiMapPin, FiPhone, FiClock, FiInstagram, FiFacebook } from 'react-icons
 import { FaWhatsapp } from 'react-icons/fa';
 import { BRAND } from '@mdh/utils';
 import { SiteLogo } from '@/components/site-logo';
+import { LiveVisitorCounter } from '@/components/live-visitor-counter';
+
+const BASECODE_LABS_URL = 'https://basecodelabs.com';
 
 interface SiteFooterProps {
   phone?: string;
@@ -106,9 +109,27 @@ export function SiteFooter({
           </div>
         </div>
       </div>
+
       <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-white/50">
-          © {new Date().getFullYear()} {BRAND.name}. All rights reserved.
+        <div className="container mx-auto px-4 py-6 space-y-5">
+          <LiveVisitorCounter />
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-white/50">
+            <p className="text-center sm:text-left">
+              © {new Date().getFullYear()} {BRAND.name}. All rights reserved.
+            </p>
+            <p className="text-center sm:text-right">
+              Powered by:{' '}
+              <a
+                href={BASECODE_LABS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-amber-300/90 hover:text-amber-200 underline underline-offset-4 decoration-amber-300/30 hover:decoration-amber-200/60 transition-colors font-medium"
+              >
+                BaseCode Labs Pvt. Ltd.
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

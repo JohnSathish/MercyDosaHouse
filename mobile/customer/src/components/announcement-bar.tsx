@@ -1,79 +1,82 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { useAppConfig } from '@/providers/config-context';
+import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import type { MarketingAnnouncementDto } from '@mdh/types';
 import { WEBSITE_URL } from '@/lib/constants';
-
-function resolveImageUrl(url?: string | null): string | undefined {
-  if (!url) return undefined;
-  if (url.startsWith('http')) return url;
-  return `${WEBSITE_URL.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
-}
+import { SectionHeader } from '@/ui';
+import { COLORS, RADIUS, SHADOW, resolveAssetUrl } from '@/ui/theme';
 
 function topBarAnnouncement(
   config: ReturnType<typeof useAppConfig>,
 ): MarketingAnnouncementDto | undefined {
-  const marketing = config.marketing;
-  const fromPlacement = marketing?.byPlacement?.TOP_BAR?.[0];
+  const fromPlacement = config.marketing?.byPlacement?.TOP_BAR?.[0];
   if (fromPlacement) return fromPlacement;
-  return config.announcements.find((a) => a.type === 'BAR');
+  const bar = config.announcements.find((a) => a.type === 'BAR');
+  return bar as MarketingAnnouncementDto | undefined;
 }
 
 export function AnnouncementBar() {
   const config = useAppConfig();
   const item = topBarAnnouncement(config);
   const message = item ? (item.icon ? `${item.icon} ${item.message}` : item.message) : null;
-
   if (!message) return null;
 
   return (
     <View style={styles.bar}>
-      <Text style={styles.text} numberOfLines={2}>
+      <Text style={styles.barText} numberOfLines={2}>
         {message}
       </Text>
     </View>
   );
 }
 
-/** Compact home-delivery card below hero — driven by marketing delivery config. */
+/** Compact home-delivery card — Admin marketing delivery config. */
 export function HomeDeliverySection() {
   const config = useAppConfig();
+  const colors = useThemeColors();
   const delivery = config.marketing?.delivery;
   const card = config.marketing?.byPlacement?.DELIVERY_CARD?.[0];
 
   if (!delivery && !card) return null;
 
-  const areas = delivery?.areas?.length ? delivery.areas.join(' & ') : card?.shortMessage;
+  const areas = delivery?.areas?.length
+    ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
+    : card?.shortMessage;
 
   return (
     <View style={styles.deliveryWrap}>
       <View style={styles.deliveryCard}>
-        <Text style={styles.deliveryTitle}>
-          {card?.icon ?? '🏠'} {card?.title ?? 'Home Delivery'}
+        <Text style={[styles.deliveryTitle, { color: colors.primary }]}>
+          {card?.icon ?? '🚚'} {card?.title ?? 'Home Delivery'}
         </Text>
         {areas ? (
           <Text style={styles.deliveryBody}>
-            Currently available in{'\n'}
-            <Text style={styles.deliveryBold}>{areas}</Text>
+            Currently available in{' '}
+            <Text style={[styles.deliveryBold, { color: colors.primary }]}>{areas}</Text>
           </Text>
         ) : null}
-        {delivery?.orderWindow ? (
-          <Text style={styles.deliveryMeta}>Order: {delivery.orderWindow}</Text>
+        <View style={styles.metaRow}>
+          {delivery?.orderWindow ? (
+            <Text style={styles.deliveryMeta}>Order: {delivery.orderWindow}</Text>
+          ) : null}
+          {delivery?.deliveryWindow ? (
+            <Text style={styles.deliveryMeta}>Delivery: {delivery.deliveryWindow}</Text>
+          ) : null}
+        </View>
+        {(delivery?.expansionMessage ?? card?.message ?? delivery?.message) ? (
+          <Text style={[styles.deliveryFooter, { color: colors.secondary }]}>
+            {delivery?.expansionMessage ?? card?.message ?? delivery?.message}
+          </Text>
         ) : null}
-        {delivery?.deliveryWindow ? (
-          <Text style={styles.deliveryMeta}>Delivery: {delivery.deliveryWindow}</Text>
-        ) : null}
-        <Text style={styles.deliveryFooter}>
-          {delivery?.expansionMessage ?? card?.message ?? delivery?.message}
-        </Text>
       </View>
     </View>
   );
 }
 
-/** Pre-order / coming-soon cards — HERO_SECTION placement with banner images. */
+/** Horizontal coming-soon / pre-order carousel. */
 export function PreOrderComingSoonSection() {
   const config = useAppConfig();
+  const colors = useThemeColors();
   const promos = (
     config.marketing?.byPlacement?.HERO_SECTION ??
     config.marketing?.announcements ??
@@ -84,37 +87,43 @@ export function PreOrderComingSoonSection() {
 
   return (
     <View style={styles.preOrderWrap}>
-      <Text style={styles.preOrderHeading}>🔥 Coming Soon & Pre-Order</Text>
+      <SectionHeader title="🔥 Coming Soon" />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.preOrderRow}
       >
         {promos.map((promo) => {
-          const imageUrl = resolveImageUrl(promo.heroBannerImageUrl ?? promo.bannerImageUrl);
+          const imageUrl = resolveAssetUrl(
+            promo.heroBannerImageUrl ?? promo.bannerImageUrl,
+            WEBSITE_URL,
+          );
           const isComingSoon = /coming soon/i.test(promo.title);
           return (
             <View key={promo.id} style={styles.promoCard}>
               {imageUrl ? (
                 <Image source={{ uri: imageUrl }} style={styles.promoImage} resizeMode="cover" />
-              ) : null}
+              ) : (
+                <View style={[styles.promoImage, styles.promoFallback]}>
+                  <Text style={{ fontSize: 36 }}>🥘</Text>
+                </View>
+              )}
               <View style={styles.promoBody}>
-                <Text style={styles.promoBadge}>{isComingSoon ? 'Coming Soon' : 'Pre-Order'}</Text>
-                <Text style={styles.promoTitle} numberOfLines={2}>
+                <Text style={[styles.promoBadge, { backgroundColor: colors.secondary }]}>
+                  {isComingSoon ? 'Coming Soon' : 'Pre-Order'}
+                </Text>
+                <Text style={[styles.promoTitle, { color: colors.primary }]} numberOfLines={2}>
                   {promo.icon ? `${promo.icon} ` : ''}
                   {promo.title}
                 </Text>
                 {promo.shortMessage ? (
                   <Text style={styles.promoPrice}>{promo.shortMessage}</Text>
                 ) : null}
-                <Text style={styles.promoDesc} numberOfLines={3}>
-                  {promo.message}
-                </Text>
                 {(promo.ctaUrl || promo.linkUrl) && (
                   <Pressable
-                    style={styles.promoBtn}
+                    style={[styles.promoBtn, { backgroundColor: colors.primary }]}
                     onPress={() =>
-                      router.push((promo.ctaUrl ?? promo.linkUrl ?? '/checkout') as never)
+                      router.push((promo.ctaUrl ?? promo.linkUrl ?? '/(tabs)/menu') as never)
                     }
                   >
                     <Text style={styles.promoBtnText}>{promo.ctaText ?? 'Pre-Order'}</Text>
@@ -129,7 +138,7 @@ export function PreOrderComingSoonSection() {
   );
 }
 
-/** @deprecated Use HomeDeliverySection + PreOrderComingSoonSection */
+/** @deprecated */
 export function DeliveryInfoCard() {
   return (
     <>
@@ -141,77 +150,68 @@ export function DeliveryInfoCard() {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: '#14532D',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
-  text: { color: '#FDE68A', fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  deliveryWrap: { paddingHorizontal: 16, paddingTop: 12 },
+  barText: { color: '#FDE68A', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  deliveryWrap: { paddingHorizontal: 16, paddingTop: 10 },
   deliveryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(20, 83, 45, 0.12)',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  deliveryTitle: {
-    color: '#14532D',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  deliveryBody: { color: '#374151', fontSize: 14, lineHeight: 20 },
-  deliveryBold: { color: '#14532D', fontWeight: '700' },
-  deliveryMeta: { color: '#6B7280', fontSize: 13, marginTop: 4 },
-  deliveryFooter: { color: '#F59E0B', fontSize: 13, fontWeight: '600', marginTop: 10 },
-  preOrderWrap: { paddingTop: 16, paddingBottom: 4 },
-  preOrderHeading: {
-    color: '#14532D',
-    fontSize: 16,
-    fontWeight: '800',
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  preOrderRow: { paddingHorizontal: 16, gap: 12 },
-  promoCard: {
-    backgroundColor: '#FFF8E8',
-    borderRadius: 16,
+    ...SHADOW.card,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(20, 83, 45, 0.1)',
-    width: 260,
-    overflow: 'hidden',
   },
-  promoImage: { width: '100%', height: 120 },
-  promoBody: { padding: 12 },
+  deliveryTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  deliveryBody: { color: COLORS.textMuted, fontSize: 13, lineHeight: 18 },
+  deliveryBold: { fontWeight: '700' },
+  metaRow: { marginTop: 6, gap: 2 },
+  deliveryMeta: { color: COLORS.textMuted, fontSize: 12 },
+  deliveryFooter: { fontSize: 12, fontWeight: '700', marginTop: 8 },
+  preOrderWrap: { paddingTop: 8, paddingHorizontal: 16 },
+  preOrderRow: { gap: 12, paddingRight: 8 },
+  promoCard: {
+    ...SHADOW.card,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    width: 200,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  promoImage: { width: '100%', height: 100 },
+  promoFallback: {
+    backgroundColor: COLORS.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promoBody: { padding: 10 },
   promoBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F59E0B',
-    color: '#1F2937',
     fontSize: 10,
     fontWeight: '800',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 999,
+    borderRadius: RADIUS.full,
     overflow: 'hidden',
     marginBottom: 6,
+    color: COLORS.text,
   },
-  promoTitle: { color: '#14532D', fontSize: 14, fontWeight: '800', marginBottom: 4 },
-  promoPrice: { color: '#F59E0B', fontSize: 12, fontWeight: '700', marginBottom: 4 },
-  promoDesc: { color: '#6B7280', fontSize: 12, lineHeight: 17 },
+  promoTitle: { fontSize: 13, fontWeight: '800', marginBottom: 4 },
+  promoPrice: { color: COLORS.secondary, fontSize: 12, fontWeight: '700', marginBottom: 6 },
   promoBtn: {
     alignSelf: 'flex-start',
-    backgroundColor: '#14532D',
-    borderRadius: 10,
-    marginTop: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+    marginTop: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   promoBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
 });

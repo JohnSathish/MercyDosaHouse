@@ -46,7 +46,7 @@ MDH_ADMIN_PORT=13002
 
 SMS_PROVIDER=none
 EMAIL_PROVIDER=smtp
-EMAIL_FROM=Mercy Dosa House <contact@mercydosahouse.com>
+EMAIL_FROM="Mercy Dosa House <contact@mercydosahouse.com>"
 ORDER_NOTIFICATION_RECIPIENTS=johnsathish16@gmail.com,nambikaimary96@gmail.com,alboraja@gmail.com
 ADMIN_URL=https://admin.mercydosahouse.com
 SMTP_HOST=smtp.hostinger.com

@@ -1,16 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
+import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
 
 interface Notification {
   id: string;
@@ -18,10 +12,23 @@ interface Notification {
   body: string;
   isRead: boolean;
   createdAt: string;
+  type?: string;
+}
+
+function iconFor(title: string, type?: string) {
+  const t = `${type ?? ''} ${title}`.toLowerCase();
+  if (t.includes('deliver')) return '🛵';
+  if (t.includes('prepar')) return '👨‍🍳';
+  if (t.includes('ready')) return '📦';
+  if (t.includes('confirm') || t.includes('accepted')) return '✅';
+  if (t.includes('offer') || t.includes('promo')) return '🎁';
+  if (t.includes('closed') || t.includes('open')) return '🏪';
+  return '🔔';
 }
 
 export default function NotificationsScreen() {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
   const {
@@ -40,10 +47,10 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>← Back</Text>
+          <Text style={[styles.back, { color: colors.primary }]}>← Back</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.primary }]}>Notifications</Text>
       </View>
@@ -51,7 +58,19 @@ export default function NotificationsScreen() {
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
       ) : error ? (
-        <Text style={styles.empty}>Sign in to view notifications.</Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.empty}>Sign in to view notifications.</Text>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/(auth)/login',
+                params: { returnTo: '/notifications' },
+              })
+            }
+          >
+            <Text style={[styles.link, { color: colors.primary }]}>Login</Text>
+          </Pressable>
+        </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {notifications.map((n) => (
@@ -60,33 +79,47 @@ export default function NotificationsScreen() {
               style={[styles.card, !n.isRead && styles.unread]}
               onPress={() => markRead(n.id)}
             >
-              <Text style={styles.cardTitle}>{n.title}</Text>
-              <Text style={styles.cardBody}>{n.body}</Text>
-              <Text style={styles.date}>{new Date(n.createdAt).toLocaleString()}</Text>
+              <Text style={styles.icon}>{iconFor(n.title, n.type)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{n.title}</Text>
+                <Text style={styles.cardBody}>{n.body}</Text>
+                <Text style={styles.date}>{new Date(n.createdAt).toLocaleString()}</Text>
+              </View>
+              {!n.isRead ? (
+                <View style={[styles.dot, { backgroundColor: colors.secondary }]} />
+              ) : null}
             </Pressable>
           ))}
           {!notifications.length ? <Text style={styles.empty}>No notifications yet.</Text> : null}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFF7E6' },
-  header: { padding: 16 },
-  back: { color: '#14532D', fontWeight: '600', marginBottom: 8 },
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  header: { paddingHorizontal: 16, paddingBottom: 8 },
+  back: { fontWeight: '600', marginBottom: 8 },
   title: { fontSize: 22, fontWeight: '800' },
-  content: { padding: 16, paddingTop: 0 },
+  content: { padding: 16, paddingTop: 0, paddingBottom: 40 },
+  emptyWrap: { alignItems: 'center', marginTop: 40 },
+  empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: 32 },
+  link: { fontWeight: '700', marginTop: 12 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    ...SHADOW.card,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
     padding: 14,
-    marginBottom: 8,
+    marginBottom: 10,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
   },
-  unread: { borderLeftWidth: 3, borderLeftColor: '#F59E0B' },
-  cardTitle: { fontWeight: '700', color: '#1F2937' },
-  cardBody: { color: '#6B7280', marginTop: 4, fontSize: 14 },
-  date: { color: '#9CA3AF', fontSize: 11, marginTop: 6 },
-  empty: { color: '#6B7280', textAlign: 'center', marginTop: 32 },
+  unread: { borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)' },
+  icon: { fontSize: 22, marginTop: 2 },
+  cardTitle: { fontWeight: '700', color: COLORS.text },
+  cardBody: { color: COLORS.textMuted, fontSize: 13, marginTop: 4, lineHeight: 18 },
+  date: { color: COLORS.textLight, fontSize: 11, marginTop: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
 });

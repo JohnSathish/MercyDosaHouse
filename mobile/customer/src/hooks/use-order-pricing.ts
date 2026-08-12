@@ -65,6 +65,8 @@ export function useOrderPricing(couponDiscount = 0) {
       couponDiscount: effectiveCoupon,
       rewardDiscount,
       totalDiscount,
+      /** Alias for UI bill rows */
+      discount: totalDiscount,
       grandTotal,
       scheduledIso,
       couponsBlocked,

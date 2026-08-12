@@ -106,7 +106,11 @@ export default function TrackOrderScreen() {
               </Text>
             </View>
           </View>
-          <OrderTimeline status={status} primary={colors.primary} />
+          <OrderTimeline
+            status={status}
+            orderType={(order as { orderType?: string }).orderType}
+            primary={colors.primary}
+          />
         </View>
 
         <View style={styles.card}>
