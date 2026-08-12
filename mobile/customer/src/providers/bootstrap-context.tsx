@@ -42,7 +42,11 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setInitialHref(null);
 
+    // Hide native Expo splash immediately so the branded JS splash can paint
+    await SplashScreen.hideAsync().catch(() => undefined);
+
     let nextConfig = DEFAULT_APP_CONFIG;
+    const splashStartedAt = Date.now();
 
     try {
       const store = getConfigStore();
@@ -64,7 +68,11 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
     setConfig(nextConfig);
     const href = await resolveInitialHref(nextConfig);
     setInitialHref(href);
-    await SplashScreen.hideAsync();
+
+    const remaining = 2800 - (Date.now() - splashStartedAt);
+    if (remaining > 0) {
+      await new Promise((r) => setTimeout(r, remaining));
+    }
     setPhase('ready');
   }, []);
 

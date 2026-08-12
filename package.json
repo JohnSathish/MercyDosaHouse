@@ -46,12 +46,12 @@
       "sharp"
     ],
     "overrides": {
-      "@mdh/customer-app>react": "18.3.1",
-      "@mdh/customer-app>@types/react": "~18.3.12",
-      "@mdh/customer-app>react-dom": "18.3.1",
-      "@mdh/admin-app>react": "18.3.1",
-      "@mdh/admin-app>@types/react": "~18.3.12",
-      "@mdh/admin-app>react-dom": "18.3.1"
+      "@mdh/customer-app>react": "19.0.0",
+      "@mdh/customer-app>@types/react": "~19.0.10",
+      "@mdh/customer-app>react-dom": "19.0.0",
+      "@mdh/admin-app>react": "19.0.0",
+      "@mdh/admin-app>@types/react": "~19.0.10",
+      "@mdh/admin-app>react-dom": "19.0.0"
     }
   }
 }

@@ -38,6 +38,8 @@
       }
     },
     "production": {
+      "distribution": "store",
+      "pnpm": "10.30.1",
       "android": {
         "buildType": "app-bundle"
       },
@@ -48,6 +50,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import { AppProviders } from '@/providers/app-providers';
 import { BootstrapProvider, useBootstrap } from '@/providers/bootstrap-context';
 import { resetConfigStore } from '@/lib/config-store';
@@ -23,10 +24,19 @@ function OfflineBanner() {
 
 function BootstrapShell({ children }: { children: React.ReactNode }) {
   const { phase, error, retry } = useBootstrap();
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    if (phase !== 'ready') {
+      setShowSplash(true);
+      return;
+    }
+    const t = setTimeout(() => setShowSplash(false), 420);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   return (
     <View style={styles.appRoot}>
-      {phase === 'loading' ? <RemoteSplashOverlay /> : null}
       {phase === 'ready' && error ? (
         <View style={styles.offlineBanner}>
           <Text style={styles.offlineText}>Using offline defaults — {error}</Text>
@@ -39,6 +49,8 @@ function BootstrapShell({ children }: { children: React.ReactNode }) {
       )}
       <StoreClosedBanner />
       {children}
+      {/* Mounted last so it always paints above the navigator on Android */}
+      {showSplash ? <RemoteSplashOverlay /> : null}
     </View>
   );
 }

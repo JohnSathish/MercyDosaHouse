@@ -29,11 +29,13 @@ export function CategoryChip({
   label,
   active,
   onPress,
+  compact,
 }: {
   icon?: string | null;
   label: string;
   active?: boolean;
   onPress: () => void;
+  compact?: boolean;
 }) {
   const colors = useThemeColors();
   return (
@@ -41,13 +43,27 @@ export function CategoryChip({
       onPress={onPress}
       style={[
         styles.chip,
-        active && { backgroundColor: colors.primary, borderColor: colors.primary },
+        compact && styles.chipCompact,
+        active && {
+          backgroundColor: colors.primary,
+          borderColor: colors.primary,
+        },
       ]}
     >
-      <View style={[styles.iconCircle, active && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-        <Text style={styles.icon}>{icon ?? '🍽️'}</Text>
+      <View
+        style={[
+          styles.iconCircle,
+          compact && styles.iconCircleCompact,
+          active && { backgroundColor: 'rgba(255,255,255,0.2)' },
+          !active && compact ? { borderWidth: 1.5, borderColor: COLORS.border } : null,
+        ]}
+      >
+        <Text style={[styles.icon, compact && styles.iconCompact]}>{icon ?? '🍽️'}</Text>
       </View>
-      <Text style={[styles.chipLabel, active && { color: '#fff' }]} numberOfLines={1}>
+      <Text
+        style={[styles.chipLabel, compact && styles.chipLabelCompact, active && { color: '#fff' }]}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </Pressable>
@@ -74,6 +90,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     minWidth: 72,
   },
+  chipCompact: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    minWidth: 60,
+    marginRight: 6,
+  },
   iconCircle: {
     width: 44,
     height: 44,
@@ -83,12 +107,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
+  iconCircleCompact: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.surface,
+    marginBottom: 4,
+  },
   icon: { fontSize: 22 },
+  iconCompact: { fontSize: 22 },
   chipLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: COLORS.text,
     maxWidth: 64,
     textAlign: 'center',
+  },
+  chipLabelCompact: {
+    fontSize: 11,
+    fontWeight: '600',
+    maxWidth: 72,
   },
 });

@@ -5,6 +5,10 @@ packages:
   - "mobile/*"
 
 publicHoistPattern:
-  - "*expo-modules-core"
-  - "*expo-modules-autolinking"
-  - "*babel-preset-expo"
+  - "*expo*"
+  - "*expo-modules-core*"
+  - "*expo-modules-autolinking*"
+  - "*babel-preset-expo*"
+  - "*@expo/*"
+  - "*react-native*"
+  - "*@react-native*/*"

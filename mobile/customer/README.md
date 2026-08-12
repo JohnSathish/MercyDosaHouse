@@ -2,6 +2,8 @@
 
 Production Expo app (`mobile/customer`) for ordering from https://mercydosahouse.com.
 
+**Play Console guide:** see [PLAY_STORE.md](./PLAY_STORE.md)
+
 ## Production configuration
 
 Set in `.env` (copy from `.env.example`):
@@ -13,15 +15,23 @@ EXPO_PUBLIC_WEBSITE_URL=https://mercydosahouse.com
 
 These are baked in at **build time**. OTP, email, and payment credentials stay on the server — never in the app.
 
-## Build release APK (recommended: EAS cloud)
+## Build production AAB (Play Store)
+
+```powershell
+cd mobile/customer
+pnpm install
+pnpm build:android:production
+```
+
+Downloads as `.aab` from the Expo build page. Upload that file in Play Console.
+
+## Build testing APK (internal / sideload)
 
 ```bash
 cd mobile/customer
 pnpm install
 npx eas-cli build --platform android --profile testing
 ```
-
-Download the APK from the Expo build page when complete.
 
 ## Build release APK (local — requires Android SDK + JDK)
 
@@ -32,20 +42,13 @@ $env:EXPO_PUBLIC_WEBSITE_URL="https://mercydosahouse.com"
 $env:NODE_ENV="production"
 
 cd mobile/customer
-pnpm prebuild:android    # generates android/ (not committed)
-pnpm bundle:android      # exports JS bundle to android assets
+pnpm prebuild:android
+pnpm bundle:android
 cd android
 .\gradlew.bat assembleRelease -x createBundleReleaseJsAndAssets
 ```
 
 APK path: `android/app/build/outputs/apk/release/app-release.apk`
-
-Copy to releases folder:
-
-```powershell
-mkdir releases -Force
-copy android\app\build\outputs\apk\release\app-release.apk releases\mercy-dosa-house-v1.0.1-testing.apk
-```
 
 ## Dev (Expo Go / emulator)
 
@@ -62,4 +65,5 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:3001/api/v1
 ## App ID
 
 - Package: `com.mercydosahouse.customer`
-- Version: `1.0.1` (versionCode 2)
+- Version: `1.0.7` (versionCode `8`)
+- Privacy: https://mercydosahouse.com/privacy

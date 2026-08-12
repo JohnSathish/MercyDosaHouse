@@ -1,10 +1,19 @@
-import type { MobileHomeSectionDto, CheckoutProfileDto } from '@mdh/types';
-import { allocateHomeCatalog, productHomeBadge } from '@mdh/utils';
+import type { BannerDto, MobileHomeSectionDto, CheckoutProfileDto } from '@mdh/types';
+import { allocateHomeCatalog, formatCurrency } from '@mdh/utils';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { formatCurrency } from '@mdh/utils';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Dimensions,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { api } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth-storage';
 import { WEBSITE_URL } from '@/lib/constants';
@@ -25,20 +34,39 @@ interface Category {
   id: string;
   name: string;
   icon?: string | null;
+  slug?: string;
 }
 
 type CatalogProduct = FoodCardProduct & {
+  categoryId?: string;
+  category?: { id: string; name: string; slug?: string };
   isFeatured?: boolean;
   isBestseller?: boolean;
   isOnOffer?: boolean;
   isPreOrder?: boolean;
   isComingSoon?: boolean;
+  isAvailable?: boolean;
 };
+
+type HeroSlide = {
+  id: string;
+  badge?: string;
+  title: string;
+  subtitle?: string;
+  imageUrl?: string;
+  price?: number;
+  offerLabel?: string;
+  preOrderNote?: string;
+  ctaText?: string;
+  linkUrl?: string;
+};
+
+const HERO_WIDTH = Dimensions.get('window').width - 28;
 
 function ChargeHintStrip() {
   const config = useAppConfig();
   const d = config.delivery;
-  const freeMsg = d.freeDeliveryLimit > 0 ? ` · Free delivery above ₹${d.freeDeliveryLimit}` : '';
+  const freeMsg = d.freeDeliveryLimit > 0 ? ` · Free above ₹${d.freeDeliveryLimit}` : '';
   return (
     <View style={styles.chargeStrip}>
       <Text style={styles.chargeText}>
@@ -60,38 +88,34 @@ function InlineHomeSearch() {
       params.set('search', query.trim());
       return api.list<FoodCardProduct>(`/products?${params.toString()}`);
     },
-    enabled: query.trim().length >= 2,
+    enabled: query.trim().length >= 1,
   });
 
   const products = data?.data ?? [];
-  const suggestions = ['Dosa', 'Idli', 'Biryani', 'Vada'];
 
   return (
     <View style={styles.searchBlock}>
-      <SearchBar value={query} onChangeText={setQuery} />
-      {query.trim().length >= 2 ? (
+      <SearchBar
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search for dosa, idli, biryani..."
+      />
+      {query.trim().length >= 1 ? (
         <View style={styles.searchResults}>
-          <Text style={[styles.searchLabel, { color: colors.primary }]}>Top Results</Text>
           {isFetching && !products.length ? (
             <FoodCardSkeleton />
           ) : products.length ? (
-            products.slice(0, 5).map((p) => <FoodCard key={p.id} product={p} />)
+            products.slice(0, 5).map((p) => <FoodCard key={p.id} product={p} showFavorite />)
           ) : (
             <Text style={styles.empty}>No matches for “{query}”</Text>
           )}
-          <Pressable onPress={() => router.push({ pathname: '/search', params: { q: query } })}>
-            <Text style={[styles.seeAll, { color: colors.secondary }]}>See all results →</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestRow}>
-          {suggestions.map((s) => (
-            <Pressable key={s} style={styles.suggestChip} onPress={() => setQuery(s)}>
-              <Text style={styles.suggestText}>{s}</Text>
+          {products.length > 0 ? (
+            <Pressable onPress={() => router.push({ pathname: '/search', params: { q: query } })}>
+              <Text style={[styles.seeAll, { color: colors.secondary }]}>See all results →</Text>
             </Pressable>
-          ))}
-        </ScrollView>
-      )}
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -106,17 +130,24 @@ function CategoriesSection() {
     <View style={styles.section}>
       <SectionHeader
         title="Explore Categories"
-        actionLabel="Full menu"
+        actionLabel="See all"
         onAction={() => router.push('/(tabs)/menu')}
       />
       {isLoading ? (
         <FoodCardSkeleton />
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <CategoryChip icon="🍽️" label="All" onPress={() => router.push('/(tabs)/menu')} />
+          <CategoryChip
+            compact
+            icon="🍽️"
+            label="All"
+            active
+            onPress={() => router.push('/(tabs)/menu')}
+          />
           {categories.map((cat) => (
             <CategoryChip
               key={cat.id}
+              compact
               icon={cat.icon}
               label={cat.name}
               onPress={() =>
@@ -124,6 +155,12 @@ function CategoriesSection() {
               }
             />
           ))}
+          <CategoryChip
+            compact
+            icon="➕"
+            label="More"
+            onPress={() => router.push('/(tabs)/menu')}
+          />
         </ScrollView>
       )}
     </View>
@@ -144,7 +181,7 @@ function ProductCarouselBlock({
     <View style={styles.section}>
       <SectionHeader
         title={`${emoji ? `${emoji} ` : ''}${title}`}
-        actionLabel="Full menu"
+        actionLabel="See all"
         onAction={() => router.push('/(tabs)/menu')}
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -160,29 +197,271 @@ function ProductCarouselBlock({
           />
         ))}
       </ScrollView>
+      <Pressable style={styles.fullMenuLink} onPress={() => router.push('/(tabs)/menu')}>
+        <Text style={styles.fullMenuLinkText}>View Full Menu →</Text>
+      </Pressable>
     </View>
   );
 }
 
-function ProductListBlock({
-  title,
+/** Compact admin-driven offer strip (offers CMS). */
+function CompactOfferCard() {
+  const config = useAppConfig();
+  const colors = useThemeColors();
+  const offer = config.offers?.find((o) => o.isActive !== false) ?? config.offers?.[0] ?? null;
+
+  if (!offer) return null;
+
+  const discount =
+    offer.discountPct != null
+      ? `${offer.discountPct}% OFF`
+      : offer.title.replace(/^special offer[:\s]*/i, '') || offer.title;
+
+  return (
+    <View style={styles.section}>
+      <Pressable
+        style={styles.offerStrip}
+        onPress={() => router.push((offer.buttonUrl as never) || ('/(tabs)/menu' as never))}
+      >
+        <Text style={styles.offerGift}>🎁</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.offerStripTitle, { color: colors.primary }]}>
+            Special Offer: {discount}
+          </Text>
+          {offer.description ? (
+            <Text style={styles.offerStripBody} numberOfLines={1}>
+              {offer.description}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={[styles.offerCta, { color: colors.secondary }]}>
+          {offer.buttonLabel ?? 'Order Now'} →
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function buildHeroSlides(
+  section: MobileHomeSectionDto | undefined,
+  banners: BannerDto[],
+  config: ReturnType<typeof useAppConfig>,
+): HeroSlide[] {
+  const slides: HeroSlide[] = [];
+
+  const content = (section?.content ?? {}) as {
+    badge?: string;
+    title?: string;
+    subtitle?: string;
+    imageUrl?: string;
+    ctaText?: string;
+    price?: number;
+    offerLabel?: string;
+    preOrderNote?: string;
+    linkUrl?: string;
+    productId?: string;
+  };
+
+  if (content.title || content.imageUrl) {
+    slides.push({
+      id: section?.id ?? 'hero-section',
+      badge: content.badge ?? "Today's Special",
+      title: content.title ?? config.branding.appName,
+      subtitle: content.subtitle,
+      imageUrl: content.imageUrl,
+      price: content.price,
+      offerLabel: content.offerLabel,
+      preOrderNote: content.preOrderNote,
+      ctaText: content.ctaText ?? 'Order Now',
+      linkUrl: content.linkUrl ?? (content.productId ? `/product/${content.productId}` : undefined),
+    });
+  }
+
+  for (const b of banners.filter((x) => x.isActive)) {
+    slides.push({
+      id: b.id,
+      badge: "Today's Special",
+      title: b.title,
+      subtitle: b.subtitle ?? undefined,
+      imageUrl: b.imageUrl,
+      ctaText: 'Order Now',
+      linkUrl: b.linkUrl ?? undefined,
+    });
+  }
+
+  const heroPromo = config.marketing?.byPlacement?.HERO_SECTION?.[0];
+  if (!slides.length && heroPromo) {
+    slides.push({
+      id: heroPromo.id,
+      badge: "Today's Special",
+      title: heroPromo.title,
+      subtitle: heroPromo.shortMessage ?? undefined,
+      imageUrl: heroPromo.heroBannerImageUrl ?? heroPromo.bannerImageUrl ?? undefined,
+      ctaText: heroPromo.ctaText ?? 'Order Now',
+      linkUrl: heroPromo.ctaUrl ?? heroPromo.linkUrl ?? undefined,
+    });
+  }
+
+  if (!slides.length) {
+    slides.push({
+      id: 'fallback-hero',
+      badge: "Today's Special",
+      title: config.branding.appName,
+      subtitle: config.branding.tagline,
+      ctaText: 'Order Now',
+    });
+  }
+
+  return slides;
+}
+
+function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
+  const colors = useThemeColors();
+  const [index, setIndex] = useState(0);
+  const scrolling = useRef(false);
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (scrolling.current) return;
+    const x = e.nativeEvent.contentOffset.x;
+    const next = Math.round(x / (HERO_WIDTH + 10));
+    if (next !== index && next >= 0 && next < slides.length) setIndex(next);
+  };
+
+  return (
+    <View style={styles.heroWrap}>
+      <ScrollView
+        horizontal
+        pagingEnabled={false}
+        decelerationRate="fast"
+        snapToInterval={HERO_WIDTH + 10}
+        snapToAlignment="start"
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        onScrollBeginDrag={() => {
+          scrolling.current = true;
+        }}
+        onMomentumScrollEnd={(e) => {
+          scrolling.current = false;
+          onScroll(e);
+        }}
+        contentContainerStyle={{ paddingHorizontal: 14, gap: 10 }}
+      >
+        {slides.map((slide) => {
+          const imageUri = resolveAssetUrl(slide.imageUrl, WEBSITE_URL);
+          return (
+            <View
+              key={slide.id}
+              style={[styles.hero, { width: HERO_WIDTH, backgroundColor: colors.primary }]}
+            >
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.heroImage} resizeMode="cover" />
+              ) : null}
+              <View style={styles.heroScrim} />
+              <View style={styles.heroOverlay}>
+                <Text style={styles.heroEyebrow}>{slide.badge ?? "Today's Special"}</Text>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {slide.title}
+                </Text>
+                {slide.subtitle ? (
+                  <Text style={styles.heroSub} numberOfLines={2}>
+                    {slide.subtitle}
+                  </Text>
+                ) : null}
+                <View style={styles.heroMetaRow}>
+                  {slide.price != null ? (
+                    <Text style={styles.heroPrice}>{formatCurrency(slide.price)}</Text>
+                  ) : null}
+                  {slide.offerLabel ? (
+                    <Text style={styles.heroOffer}>{slide.offerLabel}</Text>
+                  ) : null}
+                </View>
+                {slide.preOrderNote ? (
+                  <Text style={styles.heroPreOrder}>⏱ {slide.preOrderNote}</Text>
+                ) : null}
+                <Pressable
+                  style={[styles.heroCta, { backgroundColor: colors.secondary }]}
+                  onPress={() => router.push((slide.linkUrl as never) || ('/(tabs)/menu' as never))}
+                >
+                  <Text style={styles.heroCtaText}>{slide.ctaText ?? 'Order Now'} ›</Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+      {slides.length > 1 ? (
+        <View style={styles.dots}>
+          {slides.map((s, i) => (
+            <View key={s.id} style={[styles.dot, i === index && styles.dotActive]} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function MenuPreviewSection({
   products,
-  subtitle,
+  categories,
 }: {
-  title: string;
   products: CatalogProduct[];
-  subtitle?: string;
+  categories: Category[];
 }) {
+  const colors = useThemeColors();
+  const [activeCategoryId, setActiveCategoryId] = useState<string | 'all'>('all');
+
+  const filtered = useMemo(() => {
+    const available = products.filter((p) => p.isComingSoon !== true);
+    if (activeCategoryId === 'all') return available.slice(0, 8);
+    return available.filter((p) => p.categoryId === activeCategoryId).slice(0, 8);
+  }, [products, activeCategoryId]);
+
   if (!products.length) return null;
+
   return (
     <View style={styles.section}>
       <SectionHeader
-        title={title}
-        actionLabel="Full menu"
+        title="🍽️ From Our Menu"
+        actionLabel="View Full Menu"
         onAction={() => router.push('/(tabs)/menu')}
       />
-      {subtitle ? <Text style={styles.sectionHint}>{subtitle}</Text> : null}
-      {products.map((p) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.menuChips}
+      >
+        <Pressable
+          onPress={() => setActiveCategoryId('all')}
+          style={[
+            styles.menuChip,
+            activeCategoryId === 'all' && {
+              backgroundColor: colors.primary,
+              borderColor: colors.primary,
+            },
+          ]}
+        >
+          <Text style={[styles.menuChipText, activeCategoryId === 'all' && { color: '#fff' }]}>
+            All
+          </Text>
+        </Pressable>
+        {categories.map((cat) => {
+          const active = activeCategoryId === cat.id;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => setActiveCategoryId(cat.id)}
+              style={[
+                styles.menuChip,
+                active && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+            >
+              <Text style={[styles.menuChipText, active && { color: '#fff' }]}>{cat.name}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {filtered.map((p) => (
         <FoodCard
           key={p.id}
           product={{
@@ -196,117 +475,6 @@ function ProductListBlock({
       <Pressable style={styles.fullMenuCta} onPress={() => router.push('/(tabs)/menu')}>
         <Text style={styles.fullMenuCtaText}>View Full Menu →</Text>
       </Pressable>
-    </View>
-  );
-}
-
-function SpecialtyBlock({
-  title,
-  products,
-  muted,
-}: {
-  title: string;
-  products: CatalogProduct[];
-  muted?: boolean;
-}) {
-  if (!products.length) return null;
-  return (
-    <View style={styles.section}>
-      <SectionHeader title={title} />
-      {products.map((p) => (
-        <View key={p.id} style={[styles.specialtyCard, muted && styles.specialtyMuted]}>
-          <Text style={styles.specialtyBadge}>{productHomeBadge(p) ?? title}</Text>
-          <Text style={styles.specialtyName}>{p.name}</Text>
-          {p.description ? (
-            <Text style={styles.specialtyDesc} numberOfLines={2}>
-              {p.description}
-            </Text>
-          ) : null}
-          {!muted && p.price != null ? (
-            <Text style={styles.specialtyPrice}>{formatCurrency(Number(p.price))}</Text>
-          ) : null}
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function OffersSection() {
-  const config = useAppConfig();
-  const colors = useThemeColors();
-  const offers =
-    config.offers?.filter((o) => (o as { isActive?: boolean }).isActive !== false) ?? [];
-  const banners = config.banners.filter((b) => b.isActive);
-
-  if (!offers.length && !banners.length) return null;
-
-  return (
-    <View style={styles.section}>
-      <SectionHeader title="Active Offers" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {banners.map((b) => (
-          <View key={b.id} style={[styles.offerCard, { backgroundColor: colors.primary }]}>
-            <Text style={styles.offerTitleLight}>{b.title}</Text>
-            {b.subtitle ? <Text style={styles.offerBodyLight}>{b.subtitle}</Text> : null}
-          </View>
-        ))}
-        {offers.map((o) => (
-          <View key={o.id} style={[styles.offerCard, { borderColor: colors.secondary }]}>
-            <Text style={[styles.offerTitle, { color: colors.primary }]}>{o.title}</Text>
-            {o.description ? <Text style={styles.offerBody}>{o.description}</Text> : null}
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-function HeroSection({ section }: { section: MobileHomeSectionDto }) {
-  const colors = useThemeColors();
-  const config = useAppConfig();
-  const content = section.content as {
-    title?: string;
-    subtitle?: string;
-    imageUrl?: string;
-    ctaText?: string;
-    price?: number;
-  };
-  const imageUri = resolveAssetUrl(content.imageUrl, WEBSITE_URL);
-  const heroPromo = config.marketing?.byPlacement?.HERO_SECTION?.[0];
-  const promoImage = resolveAssetUrl(
-    heroPromo?.heroBannerImageUrl ?? heroPromo?.bannerImageUrl,
-    WEBSITE_URL,
-  );
-
-  return (
-    <View style={styles.heroWrap}>
-      <View style={[styles.hero, { backgroundColor: colors.primary }]}>
-        {(imageUri || promoImage) && (
-          <Image
-            source={{ uri: imageUri || promoImage }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-        )}
-        <View style={styles.heroOverlay}>
-          <Text style={styles.heroEyebrow}>Today&apos;s Special</Text>
-          <Text style={styles.heroTitle}>
-            {content.title ?? heroPromo?.title ?? config.branding.appName}
-          </Text>
-          <Text style={styles.heroSub}>
-            {content.subtitle ?? heroPromo?.shortMessage ?? config.branding.tagline}
-          </Text>
-          {content.price != null ? (
-            <Text style={styles.heroPrice}>{formatCurrency(content.price)}</Text>
-          ) : null}
-          <Pressable
-            style={[styles.heroCta, { backgroundColor: colors.secondary }]}
-            onPress={() => router.push('/(tabs)/menu')}
-          >
-            <Text style={styles.heroCtaText}>{content.ctaText ?? 'Order Now'}</Text>
-          </Pressable>
-        </View>
-      </View>
     </View>
   );
 }
@@ -348,7 +516,7 @@ function RecentlyOrderedSection() {
 function useHomeCatalog() {
   return useQuery({
     queryKey: ['home-catalog'],
-    queryFn: () => api.list<CatalogProduct>('/products?limit=80'),
+    queryFn: () => api.list<CatalogProduct>('/products?available=true&limit=80'),
     staleTime: 60_000,
   });
 }
@@ -359,19 +527,23 @@ export function HomeSectionList() {
   const catalogQuery = useHomeCatalog();
   const products = catalogQuery.data?.data ?? [];
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', 'mobile'],
+    queryFn: () => api.get<Category[]>('/categories?active=true&channel=mobile'),
+  });
+
   const catalog = useMemo(
     () =>
       allocateHomeCatalog(products, {
         popularLimit: 4,
-        menuPreviewLimit: 6,
-        comingSoonLimit: 6,
-        preOrderLimit: 6,
+        menuPreviewLimit: 8,
+        comingSoonLimit: 4,
+        preOrderLimit: 4,
         includeRecommended: false,
       }),
     [products],
   );
 
-  const hasHero = sections.some((s) => s.sectionKey === 'hero_banner');
   const hasCategories = sections.some((s) => s.sectionKey === 'categories');
   const enabledKeys = useMemo(() => new Set(sections.map((s) => s.sectionKey)), [sections]);
 
@@ -388,6 +560,12 @@ export function HomeSectionList() {
     !sections.length;
   const showRecently = enabledKeys.has('recently_ordered');
 
+  const heroSection = sections.find((s) => s.sectionKey === 'hero_banner');
+  const heroSlides = useMemo(
+    () => buildHeroSlides(heroSection, config.banners ?? [], config),
+    [heroSection, config],
+  );
+
   return (
     <ScrollView
       style={styles.container}
@@ -398,22 +576,7 @@ export function HomeSectionList() {
       <StoreStatusCard />
       <HomeDeliverySection />
 
-      {!hasHero ? (
-        <HeroSection
-          section={{
-            id: 'fallback-hero',
-            sectionKey: 'hero_banner',
-            content: {},
-            sortOrder: 0,
-            isEnabled: true,
-            status: 'PUBLISHED',
-          }}
-        />
-      ) : (
-        sections
-          .filter((s) => s.sectionKey === 'hero_banner')
-          .map((s) => <HeroSection key={s.id} section={s} />)
-      )}
+      <HeroCarousel slides={heroSlides} />
 
       {!sections.length || hasCategories ? <CategoriesSection /> : null}
 
@@ -429,17 +592,10 @@ export function HomeSectionList() {
             <ProductCarouselBlock title="Popular Near You" products={catalog.popular} emoji="🔥" />
           ) : null}
 
-          <OffersSection />
-
-          <SpecialtyBlock title="Pre-Order" products={catalog.preOrder} />
-          <SpecialtyBlock title="Coming Soon" products={catalog.comingSoon} muted />
+          <CompactOfferCard />
 
           {showMenuPreview ? (
-            <ProductListBlock
-              title="Menu Preview"
-              subtitle="A short selection — open the full menu for everything."
-              products={catalog.menuPreview}
-            />
+            <MenuPreviewSection products={products} categories={categories} />
           ) : (
             <View style={styles.section}>
               <Pressable style={styles.fullMenuCta} onPress={() => router.push('/(tabs)/menu')}>
@@ -461,70 +617,109 @@ export function HomeSectionList() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { paddingBottom: 24 },
-  section: { paddingHorizontal: 16, paddingTop: 14 },
-  sectionHint: { color: COLORS.textMuted, fontSize: 13, marginBottom: 10, marginTop: -4 },
-  empty: { color: COLORS.textMuted, fontSize: 14 },
+  section: { paddingHorizontal: 14, paddingTop: 14 },
+  empty: { color: COLORS.textMuted, fontSize: 14, paddingVertical: 8 },
   chargeStrip: {
-    marginHorizontal: 16,
+    marginHorizontal: 14,
     marginTop: 12,
     backgroundColor: COLORS.amberSoft,
     borderRadius: RADIUS.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
-  chargeText: { color: '#92400E', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  searchBlock: { paddingHorizontal: 16, paddingTop: 12 },
+  chargeText: { color: '#92400E', fontSize: 11.5, fontWeight: '600', textAlign: 'center' },
+  searchBlock: { paddingHorizontal: 14, paddingTop: 12 },
   searchResults: { marginTop: 12 },
-  searchLabel: { fontWeight: '800', fontSize: 14, marginBottom: 8 },
   seeAll: { fontWeight: '700', marginTop: 8, textAlign: 'center' },
-  suggestRow: { marginTop: 10 },
-  suggestChip: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginRight: 8,
-  },
-  suggestText: { fontSize: 12, fontWeight: '600', color: COLORS.text },
-  heroWrap: { paddingHorizontal: 16, paddingTop: 12 },
+  heroWrap: { paddingTop: 12 },
   hero: {
     borderRadius: RADIUS.xl,
     overflow: 'hidden',
-    minHeight: 168,
+    minHeight: 188,
     ...SHADOW.card,
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.35,
   },
-  heroOverlay: { padding: 18 },
-  heroEyebrow: { color: '#FDE68A', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  heroScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 40, 28, 0.48)',
+  },
+  heroOverlay: { padding: 16, justifyContent: 'flex-end', minHeight: 188 },
+  heroEyebrow: {
+    alignSelf: 'flex-start',
+    color: '#14532D',
+    backgroundColor: '#FDE68A',
+    overflow: 'hidden',
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   heroTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  heroSub: { color: 'rgba(255,255,255,0.88)', marginTop: 4, fontSize: 13 },
-  heroPrice: { color: '#fff', fontWeight: '800', fontSize: 18, marginTop: 8 },
+  heroSub: { color: 'rgba(255,255,255,0.9)', marginTop: 4, fontSize: 13 },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  heroPrice: { color: '#fff', fontWeight: '800', fontSize: 18 },
+  heroOffer: {
+    color: '#14532D',
+    backgroundColor: '#FDE68A',
+    overflow: 'hidden',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  heroPreOrder: { color: 'rgba(253,230,138,0.95)', fontSize: 12, fontWeight: '600', marginTop: 6 },
   heroCta: {
     alignSelf: 'flex-start',
     borderRadius: RADIUS.md,
-    marginTop: 14,
+    marginTop: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   heroCtaText: { color: COLORS.text, fontWeight: '800' },
-  offerCard: {
-    backgroundColor: COLORS.surface,
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.border,
+  },
+  dotActive: { backgroundColor: COLORS.primary, width: 14 },
+  offerStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFF7ED',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    padding: 14,
-    marginRight: 10,
-    width: 220,
-    ...SHADOW.card,
+    borderColor: 'rgba(245,158,11,0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  offerTitle: { fontWeight: '800', fontSize: 15 },
-  offerBody: { color: COLORS.textMuted, marginTop: 6, fontSize: 12 },
-  offerTitleLight: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  offerBodyLight: { color: 'rgba(255,255,255,0.85)', marginTop: 6, fontSize: 12 },
+  offerGift: { fontSize: 22 },
+  offerStripTitle: { fontWeight: '800', fontSize: 13.5 },
+  offerStripBody: { color: COLORS.textMuted, fontSize: 11.5, marginTop: 2 },
+  offerCta: { fontWeight: '800', fontSize: 12 },
+  menuChips: { paddingBottom: 10, gap: 8 },
+  menuChip: {
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginRight: 8,
+  },
+  menuChipText: { fontSize: 12, fontWeight: '700', color: COLORS.text },
   recentCard: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
@@ -536,7 +731,7 @@ const styles = StyleSheet.create({
   recentMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
   recentTotal: { fontWeight: '700', marginTop: 4 },
   fullMenuCta: {
-    marginTop: 8,
+    marginTop: 4,
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: RADIUS.md,
@@ -545,23 +740,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   fullMenuCtaText: { fontWeight: '800', color: COLORS.primary },
-  specialtyCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  specialtyMuted: { opacity: 0.92, borderStyle: 'dashed' },
-  specialtyBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  specialtyName: { fontWeight: '800', fontSize: 15, color: COLORS.text, marginTop: 4 },
-  specialtyDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
-  specialtyPrice: { fontWeight: '700', marginTop: 6, color: COLORS.primary },
+  fullMenuLink: { marginTop: 10, alignItems: 'center' },
+  fullMenuLinkText: { fontWeight: '700', color: COLORS.secondary, fontSize: 13 },
 });

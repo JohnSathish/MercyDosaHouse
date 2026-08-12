@@ -17,7 +17,7 @@ export function AppHeader({ locationLabel = 'Select location' }: { locationLabel
   );
 
   return (
-    <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]}>
+    <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 6) }]}>
       <View style={styles.topRow}>
         <View style={styles.brandRow}>
           {logoUri ? (
@@ -27,7 +27,7 @@ export function AppHeader({ locationLabel = 'Select location' }: { locationLabel
               <Text style={styles.logoEmoji}>🥘</Text>
             </View>
           )}
-          <View style={{ flex: 1 }}>
+          <View style={styles.brandText}>
             <Text style={[styles.appName, { color: colors.primary }]} numberOfLines={1}>
               {config.branding.appName}
             </Text>
@@ -37,12 +37,10 @@ export function AppHeader({ locationLabel = 'Select location' }: { locationLabel
               hitSlop={6}
             >
               <Text style={styles.locationPin}>📍</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.deliveringTo}>Delivering to</Text>
-                <Text style={styles.location} numberOfLines={1}>
-                  {locationLabel}
-                </Text>
-              </View>
+              <Text style={styles.location} numberOfLines={1}>
+                {locationLabel}
+              </Text>
+              <Text style={styles.chevron}>▾</Text>
             </Pressable>
           </View>
         </View>
@@ -53,7 +51,7 @@ export function AppHeader({ locationLabel = 'Select location' }: { locationLabel
           <Pressable style={styles.iconBtn} onPress={() => router.push('/(tabs)/cart')}>
             <Text style={styles.icon}>🛒</Text>
             {cartCount > 0 ? (
-              <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.badgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
               </View>
             ) : null}
@@ -70,42 +68,43 @@ export function AppHeader({ locationLabel = 'Select location' }: { locationLabel
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: COLORS.background,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
   },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  brandRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 42, height: 42, borderRadius: 12 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  brandRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  brandText: { flex: 1, minWidth: 0 },
+  logo: { width: 36, height: 36, borderRadius: 18 },
   logoFallback: { alignItems: 'center', justifyContent: 'center' },
-  logoEmoji: { fontSize: 20 },
-  appName: { fontSize: 16, fontWeight: '800' },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 2 },
-  locationPin: { fontSize: 11 },
-  deliveringTo: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
-  location: { fontSize: 12, fontWeight: '700', color: COLORS.text },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  logoEmoji: { fontSize: 18 },
+  appName: { fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 1, gap: 2 },
+  locationPin: { fontSize: 10 },
+  location: { flexShrink: 1, fontSize: 11, fontWeight: '600', color: COLORS.textMuted },
+  chevron: { fontSize: 10, color: COLORS.textMuted, marginLeft: 1 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
     ...SHADOW.card,
   },
-  icon: { fontSize: 16 },
+  icon: { fontSize: 15 },
   badge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    minWidth: 16,
-    height: 16,
+    minWidth: 15,
+    height: 15,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  badgeText: { fontSize: 9, fontWeight: '800', color: COLORS.text },
+  badgeText: { fontSize: 9, fontWeight: '800', color: '#fff' },
 });

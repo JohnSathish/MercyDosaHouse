@@ -40,23 +40,33 @@ export function FoodCard({
   if (layout === 'horizontal') {
     return (
       <Pressable style={styles.hCard} onPress={() => router.push(`/product/${product.id}`)}>
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.hImage} resizeMode="cover" />
-        ) : (
-          <View style={[styles.hImage, styles.imageFallback]}>
-            <Text style={styles.fallbackEmoji}>🥘</Text>
-          </View>
-        )}
-        <View style={styles.hBody}>
-          {(product.isBestseller || product.isPopular) && (
-            <Badge label={product.isBestseller ? 'Bestseller' : 'Popular'} tone="danger" />
+        <View>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.hImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.hImage, styles.imageFallback]}>
+              <Text style={styles.fallbackEmoji}>🥘</Text>
+            </View>
           )}
+          {isVeg || isNonVeg ? (
+            <View
+              style={[
+                styles.vegDot,
+                styles.hVegDot,
+                { borderColor: isVeg ? '#16A34A' : '#DC2626' },
+              ]}
+            >
+              <View style={[styles.vegInner, { backgroundColor: isVeg ? '#16A34A' : '#DC2626' }]} />
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.hBody}>
           <Text style={styles.name} numberOfLines={2}>
             {product.name}
           </Text>
           <Text style={styles.meta}>
             ⭐ {(product.rating ?? 4.8).toFixed(1)}
-            {product.prepTimeMinutes ? ` · ${product.prepTimeMinutes} min` : ''}
+            {product.prepTimeMinutes ? ` · ${product.prepTimeMinutes} min` : ' · 15 min'}
           </Text>
           <View style={styles.hFooter}>
             <Text style={[styles.price, { color: colors.primary }]}>
@@ -199,11 +209,12 @@ const styles = StyleSheet.create({
     ...SHADOW.card,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
-    width: 168,
+    width: 158,
     marginRight: 12,
     overflow: 'hidden',
   },
-  hImage: { width: '100%', height: 110 },
+  hImage: { width: '100%', height: 118 },
+  hVegDot: { top: 8, left: 8 },
   hBody: { padding: 10 },
   hFooter: {
     flexDirection: 'row',

@@ -1,0 +1,19 @@
+/android/
+/releases/
+/dist/
+/.expo/
+/*.apk
+/*.aab
+
+# Keep only required workspace code for build
+../../apps/
+../../backend/
+../../docs/
+
+**/.next/
+**/.turbo/
+**/coverage/
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example

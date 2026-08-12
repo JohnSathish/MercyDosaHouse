@@ -1,12 +1,16 @@
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   Pressable,
   ActivityIndicator,
+  StatusBar,
+  Platform,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme, formatInr } from './theme';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
@@ -39,14 +43,73 @@ export function AppHeader({
   title,
   subtitle,
   right,
+  left,
+  statusLine,
+  onMenuPress,
+  notificationCount,
+  onNotificationsPress,
+  periodLabel = 'Today',
+  onPeriodPress,
+  showBrandMark,
 }: {
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
+  left?: React.ReactNode;
+  statusLine?: string;
+  onMenuPress?: () => void;
+  notificationCount?: number;
+  onNotificationsPress?: () => void;
+  periodLabel?: string;
+  onPeriodPress?: () => void;
+  showBrandMark?: boolean;
 }) {
+  const insets = useSafeAreaInsets();
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
+  const topPad = Math.max(insets.top, statusBarHeight, 28) + 10;
+
+  const trailing =
+    right ??
+    (onNotificationsPress || onPeriodPress ? (
+      <View style={styles.headerActions}>
+        {onNotificationsPress ? (
+          <Pressable style={styles.headerIconBtn} onPress={onNotificationsPress} hitSlop={8}>
+            <Text style={styles.headerIcon}>🔔</Text>
+            {(notificationCount ?? 0) > 0 ? (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>
+                  {(notificationCount ?? 0) > 9 ? '9+' : notificationCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        ) : null}
+        {onPeriodPress ? (
+          <Pressable style={styles.periodChip} onPress={onPeriodPress}>
+            <Text style={styles.periodText}>📅 {periodLabel}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    ) : null);
+
   return (
-    <View style={styles.header}>
-      <View style={{ flex: 1 }}>
+    <View style={[styles.header, { paddingTop: topPad }]}>
+      {left ??
+        (onMenuPress ? (
+          <Pressable style={styles.headerIconBtn} onPress={onMenuPress} hitSlop={8}>
+            <Text style={styles.headerIcon}>☰</Text>
+          </Pressable>
+        ) : null)}
+      {showBrandMark ? (
+        <View style={styles.brandMark}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.brandMarkImage}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {title}
         </Text>
@@ -55,8 +118,16 @@ export function AppHeader({
             {subtitle}
           </Text>
         ) : null}
+        {statusLine ? (
+          <View style={styles.statusLine}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusLineText} numberOfLines={1}>
+              {statusLine}
+            </Text>
+          </View>
+        ) : null}
       </View>
-      {right}
+      {trailing}
     </View>
   );
 }
@@ -65,15 +136,27 @@ export function KpiCard({
   label,
   value,
   accent,
+  icon,
+  hint,
 }: {
   label: string;
   value: string | number;
   accent?: string;
+  icon?: string;
+  hint?: string;
 }) {
   return (
     <View style={[styles.kpi, accent ? { borderLeftColor: accent, borderLeftWidth: 3 } : null]}>
-      <Text style={styles.kpiValue}>{value}</Text>
+      {icon ? (
+        <View style={[styles.kpiIconWrap, accent ? { backgroundColor: `${accent}22` } : null]}>
+          <Text style={styles.kpiIcon}>{icon}</Text>
+        </View>
+      ) : null}
+      <Text style={styles.kpiValue} numberOfLines={1}>
+        {value}
+      </Text>
       <Text style={styles.kpiLabel}>{label}</Text>
+      {hint ? <Text style={styles.kpiHint}>{hint}</Text> : null}
     </View>
   );
 }
@@ -200,22 +283,83 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.primary,
-    gap: 12,
+    gap: 10,
   },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  headerSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
+  headerTitle: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  headerSub: { color: 'rgba(255,255,255,0.78)', fontSize: 11.5, marginTop: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIcon: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  headerBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  headerBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  periodChip: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  periodText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  brandMark: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  brandMarkImage: { width: 36, height: 36 },
+  statusLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#4ADE80',
+  },
+  statusLineText: { color: 'rgba(255,255,255,0.82)', fontSize: 11, fontWeight: '600', flex: 1 },
   kpi: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '30%',
+    maxWidth: '32%',
     backgroundColor: '#fff',
     borderRadius: theme.radius.md,
-    padding: 12,
+    padding: 11,
     ...theme.shadow.card,
   },
-  kpiValue: { fontSize: 20, fontWeight: '800', color: theme.colors.primary },
-  kpiLabel: { fontSize: 11, color: theme.colors.muted, marginTop: 4, textTransform: 'uppercase' },
+  kpiIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  kpiIcon: { fontSize: 13 },
+  kpiValue: { fontSize: 18, fontWeight: '800', color: theme.colors.primary },
+  kpiLabel: { fontSize: 10, color: theme.colors.muted, marginTop: 3, fontWeight: '700' },
+  kpiHint: { fontSize: 10, color: theme.colors.muted, marginTop: 3 },
   chip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, alignSelf: 'flex-start' },
   chipText: { fontSize: 11, fontWeight: '700' },
   btn: {

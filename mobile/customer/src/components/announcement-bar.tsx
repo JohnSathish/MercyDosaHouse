@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
@@ -23,17 +24,19 @@ export function AnnouncementBar() {
 
   return (
     <View style={styles.bar}>
-      <Text style={styles.barText} numberOfLines={2}>
+      <Text style={styles.barText} numberOfLines={1}>
         {message}
       </Text>
+      <Text style={styles.barArrow}>›</Text>
     </View>
   );
 }
 
-/** Compact home-delivery card — Admin marketing delivery config. */
+/** Compact expandable home-delivery card — Admin marketing delivery config. */
 export function HomeDeliverySection() {
   const config = useAppConfig();
   const colors = useThemeColors();
+  const [expanded, setExpanded] = useState(false);
   const delivery = config.marketing?.delivery;
   const card = config.marketing?.byPlacement?.DELIVERY_CARD?.[0];
 
@@ -43,33 +46,50 @@ export function HomeDeliverySection() {
     ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
     : card?.shortMessage;
 
+  const orderWindow = delivery?.orderWindow;
+  const deliveryWindow = delivery?.deliveryWindow;
+  const detail = delivery?.expansionMessage ?? card?.message ?? delivery?.message;
+
   return (
-    <View style={styles.deliveryWrap}>
+    <Pressable
+      style={styles.deliveryWrap}
+      onPress={() => setExpanded((v) => !v)}
+      accessibilityRole="button"
+    >
       <View style={styles.deliveryCard}>
-        <Text style={[styles.deliveryTitle, { color: colors.primary }]}>
-          {card?.icon ?? '🚚'} {card?.title ?? 'Home Delivery'}
-        </Text>
-        {areas ? (
-          <Text style={styles.deliveryBody}>
-            Currently available in{' '}
-            <Text style={[styles.deliveryBold, { color: colors.primary }]}>{areas}</Text>
-          </Text>
-        ) : null}
-        <View style={styles.metaRow}>
-          {delivery?.orderWindow ? (
-            <Text style={styles.deliveryMeta}>Order: {delivery.orderWindow}</Text>
-          ) : null}
-          {delivery?.deliveryWindow ? (
-            <Text style={styles.deliveryMeta}>Delivery: {delivery.deliveryWindow}</Text>
-          ) : null}
+        <View style={styles.deliveryTop}>
+          <Text style={styles.deliveryEmoji}>{card?.icon ?? '🛵'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.deliveryTitle, { color: colors.primary }]}>
+              {card?.title ?? 'Home Delivery'}
+            </Text>
+            {areas ? (
+              <Text style={styles.deliveryAreas} numberOfLines={expanded ? 3 : 1}>
+                {areas}
+              </Text>
+            ) : null}
+          </View>
+          <Text style={[styles.chevron, { color: colors.secondary }]}>{expanded ? '▴' : '▾'}</Text>
         </View>
-        {(delivery?.expansionMessage ?? card?.message ?? delivery?.message) ? (
-          <Text style={[styles.deliveryFooter, { color: colors.secondary }]}>
-            {delivery?.expansionMessage ?? card?.message ?? delivery?.message}
+
+        {(orderWindow || deliveryWindow) && (
+          <Text style={styles.windows} numberOfLines={expanded ? 2 : 1}>
+            {[
+              orderWindow ? `Order: ${orderWindow}` : null,
+              deliveryWindow ? `Delivery: ${deliveryWindow}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </Text>
-        ) : null}
+        )}
+
+        {expanded && detail ? (
+          <Text style={[styles.deliveryFooter, { color: colors.secondary }]}>{detail}</Text>
+        ) : (
+          <Text style={[styles.viewDetails, { color: colors.secondary }]}>View details →</Text>
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -151,31 +171,32 @@ export function DeliveryInfoCard() {
 const styles = StyleSheet.create({
   bar: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  barText: { color: '#FDE68A', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  deliveryWrap: { paddingHorizontal: 16, paddingTop: 10 },
+  barText: { flex: 1, color: '#FDE68A', fontSize: 11.5, fontWeight: '600' },
+  barArrow: { color: '#FDE68A', fontSize: 16, fontWeight: '700' },
+  deliveryWrap: { paddingHorizontal: 14, paddingTop: 8 },
   deliveryCard: {
-    ...SHADOW.card,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: 'rgba(20, 83, 45, 0.1)',
   },
-  deliveryTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  deliveryBody: { color: COLORS.textMuted, fontSize: 13, lineHeight: 18 },
-  deliveryBold: { fontWeight: '700' },
-  metaRow: { marginTop: 6, gap: 2 },
-  deliveryMeta: { color: COLORS.textMuted, fontSize: 12 },
-  deliveryFooter: { fontSize: 12, fontWeight: '700', marginTop: 8 },
-  preOrderWrap: { paddingTop: 8, paddingHorizontal: 16 },
+  deliveryTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  deliveryEmoji: { fontSize: 16, marginTop: 1 },
+  deliveryTitle: { fontSize: 13, fontWeight: '800' },
+  deliveryAreas: { color: COLORS.textMuted, fontSize: 12, marginTop: 1, lineHeight: 16 },
+  chevron: { fontSize: 12, fontWeight: '700', paddingTop: 2 },
+  windows: { color: COLORS.textMuted, fontSize: 11.5, marginTop: 6, marginLeft: 24 },
+  viewDetails: { fontSize: 11.5, fontWeight: '700', marginTop: 6, marginLeft: 24 },
+  deliveryFooter: { fontSize: 12, fontWeight: '600', marginTop: 6, marginLeft: 24, lineHeight: 16 },
+  preOrderWrap: { paddingTop: 8, paddingHorizontal: 14 },
   preOrderRow: { gap: 12, paddingRight: 8 },
   promoCard: {
     ...SHADOW.card,

@@ -45,7 +45,7 @@ export default function RootLayout() {
   const RootStack = Stack as any;
   return (
     <AppProviders>
-      <StatusBar style="light" />
+      <StatusBar style="light" translucent backgroundColor="transparent" />
       <AuthGate>
         <RootStack
           screenOptions={{

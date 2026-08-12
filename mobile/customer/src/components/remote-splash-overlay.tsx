@@ -1,63 +1,77 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { useBootstrap } from '@/providers/bootstrap-context';
-import { WEBSITE_URL } from '@/lib/constants';
-import { resolveAssetUrl } from '@/ui/theme';
 
-/** Remote-config driven splash overlay shown while bootstrap loads. */
+/** Full branded launch art — matches the Mercy Dosa House splash mockup. */
+const SPLASH_ART = require('@/assets/splash-screen.png');
+
+/**
+ * Native-feeling branded splash shown while bootstrap loads.
+ * Uses the designed full-bleed splash art (logo, hero dosa, features, welcome).
+ */
 export function RemoteSplashOverlay() {
-  const { phase, config } = useBootstrap();
+  const { phase } = useBootstrap();
   const opacity = useRef(new Animated.Value(1)).current;
-  const scale = useRef(new Animated.Value(0.92)).current;
-
-  const branding = config.branding;
-  const bg = branding.splashBackgroundColor || '#14532D';
-  const logoUri = resolveAssetUrl(
-    branding.splashLogoUrl || branding.logoUrl || branding.appIconUrl,
-    WEBSITE_URL,
-  );
-  const bgImage = resolveAssetUrl(branding.splashBackgroundImageUrl, WEBSITE_URL);
+  const progress = useRef(new Animated.Value(0.2)).current;
+  const scale = useRef(new Animated.Value(1.02)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(scale, { toValue: 1, duration: 450, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(progress, {
+            toValue: 0.78,
+            duration: 1500,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: false,
+          }),
+          Animated.timing(progress, {
+            toValue: 0.32,
+            duration: 1000,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: false,
+          }),
+        ]),
+      ),
     ]).start();
-  }, [opacity, scale]);
+  }, [progress, scale]);
 
   useEffect(() => {
     if (phase !== 'ready') return;
-    Animated.timing(opacity, { toValue: 0, duration: 280, useNativeDriver: true }).start();
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: 380,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
   }, [phase, opacity]);
 
-  if (phase === 'ready') {
-    // Keep mounted briefly for fade-out — parent unmounts via conditional
-  }
+  const progressWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <Animated.View
-      style={[styles.overlay, { backgroundColor: bg, opacity }]}
+      style={[styles.overlay, { opacity }]}
       pointerEvents={phase === 'ready' ? 'none' : 'auto'}
     >
-      {bgImage ? (
-        <Image source={{ uri: bgImage }} style={styles.bgImage} resizeMode="cover" />
-      ) : (
-        <View style={styles.bgPattern} />
-      )}
-      <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
-        {logoUri ? (
-          <Image source={{ uri: logoUri }} style={styles.logo} resizeMode="contain" />
-        ) : (
-          <View style={styles.logoFallback}>
-            <Text style={styles.logoEmoji}>🥘</Text>
-          </View>
-        )}
-        <Text style={styles.appName}>{branding.appName || 'Mercy Dosa House'}</Text>
-        <Text style={styles.tagline}>{branding.tagline || 'Crispy Dosas. Happy Hearts.'}</Text>
-        <View style={styles.progressTrack}>
-          <View style={styles.progressFill} />
-        </View>
+      <Animated.View style={[styles.artWrap, { transform: [{ scale }] }]}>
+        <Image source={SPLASH_ART} style={styles.art} resizeMode="cover" />
       </Animated.View>
+
+      {/* Live progress bar aligned to the mockup’s loader position */}
+      <View style={styles.progressSlot} pointerEvents="none">
+        <View style={styles.progressTrack}>
+          <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+        </View>
+      </View>
     </Animated.View>
   );
 }
@@ -65,54 +79,34 @@ export function RemoteSplashOverlay() {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
+    zIndex: 9999,
+    elevation: 9999,
+    backgroundColor: '#123D28',
   },
-  bgImage: {
+  artWrap: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.35,
   },
-  bgPattern: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.08)',
+  art: {
+    width: '100%',
+    height: '100%',
   },
-  content: { alignItems: 'center', paddingHorizontal: 32 },
-  logo: { width: 112, height: 112, borderRadius: 56 },
-  logoFallback: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoEmoji: { fontSize: 48 },
-  appName: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: '800',
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  tagline: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
+  progressSlot: {
+    position: 'absolute',
+    left: 48,
+    right: 48,
+    bottom: '14%',
+    zIndex: 2,
+    elevation: 2,
   },
   progressTrack: {
-    marginTop: 28,
-    width: 120,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     overflow: 'hidden',
   },
   progressFill: {
-    width: '55%',
     height: '100%',
-    backgroundColor: '#F59E0B',
-    borderRadius: 2,
+    borderRadius: 999,
+    backgroundColor: '#F0A12A',
   },
 });

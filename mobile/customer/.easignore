@@ -1,2 +1,34 @@
-android/
-android.local.bak/
+# Relative to mobile/customer (directory with eas.json)
+
+# Local artifacts
+/android/
+/android.local.bak/
+/releases/
+/dist/
+/.expo/
+/*.apk
+/*.aab
+/mercy-dosa-house-preview.apk
+
+# Monorepo siblings not needed for customer AAB
+../../apps/
+../../backend/
+../../docs/
+../admin/
+
+# Caches
+**/.next/
+**/.turbo/
+**/coverage/
+**/*.log
+
+# Design dumps
+**/*-preview*.png
+**/*-qa*.png
+**/dash-*.png
+**/emulator-*.png
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example

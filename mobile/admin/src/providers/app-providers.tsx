@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './auth-provider';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -17,8 +18,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={client}>
-      <AuthProvider>{children}</AuthProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={client}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

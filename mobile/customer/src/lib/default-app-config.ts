@@ -35,7 +35,7 @@ export const DEFAULT_APP_CONFIG: MobileAppConfigDto = {
   },
   versionControl: {
     minAppVersion: '1.0.0',
-    latestAppVersion: '1.0.0',
+    latestAppVersion: '1.0.8',
     forceUpdate: false,
     softUpdateMessage: null,
   },

@@ -10,12 +10,14 @@ import {
   Switch,
   Pressable,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/providers/auth-provider';
 import { PrimaryButton } from '@/ui';
 import { theme } from '@/ui/theme';
 import { APP_VERSION } from '@/lib/constants';
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const { login, loginOtp, requestOtp } = useAuth();
   const [mode, setMode] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
@@ -69,7 +71,10 @@ export default function LoginScreen() {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top, 12) + 24 }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.hero}>
           <Text style={styles.brand}>Mercy Dosa House</Text>
           <Text style={styles.tag}>Admin Control Center</Text>
