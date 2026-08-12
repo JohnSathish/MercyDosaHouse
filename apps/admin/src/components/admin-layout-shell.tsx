@@ -38,6 +38,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { brand, isLoading: brandLoading } = useAdminBrand();
   const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
@@ -103,6 +104,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
     }
 
     setUserName(user.name || user.email || 'Admin');
+    setUserEmail(user.email || '');
     setAuthStatus('allowed');
   }, [isPublicPage, router]);
 
@@ -136,11 +138,11 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
 
   if (authStatus === 'checking') {
     return (
-      <div className="min-h-screen w-full flex bg-gray-50 dark:bg-gray-950 overflow-x-hidden">
+      <div className="flex h-dvh max-h-dvh w-full overflow-hidden bg-gray-50 dark:bg-gray-950">
         <div className="hidden md:block w-64 shrink-0 border-r bg-white dark:bg-gray-900 animate-pulse" />
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="h-14 border-b bg-white dark:bg-gray-900 animate-pulse" />
-          <main className="flex-1 p-4 lg:p-6 xl:p-8 overflow-x-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="h-14 shrink-0 border-b bg-white dark:bg-gray-900 animate-pulse" />
+          <main className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6 xl:p-8">
             <DashboardSkeleton />
           </main>
         </div>
@@ -151,12 +153,14 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   if (authStatus === 'denied') return null;
 
   return (
-    <div className="min-h-screen w-full flex bg-gray-50 dark:bg-gray-950 overflow-x-hidden">
+    <div className="flex h-dvh max-h-dvh w-full overflow-hidden bg-gray-50 dark:bg-gray-950">
       <AdminSidebar
         collapsed={sidebarCollapsed}
         onToggle={toggleSidebar}
         brand={brand}
         brandLoading={brandLoading}
+        userName={userName}
+        userEmail={userEmail}
       />
 
       <AdminMobileDrawer
@@ -166,16 +170,18 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
         brandLoading={brandLoading}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 w-full max-w-[100vw]">
+      <div className="flex min-h-0 min-w-0 w-full max-w-[100vw] flex-1 flex-col">
         <AdminTopbar
           userName={userName}
+          userEmail={userEmail}
           themeMode={themeMode}
           onThemeChange={handleThemeChange}
           brand={brand}
           brandLoading={brandLoading}
           onOpenMobileNav={() => setMobileNavOpen(true)}
+          onToggleSidebar={toggleSidebar}
         />
-        <main className="flex-1 w-full max-w-full p-3 sm:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto">
+        <main className="min-h-0 w-full max-w-full flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 lg:p-6 xl:p-8">
           {children}
         </main>
       </div>

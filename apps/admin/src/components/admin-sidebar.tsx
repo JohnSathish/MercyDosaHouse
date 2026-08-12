@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronRight, Menu } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@mdh/ui';
 import type { AdminBrand } from '@/lib/use-admin-brand';
 import { AdminSidebarNav } from '@/components/admin-sidebar-nav';
@@ -12,14 +12,16 @@ interface AdminSidebarProps {
   onToggle: () => void;
   brand: AdminBrand;
   brandLoading?: boolean;
+  userName?: string;
+  userEmail?: string;
 }
 
 function LogoMark({ brand, collapsed }: { brand: AdminBrand; collapsed: boolean }) {
   return (
     <div
       className={cn(
-        'relative shrink-0 overflow-hidden rounded-xl bg-white shadow-md ring-2 ring-white/20',
-        collapsed ? 'h-10 w-10' : 'h-[60px] w-[60px]',
+        'relative shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-white/25',
+        collapsed ? 'h-11 w-11' : 'h-12 w-12',
       )}
     >
       <Image
@@ -27,7 +29,7 @@ function LogoMark({ brand, collapsed }: { brand: AdminBrand; collapsed: boolean 
         alt={brand.businessName}
         fill
         className="object-cover"
-        sizes={collapsed ? '40px' : '60px'}
+        sizes={collapsed ? '44px' : '48px'}
         unoptimized
       />
     </div>
@@ -38,25 +40,34 @@ function LogoSkeleton({ collapsed }: { collapsed: boolean }) {
   return (
     <div
       className={cn(
-        'shrink-0 rounded-xl bg-white/20 animate-pulse',
-        collapsed ? 'h-10 w-10' : 'h-[60px] w-[60px]',
+        'shrink-0 animate-pulse rounded-full bg-white/20',
+        collapsed ? 'h-11 w-11' : 'h-12 w-12',
       )}
     />
   );
 }
 
-export function AdminSidebar({ collapsed, onToggle, brand, brandLoading }: AdminSidebarProps) {
+export function AdminSidebar({
+  collapsed,
+  onToggle,
+  brand,
+  brandLoading,
+  userName = 'Admin',
+  userEmail,
+}: AdminSidebarProps) {
+  const initial = userName.charAt(0).toUpperCase() || 'A';
+
   return (
     <aside
       className={cn(
-        'hidden md:flex flex-col shrink-0 bg-[#14532D] text-white border-r border-white/10 transition-all duration-300 ease-in-out sticky top-0 h-screen z-40',
-        collapsed ? 'w-20' : 'w-[280px]',
+        'z-40 hidden h-full min-h-0 shrink-0 flex-col border-r border-white/10 bg-[#0B3D24] text-white transition-all duration-300 ease-in-out md:flex',
+        collapsed ? 'w-[84px]' : 'w-[280px]',
       )}
     >
       <div
         className={cn(
-          'border-b border-white/10 flex items-center gap-3',
-          collapsed ? 'p-3 justify-center' : 'p-4',
+          'flex shrink-0 items-center gap-3 border-b border-white/10',
+          collapsed ? 'justify-center px-3 py-4' : 'px-4 py-4',
         )}
       >
         {brandLoading ? (
@@ -66,32 +77,66 @@ export function AdminSidebar({ collapsed, onToggle, brand, brandLoading }: Admin
         )}
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <h1 className="font-bold text-sm leading-tight truncate">{brand.businessName}</h1>
-            <p className="text-[10px] opacity-70 uppercase tracking-wider mt-0.5 truncate">
-              Restaurant ERP
-            </p>
-            <div className="flex items-center gap-2 mt-1.5 text-[10px] text-white/50">
-              <span>{brand.version}</span>
-              <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Online
+            <h1 className="truncate text-[15px] font-bold leading-tight tracking-tight">
+              {brand.businessName}
+            </h1>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/55">
+              <span className="truncate">Restaurant Dashboard</span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                online
               </span>
             </div>
           </div>
         )}
       </div>
 
-      <AdminSidebarNav collapsed={collapsed} />
+      <AdminSidebarNav collapsed={collapsed} className="min-h-0" />
 
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center justify-center gap-2 border-t border-white/10 py-3 min-h-[44px] text-xs text-white/60 hover:text-white hover:bg-white/5 transition-colors"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed ? <ChevronRight className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        {!collapsed && <span>Collapse sidebar</span>}
-      </button>
+      <div className="mt-auto shrink-0 border-t border-white/10">
+        {!collapsed ? (
+          <Link
+            href="/settings"
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/25 text-sm font-bold text-emerald-200 ring-1 ring-white/10">
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">{userName}</p>
+              <p className="truncate text-[11px] text-white/45">
+                {userEmail || 'superadmin@mercy.com'}
+              </p>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-white/40" />
+          </Link>
+        ) : (
+          <div className="flex justify-center py-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/25 text-sm font-bold text-emerald-200">
+              {initial}
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onToggle}
+          className={cn(
+            'flex w-full items-center gap-2 border-t border-white/10 py-3.5 text-[12px] font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white',
+            collapsed ? 'justify-center px-2' : 'px-4',
+          )}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <>
+              <ChevronLeft className="h-4 w-4" />
+              <span>Collapse Menu</span>
+            </>
+          )}
+        </button>
+      </div>
     </aside>
   );
 }
@@ -105,11 +150,11 @@ export function AdminMobileBrand({
   brandLoading?: boolean;
 }) {
   return (
-    <Link href="/" className="flex items-center gap-2 min-w-0 shrink-0">
+    <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
       {brandLoading ? (
-        <div className="h-9 w-9 rounded-lg bg-muted animate-pulse shrink-0" />
+        <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-muted" />
       ) : (
-        <div className="relative h-9 w-9 rounded-lg overflow-hidden ring-1 ring-[#14532D]/20 shrink-0">
+        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-[#14532D]/20">
           <Image
             src={brand.logoUrl}
             alt={brand.businessName}

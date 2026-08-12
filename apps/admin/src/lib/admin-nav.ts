@@ -29,13 +29,19 @@ import {
   Sparkles,
   Settings,
   Smartphone,
+  HelpCircle,
 } from 'lucide-react';
+
+export type AdminNavBadgeTone = 'count' | 'alert' | 'label';
 
 export interface AdminNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   badge?: string;
+  badgeTone?: AdminNavBadgeTone;
+  /** Live badge from dashboard stats */
+  liveBadge?: 'pendingOrders';
 }
 
 export interface AdminNavGroup {
@@ -48,33 +54,36 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     title: 'Operations',
     items: [
       { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/orders', label: 'Orders', icon: ShoppingBag },
-      { href: '/kitchen', label: 'Kitchen Display', icon: ChefHat, badge: 'KDS' },
-      { href: '/delivery', label: 'Delivery', icon: Truck, badge: 'DMS' },
-      { href: '/pos', label: 'Restaurant POS', icon: Monitor, badge: 'POS' },
-    ],
-  },
-  {
-    title: 'Restaurant',
-    items: [
+      {
+        href: '/orders',
+        label: 'Orders',
+        icon: ShoppingBag,
+        liveBadge: 'pendingOrders',
+        badgeTone: 'count',
+      },
+      { href: '/pos', label: 'POS', icon: Monitor },
       { href: '/menu', label: 'Menu Management', icon: UtensilsCrossed },
-      { href: '/categories', label: 'Categories', icon: Layers, badge: 'CMS' },
       { href: '/inventory', label: 'Inventory', icon: Package },
-      { href: '/coupons', label: 'Coupons', icon: Ticket },
-    ],
-  },
-  {
-    title: 'Customers & Growth',
-    items: [
+      { href: '/kitchen', label: 'KOT / Kitchen Display', icon: ChefHat },
       { href: '/customers', label: 'Customers', icon: Users },
-      { href: '/marketing', label: 'Announcements & Promotions', icon: Megaphone },
+      { href: '/delivery', label: 'Delivery Management', icon: Truck },
+      { href: '/categories', label: 'Categories', icon: Layers },
+      { href: '/coupons', label: 'Offers & Coupons', icon: Ticket },
+      { href: '/reports', label: 'Reports & Analytics', icon: FileBarChart },
+      {
+        href: '/marketing',
+        label: 'Notifications',
+        icon: Bell,
+        badge: '2',
+        badgeTone: 'alert',
+      },
       { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     ],
   },
   {
-    title: 'Website Builder',
+    title: 'Website & App',
     items: [
-      { href: '/cms', label: 'Website Overview', icon: Globe },
+      { href: '/cms', label: 'Website Management', icon: Globe },
       { href: '/cms/homepage', label: 'Home Page', icon: Home },
       { href: '/cms/offers', label: 'Offers', icon: Tag },
       { href: '/cms/gallery', label: 'Gallery', icon: Image },
@@ -82,20 +91,24 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/cms/pages', label: 'Pages', icon: FileText },
       { href: '/cms/media', label: 'Media Library', icon: FolderOpen },
       { href: '/cms/navigation', label: 'Navigation', icon: Navigation },
-      { href: '/cms/announcements', label: 'Announcements', icon: Bell },
+      { href: '/cms/announcements', label: 'Announcements', icon: Megaphone },
       { href: '/cms/theme', label: 'Theme Builder', icon: Palette },
       { href: '/cms/seo', label: 'SEO Manager', icon: Search },
-      { href: '/cms/mobile', label: 'Mobile App', icon: Smartphone, badge: 'App' },
+      { href: '/cms/mobile', label: 'App Configuration', icon: Smartphone },
     ],
   },
   {
-    title: 'Reports & System',
+    title: 'System',
     items: [
-      { href: '/reports', label: 'Reports', icon: FileBarChart, badge: 'BI' },
-      { href: '/activity', label: 'Activity Logs', icon: History, badge: 'Audit' },
-      { href: '/roles', label: 'Roles & Permissions', icon: Shield },
-      { href: '/ai-assistant', label: 'AI Assistant', icon: Sparkles, badge: 'AI' },
+      { href: '/activity', label: 'Activity Logs', icon: History },
+      { href: '/roles', label: 'Staff Management', icon: Shield },
+      { href: '/ai-assistant', label: 'AI Assistant', icon: Sparkles },
       { href: '/settings', label: 'Settings', icon: Settings },
+      {
+        href: 'mailto:info@mercydosahouse.com',
+        label: 'Help & Support',
+        icon: HelpCircle,
+      },
     ],
   },
 ];
@@ -106,4 +119,5 @@ export const QUICK_ACTIONS = [
   { href: '/menu', label: 'Add Menu Item', icon: UtensilsCrossed },
   { href: '/cms/offers', label: 'Create Offer', icon: Tag },
   { href: '/orders', label: 'View Orders', icon: ShoppingBag },
+  { href: '/pos', label: 'Open POS', icon: Monitor },
 ] as const;

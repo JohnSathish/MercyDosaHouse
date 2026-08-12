@@ -24,27 +24,33 @@ export function AdminMobileDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
-        className="p-0 bg-[#14532D] text-white border-0 max-w-[min(100vw,320px)]"
+        className="max-w-[min(100vw,320px)] border-0 bg-[#0B3D24] p-0 text-white"
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+          <div className="flex min-w-0 items-center gap-3">
             {brandLoading ? (
-              <div className="h-10 w-10 rounded-xl bg-white/20 animate-pulse shrink-0" />
+              <div className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-white/20" />
             ) : (
-              <div className="relative h-10 w-10 rounded-xl overflow-hidden ring-2 ring-white/20 shrink-0">
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full ring-2 ring-white/20">
                 <Image
                   src={brand.logoUrl}
                   alt={brand.businessName}
                   fill
                   className="object-cover"
-                  sizes="40px"
+                  sizes="44px"
                   unoptimized
                 />
               </div>
             )}
             <div className="min-w-0">
-              <p className="font-bold text-sm truncate">{brand.businessName}</p>
-              <p className="text-[10px] text-white/60 uppercase tracking-wider">Restaurant ERP</p>
+              <p className="truncate text-sm font-bold">{brand.businessName}</p>
+              <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-white/55">
+                Restaurant Dashboard
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  online
+                </span>
+              </p>
             </div>
           </div>
           <button
@@ -52,7 +58,7 @@ export function AdminMobileDrawer({
             onClick={() => onOpenChange(false)}
             className={cn(
               'flex h-11 w-11 items-center justify-center rounded-xl',
-              'text-white/80 hover:bg-white/10 hover:text-white transition-colors',
+              'text-white/80 transition-colors hover:bg-white/10 hover:text-white',
             )}
             aria-label="Close menu"
           >
