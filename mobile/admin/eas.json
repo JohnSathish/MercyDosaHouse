@@ -1,0 +1,49 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com",
+        "EXPO_PUBLIC_ADMIN_URL": "https://admin.mercydosahouse.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "pnpm": "10.30.1",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com",
+        "EXPO_PUBLIC_ADMIN_URL": "https://admin.mercydosahouse.com"
+      }
+    },
+    "testing": {
+      "distribution": "internal",
+      "pnpm": "10.30.1",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com",
+        "EXPO_PUBLIC_ADMIN_URL": "https://admin.mercydosahouse.com"
+      }
+    },
+    "production": {
+      "android": { "buildType": "app-bundle" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com",
+        "EXPO_PUBLIC_ADMIN_URL": "https://admin.mercydosahouse.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -533,6 +533,11 @@ model Product {
   prepTimeMinutes Int              @default(15)
   isAvailable     Boolean          @default(true)
   isPopular       Boolean          @default(false)
+  isFeatured      Boolean          @default(false)
+  isBestseller    Boolean          @default(false)
+  isOnOffer       Boolean          @default(false)
+  isPreOrder      Boolean          @default(false)
+  isComingSoon    Boolean          @default(false)
   ingredients     String?
   nutritionInfo   String?
   stock           Int?

@@ -7,7 +7,7 @@ async function getHomeData() {
   try {
     const result = await Promise.race([
       Promise.all([
-        api.get<{ data: ProductDto[] }>('/products?available=true&limit=20'),
+        api.get<{ data: ProductDto[] }>('/products?limit=50'),
         api.get<BusinessSettingsDto>('/settings/business'),
       ]),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),

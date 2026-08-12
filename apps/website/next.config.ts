@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_SITE_URL: siteUrl,
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://mercydosahouse.com/api/v1',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
     NEXT_PUBLIC_WEBSITE_URL: process.env.NEXT_PUBLIC_WEBSITE_URL || siteUrl,
   },
 };

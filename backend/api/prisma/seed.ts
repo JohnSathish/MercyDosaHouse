@@ -270,7 +270,7 @@ async function main() {
       name: 'Masala Dosa',
       slug: 'masala-dosa',
       description: 'Crispy dosa filled with spiced potato masala.',
-      price: 100,
+      price: 110,
       categoryId: dosaCat!.id,
       foodType: FoodType.VEG,
       spiceLevel: SpiceLevel.MEDIUM,

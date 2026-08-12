@@ -1,4 +1,5 @@
 import type { MobileHomeSectionDto, CheckoutProfileDto } from '@mdh/types';
+import { allocateHomeCatalog, productHomeBadge } from '@mdh/utils';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -8,11 +9,7 @@ import { api } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth-storage';
 import { WEBSITE_URL } from '@/lib/constants';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
-import {
-  AnnouncementBar,
-  HomeDeliverySection,
-  PreOrderComingSoonSection,
-} from './announcement-bar';
+import { AnnouncementBar, HomeDeliverySection } from './announcement-bar';
 import {
   CategoryChip,
   FoodCard,
@@ -29,6 +26,14 @@ interface Category {
   name: string;
   icon?: string | null;
 }
+
+type CatalogProduct = FoodCardProduct & {
+  isFeatured?: boolean;
+  isBestseller?: boolean;
+  isOnOffer?: boolean;
+  isPreOrder?: boolean;
+  isComingSoon?: boolean;
+};
 
 function ChargeHintStrip() {
   const config = useAppConfig();
@@ -59,7 +64,7 @@ function InlineHomeSearch() {
   });
 
   const products = data?.data ?? [];
-  const suggestions = ['Dosa', 'Idli', 'Biryani', 'Chicken Curry Dosa', 'Vada'];
+  const suggestions = ['Dosa', 'Idli', 'Biryani', 'Vada'];
 
   return (
     <View style={styles.searchBlock}>
@@ -92,7 +97,6 @@ function InlineHomeSearch() {
 }
 
 function CategoriesSection() {
-  const colors = useThemeColors();
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ['categories', 'mobile'],
     queryFn: () => api.get<Category[]>('/categories?active=true&channel=mobile'),
@@ -102,7 +106,7 @@ function CategoriesSection() {
     <View style={styles.section}>
       <SectionHeader
         title="Explore Categories"
-        actionLabel="Menu"
+        actionLabel="Full menu"
         onAction={() => router.push('/(tabs)/menu')}
       />
       {isLoading ? (
@@ -126,65 +130,103 @@ function CategoriesSection() {
   );
 }
 
-function ProductsCarousel({
+function ProductCarouselBlock({
   title,
-  query,
+  products,
   emoji,
 }: {
   title: string;
-  query: string;
+  products: CatalogProduct[];
   emoji?: string;
 }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', 'carousel', query],
-    queryFn: () => api.list<FoodCardProduct>(`/products?available=true&${query}`),
-  });
-  const products = data?.data ?? [];
-
-  if (!isLoading && !products.length) return null;
-
+  if (!products.length) return null;
   return (
     <View style={styles.section}>
       <SectionHeader
         title={`${emoji ? `${emoji} ` : ''}${title}`}
-        actionLabel="See all"
+        actionLabel="Full menu"
         onAction={() => router.push('/(tabs)/menu')}
       />
-      {isLoading ? (
-        <ScrollView horizontal>
-          <FoodCardSkeleton />
-        </ScrollView>
-      ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {products.slice(0, 8).map((p) => (
-            <FoodCard key={p.id} product={p} layout="horizontal" />
-          ))}
-        </ScrollView>
-      )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {products.map((p) => (
+          <FoodCard
+            key={p.id}
+            product={{
+              ...p,
+              isPopular: p.isPopular || p.isBestseller,
+              isBestseller: p.isBestseller,
+            }}
+            layout="horizontal"
+          />
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
-function ProductsListSection({ title, query }: { title: string; query: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['products', 'list', query, title],
-    queryFn: () => api.list<FoodCardProduct>(`/products?available=true&${query}`),
-  });
-  const products = data?.data ?? [];
+function ProductListBlock({
+  title,
+  products,
+  subtitle,
+}: {
+  title: string;
+  products: CatalogProduct[];
+  subtitle?: string;
+}) {
+  if (!products.length) return null;
+  return (
+    <View style={styles.section}>
+      <SectionHeader
+        title={title}
+        actionLabel="Full menu"
+        onAction={() => router.push('/(tabs)/menu')}
+      />
+      {subtitle ? <Text style={styles.sectionHint}>{subtitle}</Text> : null}
+      {products.map((p) => (
+        <FoodCard
+          key={p.id}
+          product={{
+            ...p,
+            isPopular: p.isPopular || p.isBestseller,
+            isBestseller: p.isBestseller,
+          }}
+          showFavorite
+        />
+      ))}
+      <Pressable style={styles.fullMenuCta} onPress={() => router.push('/(tabs)/menu')}>
+        <Text style={styles.fullMenuCtaText}>View Full Menu →</Text>
+      </Pressable>
+    </View>
+  );
+}
 
+function SpecialtyBlock({
+  title,
+  products,
+  muted,
+}: {
+  title: string;
+  products: CatalogProduct[];
+  muted?: boolean;
+}) {
+  if (!products.length) return null;
   return (
     <View style={styles.section}>
       <SectionHeader title={title} />
-      {isLoading ? (
-        <>
-          <FoodCardSkeleton />
-          <FoodCardSkeleton />
-        </>
-      ) : products.length ? (
-        products.slice(0, 6).map((p) => <FoodCard key={p.id} product={p} showFavorite />)
-      ) : (
-        <Text style={styles.empty}>No items yet.</Text>
-      )}
+      {products.map((p) => (
+        <View key={p.id} style={[styles.specialtyCard, muted && styles.specialtyMuted]}>
+          <Text style={styles.specialtyBadge}>{productHomeBadge(p) ?? title}</Text>
+          <Text style={styles.specialtyName}>{p.name}</Text>
+          {p.description ? (
+            <Text style={styles.specialtyDesc} numberOfLines={2}>
+              {p.description}
+            </Text>
+          ) : null}
+          {!muted && p.price != null ? (
+            <Text style={styles.specialtyPrice}>{formatCurrency(Number(p.price))}</Text>
+          ) : null}
+        </View>
+      ))}
     </View>
   );
 }
@@ -196,27 +238,11 @@ function OffersSection() {
     config.offers?.filter((o) => (o as { isActive?: boolean }).isActive !== false) ?? [];
   const banners = config.banners.filter((b) => b.isActive);
 
-  if (!offers.length && !banners.length) {
-    // Still show delivery-based promo from config
-    if (config.delivery.freeDeliveryLimit > 0) {
-      return (
-        <View style={styles.section}>
-          <SectionHeader title="🎁 Offers For You" />
-          <View style={[styles.offerCard, { borderColor: colors.secondary }]}>
-            <Text style={[styles.offerTitle, { color: colors.primary }]}>Free Delivery</Text>
-            <Text style={styles.offerBody}>
-              On orders above ₹{config.delivery.freeDeliveryLimit}
-            </Text>
-          </View>
-        </View>
-      );
-    }
-    return null;
-  }
+  if (!offers.length && !banners.length) return null;
 
   return (
     <View style={styles.section}>
-      <SectionHeader title="🎁 Offers For You" />
+      <SectionHeader title="Active Offers" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {banners.map((b) => (
           <View key={b.id} style={[styles.offerCard, { backgroundColor: colors.primary }]}>
@@ -299,85 +325,68 @@ function RecentlyOrderedSection() {
     enabled: authed,
   });
 
+  if (!authed || !profile?.recentOrders?.length) return null;
+
   return (
     <View style={styles.section}>
       <SectionHeader title="Recently Ordered" />
-      {!authed ? (
-        <Pressable onPress={() => router.push('/(auth)/login')}>
-          <Text style={styles.empty}>Sign in to see your recent orders →</Text>
+      {profile.recentOrders.slice(0, 3).map((o) => (
+        <Pressable
+          key={o.id}
+          style={styles.recentCard}
+          onPress={() => router.push(`/track/${encodeURIComponent(o.orderNumber)}`)}
+        >
+          <Text style={[styles.recentNum, { color: colors.primary }]}>#{o.orderNumber}</Text>
+          <Text style={styles.recentMeta}>{o.deliveryAddress}</Text>
+          <Text style={styles.recentTotal}>₹{o.grandTotal}</Text>
         </Pressable>
-      ) : profile?.recentOrders?.length ? (
-        profile.recentOrders.slice(0, 3).map((o) => (
-          <Pressable
-            key={o.id}
-            style={styles.recentCard}
-            onPress={() => router.push(`/track/${encodeURIComponent(o.orderNumber)}`)}
-          >
-            <Text style={[styles.recentNum, { color: colors.primary }]}>#{o.orderNumber}</Text>
-            <Text style={styles.recentMeta}>{o.deliveryAddress}</Text>
-            <Text style={styles.recentTotal}>₹{o.grandTotal}</Text>
-          </Pressable>
-        ))
-      ) : (
-        <Text style={styles.empty}>No recent orders yet.</Text>
-      )}
+      ))}
     </View>
   );
 }
 
-function renderSection(section: MobileHomeSectionDto) {
-  switch (section.sectionKey) {
-    case 'hero_banner':
-      return <HeroSection key={section.id} section={section} />;
-    case 'categories':
-      return <CategoriesSection key={section.id} />;
-    case 'popular_items':
-      return (
-        <ProductsCarousel
-          key={section.id}
-          title="Popular Near You"
-          query="popular=true"
-          emoji="🔥"
-        />
-      );
-    case 'best_sellers':
-      return (
-        <ProductsCarousel
-          key={section.id}
-          title={section.title ?? 'Bestsellers'}
-          query="popular=true"
-          emoji="⭐"
-        />
-      );
-    case 'featured_items':
-    case 'recommended_items':
-    case 'new_arrivals':
-    case 'combos':
-    case 'festival_specials':
-    case 'todays_offers':
-      return (
-        <ProductsListSection
-          key={section.id}
-          title={section.title ?? section.sectionKey.replace(/_/g, ' ')}
-          query="limit=8"
-        />
-      );
-    case 'promotional_banners':
-      return <OffersSection key={section.id} />;
-    case 'recently_ordered':
-      return <RecentlyOrderedSection key={section.id} />;
-    default:
-      return null;
-  }
+function useHomeCatalog() {
+  return useQuery({
+    queryKey: ['home-catalog'],
+    queryFn: () => api.list<CatalogProduct>('/products?limit=80'),
+    staleTime: 60_000,
+  });
 }
 
 export function HomeSectionList() {
   const config = useAppConfig();
   const sections = useMemo(() => config.homepage.filter((s) => s.isEnabled), [config.homepage]);
+  const catalogQuery = useHomeCatalog();
+  const products = catalogQuery.data?.data ?? [];
+
+  const catalog = useMemo(
+    () =>
+      allocateHomeCatalog(products, {
+        popularLimit: 4,
+        menuPreviewLimit: 6,
+        comingSoonLimit: 6,
+        preOrderLimit: 6,
+        includeRecommended: false,
+      }),
+    [products],
+  );
 
   const hasHero = sections.some((s) => s.sectionKey === 'hero_banner');
   const hasCategories = sections.some((s) => s.sectionKey === 'categories');
-  const hasOffers = sections.some((s) => s.sectionKey === 'promotional_banners');
+  const enabledKeys = useMemo(() => new Set(sections.map((s) => s.sectionKey)), [sections]);
+
+  const showPopular =
+    enabledKeys.has('popular_items') ||
+    enabledKeys.has('best_sellers') ||
+    enabledKeys.has('featured_items') ||
+    !sections.length;
+  const showMenuPreview =
+    enabledKeys.has('new_arrivals') ||
+    enabledKeys.has('combos') ||
+    enabledKeys.has('festival_specials') ||
+    enabledKeys.has('todays_offers') ||
+    !sections.length;
+  const showRecently = enabledKeys.has('recently_ordered');
 
   return (
     <ScrollView
@@ -388,6 +397,7 @@ export function HomeSectionList() {
       <AnnouncementBar />
       <StoreStatusCard />
       <HomeDeliverySection />
+
       {!hasHero ? (
         <HeroSection
           section={{
@@ -399,12 +409,49 @@ export function HomeSectionList() {
             status: 'PUBLISHED',
           }}
         />
-      ) : null}
-      {sections.map((section) => renderSection(section))}
-      {!hasCategories ? <CategoriesSection /> : null}
+      ) : (
+        sections
+          .filter((s) => s.sectionKey === 'hero_banner')
+          .map((s) => <HeroSection key={s.id} section={s} />)
+      )}
+
+      {!sections.length || hasCategories ? <CategoriesSection /> : null}
+
       <InlineHomeSearch />
-      {!hasOffers ? <OffersSection /> : null}
-      <PreOrderComingSoonSection />
+
+      {catalogQuery.isLoading ? (
+        <View style={styles.section}>
+          <FoodCardSkeleton />
+        </View>
+      ) : (
+        <>
+          {showPopular ? (
+            <ProductCarouselBlock title="Popular Near You" products={catalog.popular} emoji="🔥" />
+          ) : null}
+
+          <OffersSection />
+
+          <SpecialtyBlock title="Pre-Order" products={catalog.preOrder} />
+          <SpecialtyBlock title="Coming Soon" products={catalog.comingSoon} muted />
+
+          {showMenuPreview ? (
+            <ProductListBlock
+              title="Menu Preview"
+              subtitle="A short selection — open the full menu for everything."
+              products={catalog.menuPreview}
+            />
+          ) : (
+            <View style={styles.section}>
+              <Pressable style={styles.fullMenuCta} onPress={() => router.push('/(tabs)/menu')}>
+                <Text style={styles.fullMenuCtaText}>View Full Menu →</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {showRecently ? <RecentlyOrderedSection /> : null}
+        </>
+      )}
+
       <ChargeHintStrip />
       <View style={{ height: 88 }} />
     </ScrollView>
@@ -414,7 +461,8 @@ export function HomeSectionList() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { paddingBottom: 24 },
-  section: { paddingHorizontal: 16, paddingTop: 16 },
+  section: { paddingHorizontal: 16, paddingTop: 14 },
+  sectionHint: { color: COLORS.textMuted, fontSize: 13, marginBottom: 10, marginTop: -4 },
   empty: { color: COLORS.textMuted, fontSize: 14 },
   chargeStrip: {
     marginHorizontal: 16,
@@ -425,7 +473,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   chargeText: { color: '#92400E', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  searchBlock: { paddingHorizontal: 16, paddingTop: 16 },
+  searchBlock: { paddingHorizontal: 16, paddingTop: 12 },
   searchResults: { marginTop: 12 },
   searchLabel: { fontWeight: '800', fontSize: 14, marginBottom: 8 },
   seeAll: { fontWeight: '700', marginTop: 8, textAlign: 'center' },
@@ -468,23 +516,52 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
     padding: 14,
     marginRight: 10,
-    minWidth: 200,
+    width: 220,
+    ...SHADOW.card,
   },
   offerTitle: { fontWeight: '800', fontSize: 15 },
-  offerBody: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
+  offerBody: { color: COLORS.textMuted, marginTop: 6, fontSize: 12 },
   offerTitleLight: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  offerBodyLight: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 4 },
+  offerBodyLight: { color: 'rgba(255,255,255,0.85)', marginTop: 6, fontSize: 12 },
   recentCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     padding: 12,
     marginBottom: 8,
     ...SHADOW.card,
   },
-  recentNum: { fontWeight: '700', fontFamily: 'monospace' },
+  recentNum: { fontWeight: '800' },
   recentMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
   recentTotal: { fontWeight: '700', marginTop: 4 },
+  fullMenuCta: {
+    marginTop: 8,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  fullMenuCtaText: { fontWeight: '800', color: COLORS.primary },
+  specialtyCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  specialtyMuted: { opacity: 0.92, borderStyle: 'dashed' },
+  specialtyBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  specialtyName: { fontWeight: '800', fontSize: 15, color: COLORS.text, marginTop: 4 },
+  specialtyDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
+  specialtyPrice: { fontWeight: '700', marginTop: 6, color: COLORS.primary },
 });

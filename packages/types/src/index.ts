@@ -110,6 +110,11 @@ export interface ProductDto {
   prepTimeMinutes: number;
   isAvailable: boolean;
   isPopular: boolean;
+  isFeatured?: boolean;
+  isBestseller?: boolean;
+  isOnOffer?: boolean;
+  isPreOrder?: boolean;
+  isComingSoon?: boolean;
   packingCharge?: number;
   ingredients?: string | null;
   nutritionInfo?: string | null;

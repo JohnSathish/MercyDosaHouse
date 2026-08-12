@@ -23,6 +23,14 @@ import { useCheckoutStore } from '@/stores/checkout-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
 import { useAppConfig, useFeatureFlag, useThemeColors } from '@/providers/config-context';
 
+type AvailableCoupon = {
+  code: string;
+  type: string;
+  value: number;
+  discount: number;
+  minOrderAmount?: number;
+};
+
 export default function CheckoutScreen() {
   const colors = useThemeColors();
   const config = useAppConfig();
@@ -31,7 +39,8 @@ export default function CheckoutScreen() {
   const clearCart = useCartStore((s) => s.clear);
   const toOrderItems = useCartStore((s) => s.toOrderItems);
   const session = useCheckoutStore();
-  const couponsEnabled = useFeatureFlag('coupons');
+  // Match website: coupons always offered at checkout (remote flag defaults to on)
+  const couponsEnabled = config.featureFlags?.coupons !== false;
   const loyaltyEnabled = useFeatureFlag('loyalty');
   const scheduleEnabled = useFeatureFlag('scheduled_orders');
   const storeOpen = config.store.storeOpen !== false;
@@ -70,32 +79,87 @@ export default function CheckoutScreen() {
     enabled: authed,
   });
 
+  const { data: availableCoupons = [] } = useQuery({
+    queryKey: ['coupons-available', pricing.subtotal],
+    queryFn: () => api.get<AvailableCoupon[]>(`/coupons/available?subtotal=${pricing.subtotal}`),
+    enabled: couponsEnabled && !pricing.couponsBlocked && pricing.subtotal > 0,
+  });
+
   const selectedAddress =
     profile?.addresses.find((a) => a.id === session.selectedAddressId) ??
     profile?.addresses.find((a) => a.isDefault) ??
     profile?.addresses[0];
 
   useEffect(() => {
-    if (selectedAddress && !session.selectedAddressId) {
+    if (selectedAddress?.id && !session.selectedAddressId) {
       session.setSelectedAddressId(selectedAddress.id);
     }
   }, [selectedAddress, session.selectedAddressId]);
 
-  async function applyCoupon() {
-    if (!couponInput.trim()) return;
+  // Same as website: clear coupon when pre-order blocks stacking
+  useEffect(() => {
+    if (pricing.couponsBlocked && session.couponCode) {
+      session.setCouponCode(null);
+      setCouponDiscount(0);
+      setCouponInput('');
+    }
+  }, [pricing.couponsBlocked, session.couponCode]);
+
+  // Same as website: auto-apply the best available coupon
+  useEffect(() => {
+    if (pricing.couponsBlocked || !couponsEnabled) return;
+    if (!availableCoupons.length) return;
+
+    if (session.couponCode) {
+      const stillValid = availableCoupons.find((c) => c.code === session.couponCode);
+      if (stillValid) {
+        setCouponDiscount(stillValid.discount);
+        setCouponInput(stillValid.code);
+        return;
+      }
+      session.setCouponCode(null);
+      setCouponDiscount(0);
+    }
+
+    const best = availableCoupons[0];
+    session.setCouponCode(best.code);
+    setCouponDiscount(best.discount);
+    setCouponInput(best.code);
+    setCouponError(null);
+  }, [availableCoupons, pricing.couponsBlocked, couponsEnabled]);
+
+  async function applyCoupon(code?: string) {
+    const raw = (code ?? couponInput).trim().toUpperCase();
+    if (!raw) return;
+    if (pricing.couponsBlocked) {
+      setCouponError('Pre-order discount cannot be combined with coupon codes.');
+      return;
+    }
     setCouponError(null);
     try {
-      const res = await api.post<{ discount: number }>('/coupons/validate', {
-        code: couponInput.trim().toUpperCase(),
-        subtotal: pricing.subtotal,
-      });
+      const res = await api.post<{ discount: number; coupon?: { code: string } }>(
+        '/coupons/validate',
+        {
+          code: raw,
+          subtotal: pricing.subtotal,
+        },
+      );
+      const applied = res.coupon?.code ?? raw;
       setCouponDiscount(res.discount);
-      session.setCouponCode(couponInput.trim().toUpperCase());
+      setCouponInput(applied);
+      session.setCouponCode(applied);
     } catch (e) {
       setCouponDiscount(0);
       session.setCouponCode(null);
       setCouponError(e instanceof Error ? e.message : 'Invalid coupon');
     }
+  }
+
+  function clearCoupon() {
+    setCouponDiscount(0);
+    setCouponInput('');
+    session.setCouponCode(null);
+    setCouponError(null);
   }
 
   async function placeOrder() {
@@ -189,7 +253,7 @@ export default function CheckoutScreen() {
               <Pressable
                 key={addr.id}
                 style={[styles.card, session.selectedAddressId === addr.id && styles.cardSelected]}
-                onPress={() => session.setSelectedAddressId(addr.id)}
+                onPress={() => session.setSelectedAddressId(addr.id ?? null)}
               >
                 <Text style={styles.cardTitle}>{addr.label ?? addr.addressType ?? 'Address'}</Text>
                 <Text style={styles.cardBody}>
@@ -286,27 +350,59 @@ export default function CheckoutScreen() {
           ))}
         </Section>
 
-        {/* Coupon */}
+        {/* Coupon — parity with website */}
         {couponsEnabled && !pricing.couponsBlocked ? (
-          <Section title="🎟️ Coupon">
+          <Section title="Coupons & Offers">
+            {availableCoupons.length ? (
+              <View style={styles.availableList}>
+                {availableCoupons.map((c) => {
+                  const selected = session.couponCode === c.code;
+                  return (
+                    <Pressable
+                      key={c.code}
+                      style={[styles.couponChip, selected && styles.couponChipActive]}
+                      onPress={() => void applyCoupon(c.code)}
+                    >
+                      <Text style={[styles.couponChipCode, selected && { color: '#fff' }]}>
+                        {c.code}
+                      </Text>
+                      <Text style={[styles.couponChipSave, selected && { color: '#FDE68A' }]}>
+                        Save {formatCurrency(c.discount)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={styles.note}>
+                No auto offers for this cart — enter a code if you have one.
+              </Text>
+            )}
             <View style={styles.couponRow}>
               <TextInput
                 style={styles.input}
-                placeholder="Enter code"
+                placeholder="Enter coupon code"
                 value={couponInput}
                 onChangeText={setCouponInput}
                 autoCapitalize="characters"
               />
               <Pressable
                 style={[styles.applyBtn, { backgroundColor: colors.primary }]}
-                onPress={applyCoupon}
+                onPress={() => void applyCoupon()}
               >
                 <Text style={styles.applyText}>Apply</Text>
               </Pressable>
             </View>
             {couponError ? <Text style={styles.err}>{couponError}</Text> : null}
-            {couponDiscount > 0 ? (
-              <Text style={styles.success}>Coupon applied: −{formatCurrency(couponDiscount)}</Text>
+            {couponDiscount > 0 && session.couponCode ? (
+              <View style={styles.appliedRow}>
+                <Text style={styles.success}>
+                  Coupon {session.couponCode} applied: −{formatCurrency(couponDiscount)}
+                </Text>
+                <Pressable onPress={clearCoupon}>
+                  <Text style={styles.clearCoupon}>Remove</Text>
+                </Pressable>
+              </View>
             ) : null}
           </Section>
         ) : pricing.couponsBlocked ? (
@@ -335,7 +431,7 @@ export default function CheckoutScreen() {
         <Section title="4. Order Summary">
           {items.map((i) => (
             <View key={`${i.productId}-${i.variantId}`} style={styles.line}>
-              <Text style={styles.lineLabel}>
+              <Text style={{ flex: 1, marginRight: 8 }}>
                 {i.name} × {i.quantity}
               </Text>
               <Text>{formatCurrency(i.price * i.quantity)}</Text>
@@ -352,7 +448,10 @@ export default function CheckoutScreen() {
             </Text>
           </View>
           <View style={styles.line}>
-            <Text>Packing</Text>
+            <Text>
+              Packing
+              {items.length ? ` (${items.reduce((n, i) => n + i.quantity, 0)} Items)` : ''}
+            </Text>
             <Text>{formatCurrency(pricing.packingTotal)}</Text>
           </View>
           {pricing.preOrderDiscount > 0 ? (
@@ -363,7 +462,9 @@ export default function CheckoutScreen() {
           ) : null}
           {pricing.couponDiscount > 0 ? (
             <View style={styles.line}>
-              <Text style={styles.discount}>Coupon</Text>
+              <Text style={styles.discount}>
+                Coupon{session.couponCode ? ` (${session.couponCode})` : ''}
+              </Text>
               <Text style={styles.discount}>−{formatCurrency(pricing.couponDiscount)}</Text>
             </View>
           ) : null}
@@ -374,7 +475,7 @@ export default function CheckoutScreen() {
             </View>
           ) : null}
           <View style={[styles.line, styles.totalLine]}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>Grand Total</Text>
             <Text style={styles.totalValue}>{formatCurrency(pricing.grandTotal)}</Text>
           </View>
         </Section>
@@ -393,7 +494,7 @@ export default function CheckoutScreen() {
           ) : (
             <Text style={styles.placeText}>
               {storeOpen
-                ? `Place Order · ${formatCurrency(pricing.grandTotal)}`
+                ? `Review & Place Order · ${formatCurrency(pricing.grandTotal)}`
                 : 'Restaurant Closed'}
             </Text>
           )}
@@ -511,6 +612,25 @@ const styles = StyleSheet.create({
   preBadge: { fontSize: 9, color: '#F59E0B', fontWeight: '700', marginTop: 2 },
   slotScroll: { marginBottom: 8 },
   couponRow: { flexDirection: 'row', gap: 8 },
+  availableList: { gap: 8, marginBottom: 10 },
+  couponChip: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  couponChipActive: { borderColor: '#14532D', backgroundColor: '#14532D' },
+  couponChipCode: { fontWeight: '800', color: '#14532D', fontSize: 14 },
+  couponChipSave: { color: '#059669', fontWeight: '600', fontSize: 12, marginTop: 2 },
+  appliedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  clearCoupon: { color: '#DC2626', fontWeight: '700', fontSize: 12 },
   input: {
     backgroundColor: '#fff',
     borderRadius: 10,

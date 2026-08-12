@@ -51,8 +51,6 @@ export default function OrderSuccessScreen() {
     retry: 1,
   });
 
-  const discountTotal = (order?.discount ?? 0) + (order?.preOrderDiscount ?? 0);
-
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -106,10 +104,18 @@ export default function OrderSuccessScreen() {
               valueColor={order.deliveryCharge === 0 ? COLORS.success : undefined}
             />
             <BillRow label="Packing" value={formatCurrency(order.packingCharge)} muted />
-            {discountTotal > 0 ? (
+            {(order.preOrderDiscount ?? 0) > 0 ? (
               <BillRow
-                label="Discount"
-                value={`-${formatCurrency(discountTotal)}`}
+                label="Pre-order discount"
+                value={`-${formatCurrency(order.preOrderDiscount ?? 0)}`}
+                muted
+                valueColor={COLORS.success}
+              />
+            ) : null}
+            {(order.discount ?? 0) > 0 ? (
+              <BillRow
+                label="Coupon"
+                value={`-${formatCurrency(order.discount)}`}
                 muted
                 valueColor={COLORS.success}
               />

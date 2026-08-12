@@ -36,7 +36,7 @@ export const HERO_MENU_ITEMS: HeroMenuItem[] = [
     slug: 'masala-dosa',
     name: 'Masala Dosa',
     image: '/images/hero-dosa.png',
-    price: 100,
+    price: 110,
     description: 'Crispy dosa filled with spiced potato masala.',
     rating: 4.9,
     category: 'Dosa',

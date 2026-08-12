@@ -7,6 +7,17 @@ import { api } from '@/lib/api';
 import type { ProductDto } from '@mdh/types';
 import { useState } from 'react';
 
+const FLAG_KEYS = [
+  ['isPopular', 'Popular'],
+  ['isBestseller', 'Bestseller'],
+  ['isFeatured', 'Featured'],
+  ['isOnOffer', 'Offer'],
+  ['isPreOrder', 'Pre-Order'],
+  ['isComingSoon', 'Coming Soon'],
+] as const;
+
+type FlagKey = (typeof FLAG_KEYS)[number][0];
+
 export default function MenuManagementPage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -21,7 +32,7 @@ export default function MenuManagementPage() {
 
   const { data: products } = useQuery({
     queryKey: ['admin-products'],
-    queryFn: () => api.get<{ data: ProductDto[] }>('/products'),
+    queryFn: () => api.get<{ data: ProductDto[] }>('/products?limit=200'),
   });
 
   const { data: categories } = useQuery({
@@ -45,22 +56,22 @@ export default function MenuManagementPage() {
     },
   });
 
-  const toggleAvailability = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) =>
-      api.patch(`/products/${id}`, { isAvailable }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
-  });
-
-  const updatePacking = useMutation({
-    mutationFn: ({ id, packingCharge }: { id: string; packingCharge: number }) =>
-      api.patch(`/products/${id}`, { packingCharge }),
+  const patchProduct = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      api.patch(`/products/${id}`, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
   });
 
   return (
     <div className="w-full min-w-0">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold">Menu Management</h1>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold">Menu Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Homepage shows each item once — flags control which section (Popular / Pre-Order /
+            Coming Soon). Featured & Offer appear as badges, not duplicate carousels.
+          </p>
+        </div>
         <Button className="w-full sm:w-auto min-h-[44px]" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancel' : 'Add Product'}
         </Button>
@@ -137,36 +148,65 @@ export default function MenuManagementPage() {
       <div className="space-y-3">
         {products?.data.map((p) => (
           <Card key={p.id}>
-            <CardContent className="p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-              <div className="flex-1">
-                <p className="font-semibold">{p.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(p.price)} — {p.category?.name}
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Label className="text-xs whitespace-nowrap">Packing ₹</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="h-8 w-20 text-sm"
-                    defaultValue={p.packingCharge ?? 20}
-                    onBlur={(e) => {
-                      const val = parseFloat(e.target.value);
-                      if (!Number.isNaN(val) && val !== (p.packingCharge ?? 20)) {
-                        updatePacking.mutate({ id: p.id, packingCharge: val });
-                      }
-                    }}
-                  />
+            <CardContent className="p-4 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                <div className="flex-1">
+                  <p className="font-semibold">{p.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(p.price)} — {p.category?.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Label className="text-xs whitespace-nowrap">Packing ₹</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-8 w-20 text-sm"
+                      defaultValue={p.packingCharge ?? 20}
+                      onBlur={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!Number.isNaN(val) && val !== (p.packingCharge ?? 20)) {
+                          patchProduct.mutate({ id: p.id, body: { packingCharge: val } });
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
+                <Button
+                  size="sm"
+                  variant={p.isAvailable ? 'outline' : 'secondary'}
+                  className="w-full sm:w-auto min-h-[44px]"
+                  onClick={() =>
+                    patchProduct.mutate({ id: p.id, body: { isAvailable: !p.isAvailable } })
+                  }
+                >
+                  {p.isAvailable ? 'Available' : 'Unavailable'}
+                </Button>
               </div>
-              <Button
-                size="sm"
-                variant={p.isAvailable ? 'outline' : 'secondary'}
-                className="w-full sm:w-auto min-h-[44px]"
-                onClick={() => toggleAvailability.mutate({ id: p.id, isAvailable: !p.isAvailable })}
-              >
-                {p.isAvailable ? 'Available' : 'Unavailable'}
-              </Button>
+
+              <div className="flex flex-wrap gap-2">
+                {FLAG_KEYS.map(([key, label]) => {
+                  const on = !!(p as ProductDto & Record<string, boolean>)[key];
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        patchProduct.mutate({
+                          id: p.id,
+                          body: { [key]: !on } as Record<FlagKey, boolean>,
+                        })
+                      }
+                      className={`rounded-full px-3 py-1 text-xs font-semibold border transition-colors ${
+                        on
+                          ? 'bg-[#14532D] text-white border-[#14532D]'
+                          : 'bg-white text-muted-foreground border-border hover:border-[#14532D]/40'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         ))}

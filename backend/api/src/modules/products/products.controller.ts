@@ -17,6 +17,11 @@ export class ProductsController {
     @Query('search') search?: string,
     @Query('available') available?: string,
     @Query('popular') popular?: string,
+    @Query('featured') featured?: string,
+    @Query('bestseller') bestseller?: string,
+    @Query('onOffer') onOffer?: string,
+    @Query('preOrder') preOrder?: string,
+    @Query('comingSoon') comingSoon?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -26,6 +31,11 @@ export class ProductsController {
       search,
       available: available === 'true',
       popular: popular === 'true',
+      featured: featured === 'true',
+      bestseller: bestseller === 'true',
+      onOffer: onOffer === 'true',
+      preOrder: preOrder === 'true',
+      comingSoon: comingSoon === 'true',
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 50,
     });

@@ -158,3 +158,12 @@ export const FOOD_TYPE_LABELS: Record<string, string> = {
   VEG: 'Veg',
   NON_VEG: 'Non Veg',
 };
+
+export {
+  allocateHomeCatalog,
+  availableForSale,
+  productHomeBadge,
+  type HomeCatalogProduct,
+  type HomeCatalogOptions,
+  type HomeCatalogAllocation,
+} from './home-catalog';

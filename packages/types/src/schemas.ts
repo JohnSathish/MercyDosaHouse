@@ -76,6 +76,11 @@ export const productSchema = z.object({
   prepTimeMinutes: z.number().int().positive(),
   isAvailable: z.boolean().default(true),
   isPopular: z.boolean().default(false),
+  isFeatured: z.boolean().default(false),
+  isBestseller: z.boolean().default(false),
+  isOnOffer: z.boolean().default(false),
+  isPreOrder: z.boolean().default(false),
+  isComingSoon: z.boolean().default(false),
   ingredients: z.string().optional(),
   nutritionInfo: z.string().optional(),
 });

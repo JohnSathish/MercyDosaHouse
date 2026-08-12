@@ -12,6 +12,11 @@ export class ProductsService {
     search?: string;
     available?: boolean;
     popular?: boolean;
+    featured?: boolean;
+    bestseller?: boolean;
+    onOffer?: boolean;
+    preOrder?: boolean;
+    comingSoon?: boolean;
     page?: number;
     limit?: number;
   }) {
@@ -23,6 +28,11 @@ export class ProductsService {
     if (filters?.foodType) where.foodType = filters.foodType;
     if (filters?.available) where.isAvailable = true;
     if (filters?.popular) where.isPopular = true;
+    if (filters?.featured) where.isFeatured = true;
+    if (filters?.bestseller) where.isBestseller = true;
+    if (filters?.onOffer) where.isOnOffer = true;
+    if (filters?.preOrder) where.isPreOrder = true;
+    if (filters?.comingSoon) where.isComingSoon = true;
     if (filters?.search) {
       where.OR = [
         { name: { contains: filters.search, mode: 'insensitive' } },
@@ -34,7 +44,7 @@ export class ProductsService {
       this.prisma.product.findMany({
         where,
         include: { category: true, images: true, variants: true },
-        orderBy: { name: 'asc' },
+        orderBy: [{ isPopular: 'desc' }, { isBestseller: 'desc' }, { name: 'asc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -42,7 +52,7 @@ export class ProductsService {
     ]);
 
     return {
-      data: data.map(this.mapProduct),
+      data: data.map((p) => this.mapProduct(p)),
       total,
       page,
       limit,
@@ -80,6 +90,11 @@ export class ProductsService {
     prepTimeMinutes?: number;
     isAvailable?: boolean;
     isPopular?: boolean;
+    isFeatured?: boolean;
+    isBestseller?: boolean;
+    isOnOffer?: boolean;
+    isPreOrder?: boolean;
+    isComingSoon?: boolean;
     ingredients?: string;
     nutritionInfo?: string;
   }) {
@@ -88,7 +103,7 @@ export class ProductsService {
         data: { ...data, price: data.price },
         include: { category: true, images: true, variants: true },
       })
-      .then(this.mapProduct);
+      .then((p) => this.mapProduct(p));
   }
 
   async update(id: string, data: Record<string, unknown>) {
@@ -126,6 +141,11 @@ export class ProductsService {
     prepTimeMinutes: number;
     isAvailable: boolean;
     isPopular: boolean;
+    isFeatured?: boolean;
+    isBestseller?: boolean;
+    isOnOffer?: boolean;
+    isPreOrder?: boolean;
+    isComingSoon?: boolean;
     ingredients: string | null;
     nutritionInfo: string | null;
     images?: { url: string }[];
@@ -147,6 +167,11 @@ export class ProductsService {
       prepTimeMinutes: product.prepTimeMinutes,
       isAvailable: product.isAvailable,
       isPopular: product.isPopular,
+      isFeatured: product.isFeatured ?? false,
+      isBestseller: product.isBestseller ?? false,
+      isOnOffer: product.isOnOffer ?? false,
+      isPreOrder: product.isPreOrder ?? false,
+      isComingSoon: product.isComingSoon ?? false,
       ingredients: product.ingredients,
       nutritionInfo: product.nutritionInfo,
       variants: product.variants?.map((v) => ({

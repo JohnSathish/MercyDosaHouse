@@ -11,7 +11,9 @@
     "dev:website": "pnpm --filter @mdh/website dev",
     "dev:api": "pnpm --filter @mdh/api dev",
     "dev:mobile": "pnpm --filter @mdh/mobile-shared build && pnpm --filter @mdh/customer-app start",
+    "dev:admin-app": "pnpm --filter @mdh/admin-app start",
     "build:mobile": "pnpm --filter @mdh/types build && pnpm --filter @mdh/mobile-shared build && pnpm --filter @mdh/customer-app export",
+    "build:admin-app": "pnpm --filter @mdh/types build && pnpm --filter @mdh/utils build && pnpm --filter @mdh/admin-app exec eas build --platform android --profile testing",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -46,7 +48,10 @@
     "overrides": {
       "@mdh/customer-app>react": "18.3.1",
       "@mdh/customer-app>@types/react": "~18.3.12",
-      "@mdh/customer-app>react-dom": "18.3.1"
+      "@mdh/customer-app>react-dom": "18.3.1",
+      "@mdh/admin-app>react": "18.3.1",
+      "@mdh/admin-app>@types/react": "~18.3.12",
+      "@mdh/admin-app>react-dom": "18.3.1"
     }
   }
 }

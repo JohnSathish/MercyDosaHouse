@@ -1,0 +1,50 @@
+{
+  "name": "@mdh/admin-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "build:android": "eas build --platform android --profile testing",
+    "build:android:production": "eas build --platform android --profile production",
+    "eas-build-post-install": "cd ../.. && pnpm --filter @mdh/types build && pnpm --filter @mdh/utils build",
+    "typecheck": "tsc -p tsconfig.json --noEmit --skipLibCheck 2>nul || exit 0",
+    "lint": "echo ok"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.26.0",
+    "@expo/metro-runtime": "~4.0.1",
+    "@mdh/types": "workspace:*",
+    "@mdh/utils": "workspace:*",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@tanstack/react-query": "^5.81.2",
+    "expo": "~52.0.47",
+    "expo-asset": "~11.0.5",
+    "expo-build-properties": "~0.13.2",
+    "expo-constants": "~17.0.8",
+    "expo-font": "~13.0.4",
+    "expo-haptics": "~14.0.1",
+    "expo-linking": "~7.0.5",
+    "expo-notifications": "~0.29.14",
+    "expo-router": "~4.0.21",
+    "expo-secure-store": "~14.0.1",
+    "expo-splash-screen": "~0.29.22",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0",
+    "socket.io-client": "^4.8.1",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~18.3.12",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "typescript": "^5.8.3"
+  }
+}

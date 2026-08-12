@@ -49,7 +49,7 @@ export function FoodCard({
         )}
         <View style={styles.hBody}>
           {(product.isBestseller || product.isPopular) && (
-            <Badge label="Bestseller" tone="danger" />
+            <Badge label={product.isBestseller ? 'Bestseller' : 'Popular'} tone="danger" />
           )}
           <Text style={styles.name} numberOfLines={2}>
             {product.name}

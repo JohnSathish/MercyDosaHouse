@@ -17,30 +17,6 @@ type OfferCard = {
   imageUrl?: string;
 };
 
-const FALLBACK_OFFERS: OfferCard[] = [
-  {
-    title: 'Buy 2 Masala Dosas',
-    subtitle: 'Fresh spiced masala filling, crispy & hot',
-    cta: 'Order Now',
-    href: '/menu',
-    bg: 'from-orange-500 to-amber-400',
-  },
-  {
-    title: 'Chicken Biryani',
-    subtitle: 'Aromatic & flavorful — ₹270',
-    cta: 'Order Now',
-    href: '/menu/chicken-biryani',
-    bg: 'from-emerald-600 to-green-500',
-  },
-  {
-    title: '10% Pre-Order OFF',
-    subtitle: 'Order at least 1 day ahead — save on all food items',
-    cta: 'Schedule Order',
-    href: '/checkout',
-    bg: 'from-red-500 to-rose-500',
-  },
-];
-
 const OFFER_GRADIENTS = [
   'from-orange-500 to-amber-400',
   'from-emerald-600 to-green-500',
@@ -60,7 +36,8 @@ function cmsOffersToCards(offers: OfferDto[]): OfferCard[] {
 
 export function OffersSection() {
   const cms = useCmsContent();
-  const offers = cms?.offers?.length ? cmsOffersToCards(cms.offers) : FALLBACK_OFFERS;
+  if (!cms?.offers?.length) return null;
+  const offers = cmsOffersToCards(cms.offers);
   return (
     <section id="offers" className="py-16 md:py-20 bg-[#FFF8E8]">
       <div className="container mx-auto px-4">
