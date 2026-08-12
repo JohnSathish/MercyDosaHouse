@@ -28,6 +28,7 @@ export function SiteFooter({
     { href: '/gallery', label: 'Gallery' },
     { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact' },
+    { href: '/privacy', label: 'Privacy' },
   ];
 
   return (
