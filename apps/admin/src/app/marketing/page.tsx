@@ -105,6 +105,12 @@ export default function MarketingHubPage() {
 
   const saveDelivery = useMutation({
     mutationFn: (data: Partial<DeliveryConfigDto>) => {
+      const toHHmm = (v?: string | null) => {
+        if (!v) return null;
+        const match = String(v).match(/^(\d{1,2}):(\d{2})/);
+        if (!match) return null;
+        return `${match[1]!.padStart(2, '0')}:${match[2]}`;
+      };
       const normalized = normalizeDeliveryConfigInput({
         status: data.status,
         message: data.message || null,
@@ -112,10 +118,10 @@ export default function MarketingHubPage() {
       return api.patch('/marketing/delivery-config', {
         status: normalized.status,
         areas: data.areas ?? [],
-        orderStartTime: data.orderStartTime || null,
-        orderEndTime: data.orderEndTime || null,
-        deliveryStartTime: data.deliveryStartTime || null,
-        deliveryEndTime: data.deliveryEndTime || null,
+        orderStartTime: toHHmm(data.orderStartTime),
+        orderEndTime: toHHmm(data.orderEndTime),
+        deliveryStartTime: toHHmm(data.deliveryStartTime),
+        deliveryEndTime: toHHmm(data.deliveryEndTime),
         message: normalized.message,
         expansionMessage: data.expansionMessage || null,
         isActive: data.isActive ?? true,
@@ -289,43 +295,43 @@ export default function MarketingHubPage() {
                 </p>
               </div>
               <div>
-                <Label>Order Start (HH:mm)</Label>
+                <Label>Order Start</Label>
                 <Input
+                  type="time"
                   value={deliveryForm.orderStartTime ?? ''}
                   onChange={(e) =>
                     setDeliveryForm({ ...deliveryForm, orderStartTime: e.target.value })
                   }
-                  placeholder="15:00"
                 />
               </div>
               <div>
-                <Label>Order End (HH:mm)</Label>
+                <Label>Order End</Label>
                 <Input
+                  type="time"
                   value={deliveryForm.orderEndTime ?? ''}
                   onChange={(e) =>
                     setDeliveryForm({ ...deliveryForm, orderEndTime: e.target.value })
                   }
-                  placeholder="16:00"
                 />
               </div>
               <div>
-                <Label>Delivery Start (HH:mm)</Label>
+                <Label>Delivery Start</Label>
                 <Input
+                  type="time"
                   value={deliveryForm.deliveryStartTime ?? ''}
                   onChange={(e) =>
                     setDeliveryForm({ ...deliveryForm, deliveryStartTime: e.target.value })
                   }
-                  placeholder="17:30"
                 />
               </div>
               <div>
-                <Label>Delivery End (HH:mm)</Label>
+                <Label>Delivery End</Label>
                 <Input
+                  type="time"
                   value={deliveryForm.deliveryEndTime ?? ''}
                   onChange={(e) =>
                     setDeliveryForm({ ...deliveryForm, deliveryEndTime: e.target.value })
                   }
-                  placeholder="18:00"
                 />
               </div>
               <div className="sm:col-span-2">

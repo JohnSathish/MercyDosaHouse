@@ -13,6 +13,9 @@ import { getMarketingBundle } from '@/lib/marketing-content';
 import { RestaurantJsonLd } from '@/components/seo/restaurant-jsonld';
 import type { BusinessSettingsDto } from '@mdh/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],

@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { APP_URLS } from '@/lib/app-urls';
 import type { MarketingPublicBundleDto } from '@mdh/types';
 
 const EMPTY: MarketingPublicBundleDto = {
@@ -9,21 +10,38 @@ const EMPTY: MarketingPublicBundleDto = {
   delivery: null,
 };
 
-let cache: { data: MarketingPublicBundleDto; expires: number } | null = null;
+function resolveMarketingApiBase(): string {
+  if (typeof window === 'undefined') {
+    return (
+      process.env.API_INTERNAL_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:3001/api/v1'
+    );
+  }
+  return process.env.NEXT_PUBLIC_API_URL || `${APP_URLS.website}/api/v1`;
+}
 
+/** Always fetch fresh marketing config (admin edits must show without rebuild). */
 export async function getMarketingBundle(): Promise<MarketingPublicBundleDto> {
-  if (cache && cache.expires > Date.now()) return cache.data;
   try {
-    const data = await api.get<MarketingPublicBundleDto>('/marketing/public?platform=WEBSITE');
-    cache = { data, expires: Date.now() + 60_000 };
-    return data;
+    const base = resolveMarketingApiBase().replace(/\/$/, '');
+    const res = await fetch(`${base}/marketing/public?platform=WEBSITE`, {
+      cache: 'no-store',
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) return EMPTY;
+    return (await res.json()) as MarketingPublicBundleDto;
   } catch {
-    return EMPTY;
+    try {
+      return await api.get<MarketingPublicBundleDto>('/marketing/public?platform=WEBSITE');
+    } catch {
+      return EMPTY;
+    }
   }
 }
 
 export function revalidateMarketingCache() {
-  cache = null;
+  /* no-op: marketing always fetched with cache: 'no-store' */
 }
 
 export function getSessionId(): string {
