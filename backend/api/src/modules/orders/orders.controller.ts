@@ -36,6 +36,7 @@ export class OrdersController {
       couponCode: body.couponCode as string | undefined,
       scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
       rewardPointsUsed: body.rewardPointsUsed as number | undefined,
+      orderType: (body.orderType as 'DELIVERY' | 'ONLINE_PICKUP' | undefined) ?? 'DELIVERY',
     });
   }
 
@@ -109,6 +110,7 @@ export class OrdersController {
       addressId,
       scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
       rewardPointsUsed: body.rewardPointsUsed as number | undefined,
+      orderType: (body.orderType as 'DELIVERY' | 'ONLINE_PICKUP' | undefined) ?? 'DELIVERY',
     });
   }
 

@@ -80,6 +80,7 @@ export class OrdersService implements OnModuleInit {
     couponCode?: string;
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
+    orderType?: 'DELIVERY' | 'ONLINE_PICKUP' | 'TAKEAWAY' | 'DINE_IN';
   }) {
     await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Cart is empty');
@@ -120,11 +121,13 @@ export class OrdersService implements OnModuleInit {
     addressId?: string;
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
+    orderType?: 'DELIVERY' | 'ONLINE_PICKUP' | 'TAKEAWAY' | 'DINE_IN';
   }) {
     await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Order must have items');
 
-    const pricing = await this.computePricing(data);
+    const orderType = data.orderType ?? 'DELIVERY';
+    const pricing = await this.computePricing({ ...data, orderType });
     const orderNumber = await this.generateOrderNumber();
     const branch = await this.prisma.branch.findFirst({ where: { isDefault: true } });
 
@@ -141,6 +144,7 @@ export class OrdersService implements OnModuleInit {
           scheduledDeliveryAt: data.scheduledDeliveryAt,
           rewardPointsUsed: pricing.rewardPointsUsed,
           deliveryInstructions: data.deliveryInstructions,
+          orderType,
           subtotal: pricing.subtotal,
           deliveryCharge: pricing.deliveryCharge,
           packingCharge: pricing.packingCharge,
@@ -228,9 +232,11 @@ export class OrdersService implements OnModuleInit {
     couponCode?: string;
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
+    orderType?: 'DELIVERY' | 'ONLINE_PICKUP' | 'TAKEAWAY' | 'DINE_IN';
   }) {
     const settings = await this.prisma.businessSettings.findFirst();
     const minOrder = Number(settings?.minOrderAmount || 100);
+    const orderType = data.orderType ?? 'DELIVERY';
 
     const productIds = data.items.map((i) => i.productId);
     const products = await this.prisma.product.findMany({
@@ -286,7 +292,7 @@ export class OrdersService implements OnModuleInit {
     const { amount: deliveryCharge } = calculateDeliveryCharge(subtotal, {
       deliveryCharge: Number(settings?.deliveryCharge ?? 30),
       freeDeliveryLimit: Number(settings?.freeDeliveryLimit ?? 299),
-      orderType: 'DELIVERY',
+      orderType,
     });
 
     const preOrderConfig = {

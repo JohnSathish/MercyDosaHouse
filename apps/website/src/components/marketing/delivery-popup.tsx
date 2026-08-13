@@ -155,12 +155,18 @@ export function DeliveryPopupTrigger({
   open,
   onClose,
   message,
+  expansionMessage,
+  actionLabel = 'Understood',
 }: {
   open: boolean;
   onClose: () => void;
   message: string;
+  expansionMessage?: string | null;
+  actionLabel?: string;
 }) {
   const marketing = useMarketing();
+  const expansion = expansionMessage?.trim() || marketing?.delivery?.expansionMessage?.trim() || '';
+  const showExpansion = expansion && expansion !== message.trim();
 
   return (
     <AnimatePresence>
@@ -169,17 +175,21 @@ export function DeliveryPopupTrigger({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50"
         >
           <div className="w-full max-w-md rounded-2xl bg-[#FFF8E8] p-6 shadow-xl">
-            <p className="text-2xl mb-2">🚚</p>
+            <p className="text-2xl mb-2">🥡</p>
             <h2 className="text-lg font-bold text-[#14532D] mb-2">Delivery Update</h2>
-            <p className="text-sm text-gray-700 mb-4">{message}</p>
-            {marketing?.delivery?.expansionMessage && (
-              <p className="text-xs text-[#F59E0B] mb-4">{marketing.delivery.expansionMessage}</p>
+            <p className="text-sm text-gray-700 mb-2">{message}</p>
+            {showExpansion ? (
+              <p className="text-xs text-[#F59E0B] mb-4">{expansion}</p>
+            ) : (
+              <p className="text-xs text-[#14532D] font-medium mb-4">
+                You can still place a pickup order.
+              </p>
             )}
             <Button onClick={onClose} className="w-full bg-[#14532D]">
-              Understood
+              {actionLabel}
             </Button>
           </div>
         </motion.div>

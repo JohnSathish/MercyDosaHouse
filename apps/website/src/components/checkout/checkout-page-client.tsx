@@ -33,6 +33,7 @@ import {
 } from '@mdh/utils';
 import { useOrderCharges } from '@/hooks/use-order-charges';
 import { AddressType, DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
+import type { OnlineOrderType } from '@mdh/utils';
 import type {
   AddressDto,
   BusinessSettingsDto,
@@ -165,6 +166,16 @@ export function CheckoutPageClient() {
     staleTime: 60_000,
   });
 
+  const [deliveryCheck, setDeliveryCheck] = useState<{
+    available: boolean;
+    message: string;
+    expansionMessage?: string | null;
+  } | null>(null);
+  const [deliveryPopupOpen, setDeliveryPopupOpen] = useState(false);
+  const [deliveryNoticeAcked, setDeliveryNoticeAcked] = useState(false);
+  const pickupOnly = Boolean(deliveryCheck && !deliveryCheck.available);
+  const orderType: OnlineOrderType = pickupOnly ? 'ONLINE_PICKUP' : 'DELIVERY';
+
   const sub = getSubtotal();
   const packing = packingTotalFn();
   const packedCount = packedItemCountFn();
@@ -204,7 +215,7 @@ export function CheckoutPageClient() {
   const couponsBlocked = preOrderActive && !preOrderConfig.stackWithCoupons;
 
   const totalDiscount = preOrderDiscount + couponDiscount + rewardDiscount;
-  const charges = useOrderCharges(sub, packing, 'DELIVERY', totalDiscount);
+  const charges = useOrderCharges(sub, packing, orderType, totalDiscount);
   const { delivery, deliveryIsFree, total: clientTotal } = charges;
 
   const quoteItems = useMemo(
@@ -224,6 +235,7 @@ export function CheckoutPageClient() {
       couponsBlocked ? null : session.couponCode,
       scheduledIso,
       session.rewardPointsToUse,
+      orderType,
     ],
     queryFn: () =>
       api.post<{
@@ -239,6 +251,7 @@ export function CheckoutPageClient() {
         couponCode: couponsBlocked ? undefined : session.couponCode,
         scheduledDeliveryAt: scheduledIso ?? undefined,
         rewardPointsUsed: session.rewardPointsToUse || undefined,
+        orderType,
       }),
     enabled: quoteItems.length > 0,
     staleTime: 10_000,
@@ -260,13 +273,6 @@ export function CheckoutPageClient() {
     return profile.addresses.find((a) => a.isDefault) ?? profile.addresses[0];
   }, [profile, session.selectedAddressId]);
 
-  const [deliveryCheck, setDeliveryCheck] = useState<{
-    available: boolean;
-    message: string;
-    expansionMessage?: string | null;
-  } | null>(null);
-  const [deliveryPopupOpen, setDeliveryPopupOpen] = useState(false);
-
   useEffect(() => {
     const addr = selectedAddress ?? session.guestAddressDraft;
     if (!addr?.line1) {
@@ -278,9 +284,9 @@ export function CheckoutPageClient() {
       .join(' ');
     checkDeliveryArea(text, addr.pincode).then((result) => {
       setDeliveryCheck(result);
-      if (!result.available) setDeliveryPopupOpen(true);
+      if (!result.available && !deliveryNoticeAcked) setDeliveryPopupOpen(true);
     });
-  }, [selectedAddress, session.guestAddressDraft]);
+  }, [selectedAddress, session.guestAddressDraft, deliveryNoticeAcked]);
 
   async function syncProfileNameFromContact(contactName?: string | null) {
     const name = contactName?.trim();
@@ -457,6 +463,7 @@ export function CheckoutPageClient() {
         rewardPointsUsed: session.rewardPointsToUse,
         scheduledDeliveryAt: buildScheduledIso(),
         deliveryInstructions: selectedAddress.deliveryNotes,
+        orderType,
         items: items.map((i) => ({
           productId: i.productId,
           variantId: i.variantId,
@@ -487,6 +494,7 @@ export function CheckoutPageClient() {
         paymentMethod: session.paymentMethod,
         couponCode,
         scheduledDeliveryAt: buildScheduledIso(),
+        orderType,
         items: items.map((i) => ({
           productId: i.productId,
           variantId: i.variantId,
@@ -494,11 +502,15 @@ export function CheckoutPageClient() {
         })),
       };
     } else {
-      toast('Please select or add a delivery address');
+      toast(
+        pickupOnly
+          ? 'Please add your contact details for pickup'
+          : 'Please select or add a delivery address',
+      );
       return;
     }
 
-    if (deliveryCheck && !deliveryCheck.available) {
+    if (deliveryCheck && !deliveryCheck.available && orderType === 'DELIVERY') {
       toast(deliveryCheck.message);
       setDeliveryPopupOpen(true);
       return;
@@ -726,9 +738,16 @@ export function CheckoutPageClient() {
             )}
           >
             {deliveryCheck.message}
-            {!deliveryCheck.available && deliveryCheck.expansionMessage && (
-              <p className="text-xs mt-1 text-[#F59E0B]">{deliveryCheck.expansionMessage}</p>
+            {!deliveryCheck.available && (
+              <p className="text-xs mt-1 font-semibold text-[#14532D]">
+                You can still place a pickup order. Continue to confirm.
+              </p>
             )}
+            {!deliveryCheck.available &&
+              deliveryCheck.expansionMessage &&
+              deliveryCheck.expansionMessage.trim() !== deliveryCheck.message.trim() && (
+                <p className="text-xs mt-1 text-[#F59E0B]">{deliveryCheck.expansionMessage}</p>
+              )}
           </div>
         )}
 
@@ -1032,8 +1051,13 @@ export function CheckoutPageClient() {
       />
       <DeliveryPopupTrigger
         open={deliveryPopupOpen}
-        onClose={() => setDeliveryPopupOpen(false)}
+        onClose={() => {
+          setDeliveryPopupOpen(false);
+          setDeliveryNoticeAcked(true);
+        }}
         message={deliveryCheck?.message ?? 'Delivery is unavailable in your area.'}
+        expansionMessage={deliveryCheck?.expansionMessage}
+        actionLabel="Continue with Pickup"
       />
 
       <AddressFormDialog
@@ -1055,16 +1079,20 @@ export function CheckoutPageClient() {
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div className="rounded-xl bg-[#FFF8E8] p-3">
-              <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Delivery</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase mb-1">
+                {pickupOnly ? 'Pickup' : 'Delivery'}
+              </p>
               <p>
                 {selectedAddress
                   ? `${selectedAddress.line1}, ${selectedAddress.city}`
                   : session.guestAddressDraft?.line1 || '—'}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {session.deliveryTiming === 'now'
-                  ? 'Deliver Now (~30 min)'
-                  : `Scheduled: ${session.scheduledDate} ${session.scheduledSlot}`}
+                {pickupOnly
+                  ? 'Pickup at restaurant — home delivery is not available'
+                  : session.deliveryTiming === 'now'
+                    ? 'Deliver Now (~30 min)'
+                    : `Scheduled: ${session.scheduledDate} ${session.scheduledSlot}`}
               </p>
             </div>
             <div className="flex justify-between">

@@ -61,7 +61,7 @@ export function calculateDeliveryCharge(
   const freeDeliveryLimit = options.freeDeliveryLimit ?? 299;
   const baseCharge = options.deliveryCharge ?? 30;
 
-  if (orderType === 'DINE_IN') {
+  if (orderType === 'DINE_IN' || orderType === 'ONLINE_PICKUP' || orderType === 'TAKEAWAY') {
     return { amount: 0, isFree: true, freeDeliveryLimit };
   }
 
