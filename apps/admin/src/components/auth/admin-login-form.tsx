@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -99,8 +99,26 @@ function MicrosoftIcon({ className }: { className?: string }) {
   );
 }
 
+const LOGIN_NEXT_KEY = 'mdh_admin_next';
+
+function safeInternalPath(path: string | null | undefined): string | null {
+  if (!path || !path.startsWith('/') || path.startsWith('//') || path.startsWith('/login')) {
+    return null;
+  }
+  return path;
+}
+
+function resolvePostLoginPath(fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const fromQuery = safeInternalPath(new URLSearchParams(window.location.search).get('next'));
+  const fromStore = safeInternalPath(sessionStorage.getItem(LOGIN_NEXT_KEY));
+  sessionStorage.removeItem(LOGIN_NEXT_KEY);
+  return fromQuery || fromStore || fallback;
+}
+
 export function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToastStore((s) => s.show);
   const [authMode, setAuthMode] = useState<'email' | 'otp'>('email');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -114,6 +132,7 @@ export function AdminLoginForm() {
   const [language, setLanguage] = useState('en');
   const [langOpen, setLangOpen] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [pendingWorkspace, setPendingWorkspace] = useState<string | null>(null);
 
   const {
     register,
@@ -134,6 +153,14 @@ export function AdminLoginForm() {
   });
 
   useEffect(() => {
+    const next = safeInternalPath(searchParams.get('next'));
+    if (next) {
+      sessionStorage.setItem(LOGIN_NEXT_KEY, next);
+      setPendingWorkspace(next);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     let cancelled = false;
 
     void (async () => {
@@ -144,10 +171,10 @@ export function AdminLoginForm() {
         const isStaff = user.roles?.some((r) => STAFF_ROLES.includes(r));
         if (isStaff) {
           if (isAdminUser(user)) {
-            router.replace('/');
+            window.location.href = resolvePostLoginPath('/');
             return;
           }
-          window.location.href = getPostLoginRedirect(user, APP_URLS);
+          window.location.href = resolvePostLoginPath(getPostLoginRedirect(user, APP_URLS));
           return;
         }
         clearAuth();
@@ -159,7 +186,7 @@ export function AdminLoginForm() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, searchParams]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -179,11 +206,18 @@ export function AdminLoginForm() {
     }
     toast(`Welcome back ${user?.name?.split(' ')[0] || 'Admin'}!`);
     if (isAdminUser(user)) {
-      window.location.href = '/';
+      window.location.href = resolvePostLoginPath('/');
     } else {
-      window.location.href = getPostLoginRedirect(user, APP_URLS);
+      window.location.href = resolvePostLoginPath(getPostLoginRedirect(user, APP_URLS));
     }
     return true;
+  };
+
+  const openWorkspace = (path: string, label: string) => {
+    sessionStorage.setItem(LOGIN_NEXT_KEY, path);
+    setPendingWorkspace(path);
+    toast(`Sign in to open ${label}`);
+    document.getElementById('email')?.focus();
   };
 
   const onEmailLogin = async (data: EmailForm) => {
@@ -680,21 +714,39 @@ export function AdminLoginForm() {
             </div>
           )}
 
-          {/* Quick access after login */}
+          {pendingWorkspace ? (
+            <p className="mt-3 rounded-lg bg-[#0b4a2d]/8 px-3 py-2 text-center text-xs font-medium text-[#0b4a2d]">
+              Sign in to continue to{' '}
+              {pendingWorkspace === '/pos'
+                ? 'POS'
+                : pendingWorkspace === '/kitchen'
+                  ? 'Kitchen'
+                  : pendingWorkspace === '/orders'
+                    ? 'Orders'
+                    : pendingWorkspace}
+            </p>
+          ) : null}
+
+          {/* Quick access — requires sign-in, then opens the selected workspace */}
           <div className="mt-5 grid grid-cols-3 gap-2">
             {[
-              { icon: Monitor, label: 'POS', href: '/pos' },
-              { icon: ChefHat, label: 'Kitchen', href: '/kitchen' },
-              { icon: ShoppingBag, label: 'Orders', href: '/orders' },
-            ].map(({ icon: Icon, label, href }) => (
-              <a
+              { icon: Monitor, label: 'POS', path: '/pos' },
+              { icon: ChefHat, label: 'Kitchen', path: '/kitchen' },
+              { icon: ShoppingBag, label: 'Orders', path: '/orders' },
+            ].map(({ icon: Icon, label, path }) => (
+              <button
                 key={label}
-                href={href}
-                className="flex flex-col items-center gap-1.5 rounded-xl border border-gray-200 bg-white/80 px-2 py-3 text-center text-[11px] font-semibold text-gray-600 hover:border-[#0b4a2d]/30 hover:text-[#0b4a2d] hover:bg-white transition-colors shadow-sm"
+                type="button"
+                onClick={() => openWorkspace(path, label)}
+                className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-center text-[11px] font-semibold transition-colors shadow-sm ${
+                  pendingWorkspace === path
+                    ? 'border-[#0b4a2d] bg-[#0b4a2d]/10 text-[#0b4a2d]'
+                    : 'border-gray-200 bg-white/80 text-gray-600 hover:border-[#0b4a2d]/30 hover:text-[#0b4a2d] hover:bg-white'
+                }`}
               >
                 <Icon className="h-4 w-4 text-[#0b4a2d]/70" />
                 {label}
-              </a>
+              </button>
             ))}
           </div>
         </div>

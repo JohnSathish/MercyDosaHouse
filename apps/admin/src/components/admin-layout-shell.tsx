@@ -44,8 +44,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const isLoginPage = pathname === '/login';
-  const isPosPage = pathname.startsWith('/pos');
-  const isPublicPage = isLoginPage || isPosPage;
+  const isPublicPage = isLoginPage;
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_KEY) as ThemeMode | null;
@@ -93,7 +92,8 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
 
     if (!user) {
       setAuthStatus('denied');
-      router.replace('/login');
+      const next = pathname && pathname !== '/login' ? `?next=${encodeURIComponent(pathname)}` : '';
+      router.replace(`/login${next}`);
       return;
     }
 

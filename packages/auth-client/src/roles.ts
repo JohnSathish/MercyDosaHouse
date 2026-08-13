@@ -81,7 +81,7 @@ export function getPostLoginRedirect(user: AuthUser | null, urls: AppUrls = {}):
     return `${u.delivery}/`;
   }
   if (user.roles.includes(ROLES.CASHIER)) {
-    return `${u.pos ?? u.admin}/`;
+    return `${u.admin}/pos`;
   }
   return `${u.website}/dashboard`;
 }
