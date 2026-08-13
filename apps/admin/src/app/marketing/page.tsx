@@ -257,6 +257,10 @@ export default function MarketingHubPage() {
                   <option value="TEMPORARILY_UNAVAILABLE">Temporarily Unavailable</option>
                   <option value="COMING_SOON">Coming Soon</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Use &quot;Temporarily Unavailable&quot; for pickup-only. Website shows Delivery
+                  Message and hides area/time windows.
+                </p>
               </div>
               <div>
                 <Label>Areas (comma-separated)</Label>
@@ -271,7 +275,11 @@ export default function MarketingHubPage() {
                         .filter(Boolean),
                     })
                   }
+                  placeholder="Walbakgre, Holy Cross Hospital Area"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Area names only when delivery is available. Put notice text in Delivery Message.
+                </p>
               </div>
               <div>
                 <Label>Order Start (HH:mm)</Label>

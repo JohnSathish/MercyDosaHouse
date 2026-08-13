@@ -47,14 +47,14 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
   const address = settings?.address || FALLBACK.address;
   const hours = settings?.openingHours || FALLBACK.hours;
 
-  const deliveryAreas = delivery?.areas?.length
-    ? delivery.areas.slice(0, 2).join(' & ')
-    : 'Walbakgre & Holy Cross Hospital Area';
-
+  const deliveryActive = delivery?.status === 'AVAILABLE' || delivery?.status === 'LIMITED_AREA';
+  const deliveryAreas = delivery?.areas?.length ? delivery.areas.slice(0, 2).join(' & ') : null;
+  const deliveryTitle = deliveryActive ? 'Home Delivery Available' : 'Pickup Orders Only';
   const deliveryMessage =
-    delivery?.status === 'AVAILABLE' || delivery?.status === 'LIMITED_AREA'
-      ? (delivery.message ?? 'Home delivery is available in selected areas.')
-      : 'Home delivery is available in selected areas.';
+    delivery?.message?.trim() ||
+    (deliveryActive
+      ? 'Home delivery is available in selected areas.'
+      : 'Pickup Orders Only — Home Delivery Is Not Available.');
 
   return (
     <div>
@@ -126,10 +126,14 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
             <Bike className="h-5 w-5 text-[#14532D]" />
           </div>
           <div>
-            <p className="font-semibold text-[#14532D]">Home Delivery Available</p>
+            <p className="font-semibold text-[#14532D]">{deliveryTitle}</p>
             <p className="mt-0.5 text-sm text-[#1F2937]/75">
-              {deliveryMessage} Currently serving {deliveryAreas}.
+              {deliveryMessage}
+              {deliveryActive && deliveryAreas ? ` Currently serving ${deliveryAreas}.` : null}
             </p>
+            {delivery?.expansionMessage ? (
+              <p className="mt-1 text-sm font-medium text-[#F7941D]">{delivery.expansionMessage}</p>
+            ) : null}
           </div>
         </div>
       </div>

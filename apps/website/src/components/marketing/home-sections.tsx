@@ -14,7 +14,7 @@ function resolveImageUrl(url?: string | null): string | undefined {
   return `${APP_URLS.website}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
-/** Compact home-delivery card — below hero, driven by marketing delivery config. */
+/** Compact home-delivery card — below hero, driven by admin marketing delivery config. */
 export function HomeDeliverySection() {
   const marketing = useMarketing();
   const delivery = marketing?.delivery;
@@ -22,21 +22,29 @@ export function HomeDeliverySection() {
 
   if (!delivery && !cardAnnouncement) return null;
 
+  const status = delivery?.status ?? 'LIMITED_AREA';
+  const deliveryActive = status === 'AVAILABLE' || status === 'LIMITED_AREA';
   const areas = delivery?.areas?.length
-    ? delivery.areas.join(' & ')
+    ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
     : cardAnnouncement?.shortMessage;
-  const orderWindow =
-    delivery?.orderWindow ??
-    (delivery?.orderStartTime && delivery?.orderEndTime
-      ? `${delivery.orderStartTime} – ${delivery.orderEndTime}`
-      : null);
-  const deliveryWindow =
-    delivery?.deliveryWindow ??
-    (delivery?.deliveryStartTime && delivery?.deliveryEndTime
-      ? `${delivery.deliveryStartTime} – ${delivery.deliveryEndTime}`
-      : null);
-  const expansionMessage =
-    delivery?.expansionMessage ?? cardAnnouncement?.message ?? delivery?.message;
+  const orderWindow = deliveryActive
+    ? (delivery?.orderWindow ??
+      (delivery?.orderStartTime && delivery?.orderEndTime
+        ? `${delivery.orderStartTime} – ${delivery.orderEndTime}`
+        : null))
+    : null;
+  const deliveryWindow = deliveryActive
+    ? (delivery?.deliveryWindow ??
+      (delivery?.deliveryStartTime && delivery?.deliveryEndTime
+        ? `${delivery.deliveryStartTime} – ${delivery.deliveryEndTime}`
+        : null))
+    : null;
+  const primaryMessage =
+    delivery?.message?.trim() ||
+    cardAnnouncement?.message?.trim() ||
+    (deliveryActive ? null : 'Pickup Orders Only — Home Delivery Is Not Available.');
+  const expansionMessage = delivery?.expansionMessage?.trim() || null;
+  const title = cardAnnouncement?.title ?? 'Home Delivery';
 
   return (
     <section className="py-6 md:py-8 bg-[#FFF8E8]">
@@ -50,17 +58,33 @@ export function HomeDeliverySection() {
         >
           <div className="flex items-start gap-3 sm:gap-4">
             <span className="text-2xl sm:text-3xl shrink-0" aria-hidden>
-              {cardAnnouncement?.icon ?? '🏠'}
+              {cardAnnouncement?.icon ?? (deliveryActive ? '🏠' : '🥡')}
             </span>
             <div className="flex-1 min-w-0">
               <h2 className="text-sm font-bold uppercase tracking-widest text-[#14532D] mb-2">
-                {cardAnnouncement?.title ?? 'Home Delivery'}
+                {title}
               </h2>
-              {areas && (
+              {primaryMessage && (
+                <p className="text-[#1F2937] text-sm sm:text-base font-medium mb-3 flex items-start gap-2">
+                  <FiMapPin className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
+                  <span>
+                    <strong className="text-[#14532D]">{primaryMessage}</strong>
+                  </span>
+                </p>
+              )}
+              {deliveryActive && areas && !primaryMessage && (
                 <p className="text-[#1F2937] text-sm sm:text-base font-medium mb-3 flex items-start gap-2">
                   <FiMapPin className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
                   <span>
                     Currently available in <strong className="text-[#14532D]">{areas}</strong>
+                  </span>
+                </p>
+              )}
+              {deliveryActive && areas && primaryMessage && (
+                <p className="text-sm text-gray-600 mb-3 flex items-start gap-2">
+                  <FiMapPin className="w-3.5 h-3.5 text-[#F59E0B] shrink-0 mt-0.5" />
+                  <span>
+                    Serving <strong className="text-[#14532D]">{areas}</strong>
                   </span>
                 </p>
               )}

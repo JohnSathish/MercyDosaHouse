@@ -42,13 +42,18 @@ export function HomeDeliverySection() {
 
   if (!delivery && !card) return null;
 
+  const status = delivery?.status ?? 'LIMITED_AREA';
+  const deliveryActive = status === 'AVAILABLE' || status === 'LIMITED_AREA';
   const areas = delivery?.areas?.length
     ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
     : card?.shortMessage;
-
-  const orderWindow = delivery?.orderWindow;
-  const deliveryWindow = delivery?.deliveryWindow;
-  const detail = delivery?.expansionMessage ?? card?.message ?? delivery?.message;
+  const primaryMessage =
+    delivery?.message?.trim() ||
+    card?.message?.trim() ||
+    (deliveryActive ? areas : 'Pickup Orders Only — Home Delivery Is Not Available.');
+  const orderWindow = deliveryActive ? delivery?.orderWindow : null;
+  const deliveryWindow = deliveryActive ? delivery?.deliveryWindow : null;
+  const detail = delivery?.expansionMessage ?? null;
 
   return (
     <Pressable
@@ -58,14 +63,14 @@ export function HomeDeliverySection() {
     >
       <View style={styles.deliveryCard}>
         <View style={styles.deliveryTop}>
-          <Text style={styles.deliveryEmoji}>{card?.icon ?? '🛵'}</Text>
+          <Text style={styles.deliveryEmoji}>{card?.icon ?? (deliveryActive ? '🛵' : '🥡')}</Text>
           <View style={{ flex: 1 }}>
             <Text style={[styles.deliveryTitle, { color: colors.primary }]}>
               {card?.title ?? 'Home Delivery'}
             </Text>
-            {areas ? (
-              <Text style={styles.deliveryAreas} numberOfLines={expanded ? 3 : 1}>
-                {areas}
+            {primaryMessage ? (
+              <Text style={styles.deliveryAreas} numberOfLines={expanded ? 4 : 2}>
+                {primaryMessage}
               </Text>
             ) : null}
           </View>
