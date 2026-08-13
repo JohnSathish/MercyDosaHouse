@@ -6,8 +6,11 @@ Privacy policy: https://mercydosahouse.com/privacy
 
 ## Ready AAB
 
-- Rebuild required for custom new-order ringtone (`assets/sounds/new_order.wav`)
-- Previous: `mobile/admin/releases/mdh-admin-v1.0.3-vc4-sdk53.aab` (no custom sound channel)
+- Expo build: https://expo.dev/accounts/johnsathish/projects/mercy-dosa-house-admin/builds/45e7f289-b03b-4e44-a7b4-44e53de131ec
+- Artifact: https://expo.dev/artifacts/eas/WJH_8QNL8DTYEp6UfLlrhF93RMzYOLYTUBX3LrRPlK4.aab
+- Local copy: `mobile/admin/releases/mdh-admin-v1.0.4-vc5-sdk53.aab`
+- Includes custom new-order ringtone (`new_order.wav`) + high-priority `new_orders` channel
+- Previous vc4: `mobile/admin/releases/mdh-admin-v1.0.3-vc4-sdk53.aab`
 
 ## Create app (Play Console)
 
