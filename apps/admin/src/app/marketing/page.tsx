@@ -103,11 +103,24 @@ export default function MarketingHubPage() {
   });
 
   const saveDelivery = useMutation({
-    mutationFn: (data: Partial<DeliveryConfigDto>) => api.patch('/marketing/delivery-config', data),
+    mutationFn: (data: Partial<DeliveryConfigDto>) =>
+      api.patch('/marketing/delivery-config', {
+        status: data.status,
+        areas: data.areas ?? [],
+        orderStartTime: data.orderStartTime || null,
+        orderEndTime: data.orderEndTime || null,
+        deliveryStartTime: data.deliveryStartTime || null,
+        deliveryEndTime: data.deliveryEndTime || null,
+        message: data.message || null,
+        expansionMessage: data.expansionMessage || null,
+        isActive: data.isActive ?? true,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing-delivery'] });
+      setDeliveryForm(null);
       toast('Delivery configuration saved.');
     },
+    onError: () => toast('Failed to save delivery configuration.'),
   });
 
   return (

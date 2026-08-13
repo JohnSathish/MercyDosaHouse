@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AnnouncementPlatform, ContentStatus, Prisma } from '@prisma/client';
+import {
+  AnnouncementPlatform,
+  ContentStatus,
+  DeliveryAvailabilityStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const PRIORITY_WEIGHT: Record<string, number> = {
@@ -179,11 +184,52 @@ export class MarketingService {
     return this.prisma.deliveryConfig.findFirst({ where: { isActive: true } });
   }
 
-  async upsertDeliveryConfig(data: Prisma.DeliveryConfigUpdateInput) {
+  async upsertDeliveryConfig(data: Record<string, unknown> | Prisma.DeliveryConfigUpdateInput) {
+    const raw = data as Record<string, unknown>;
+    const payload: Prisma.DeliveryConfigUpdateInput = {};
+
+    if (raw.status !== undefined) payload.status = raw.status as DeliveryAvailabilityStatus;
+    if (Array.isArray(raw.areas)) payload.areas = raw.areas as string[];
+    if (Array.isArray(raw.pincodes)) payload.pincodes = raw.pincodes as string[];
+    if (raw.orderStartTime !== undefined)
+      payload.orderStartTime = (raw.orderStartTime as string) || null;
+    if (raw.orderEndTime !== undefined) payload.orderEndTime = (raw.orderEndTime as string) || null;
+    if (raw.deliveryStartTime !== undefined)
+      payload.deliveryStartTime = (raw.deliveryStartTime as string) || null;
+    if (raw.deliveryEndTime !== undefined)
+      payload.deliveryEndTime = (raw.deliveryEndTime as string) || null;
+    if (raw.deliveryCharge !== undefined)
+      payload.deliveryCharge = raw.deliveryCharge as number | null;
+    if (raw.freeDeliveryThreshold !== undefined)
+      payload.freeDeliveryThreshold = raw.freeDeliveryThreshold as number | null;
+    if (raw.minOrderAmount !== undefined)
+      payload.minOrderAmount = raw.minOrderAmount as number | null;
+    if (raw.message !== undefined) payload.message = (raw.message as string) || null;
+    if (raw.expansionMessage !== undefined)
+      payload.expansionMessage = (raw.expansionMessage as string) || null;
+    if (typeof raw.isActive === 'boolean') payload.isActive = raw.isActive;
+
     const existing = await this.prisma.deliveryConfig.findFirst();
     const saved = existing
-      ? await this.prisma.deliveryConfig.update({ where: { id: existing.id }, data })
-      : await this.prisma.deliveryConfig.create({ data: data as Prisma.DeliveryConfigCreateInput });
+      ? await this.prisma.deliveryConfig.update({ where: { id: existing.id }, data: payload })
+      : await this.prisma.deliveryConfig.create({
+          data: {
+            status:
+              (raw.status as DeliveryAvailabilityStatus) ?? DeliveryAvailabilityStatus.LIMITED_AREA,
+            areas: Array.isArray(raw.areas) ? (raw.areas as string[]) : [],
+            pincodes: Array.isArray(raw.pincodes) ? (raw.pincodes as string[]) : [],
+            orderStartTime: (raw.orderStartTime as string) || null,
+            orderEndTime: (raw.orderEndTime as string) || null,
+            deliveryStartTime: (raw.deliveryStartTime as string) || null,
+            deliveryEndTime: (raw.deliveryEndTime as string) || null,
+            deliveryCharge: (raw.deliveryCharge as number) ?? null,
+            freeDeliveryThreshold: (raw.freeDeliveryThreshold as number) ?? null,
+            minOrderAmount: (raw.minOrderAmount as number) ?? null,
+            message: (raw.message as string) || null,
+            expansionMessage: (raw.expansionMessage as string) || null,
+            isActive: typeof raw.isActive === 'boolean' ? raw.isActive : true,
+          },
+        });
     this.bumpVersion();
     return this.mapDeliveryConfig(saved);
   }
