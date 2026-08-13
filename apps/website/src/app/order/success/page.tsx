@@ -45,12 +45,20 @@ function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('order');
   const toast = useToastStore((s) => s.show);
-  const [cachedOrder] = useState<OrderDto | null>(() => loadLastOrder());
+  // Must start null so SSR and first client render match (sessionStorage is browser-only).
+  const [cachedOrder, setCachedOrder] = useState<OrderDto | null>(null);
+  const [cacheReady, setCacheReady] = useState(false);
+
+  useEffect(() => {
+    setCachedOrder(loadLastOrder());
+    setCacheReady(true);
+  }, []);
 
   const { data: fetchedOrder, isLoading } = useQuery({
     queryKey: ['order-success', orderNumber],
     queryFn: () => api.get<OrderDto>(`/orders/track/${orderNumber}`),
-    enabled: !!orderNumber && (!cachedOrder || cachedOrder.orderNumber !== orderNumber),
+    enabled:
+      !!orderNumber && cacheReady && (!cachedOrder || cachedOrder.orderNumber !== orderNumber),
   });
 
   const { data: settings } = useQuery({
@@ -79,7 +87,7 @@ function OrderSuccessContent() {
 
   if (!orderNumber) return null;
 
-  if (isLoading && !order) {
+  if ((!cacheReady || isLoading) && !order) {
     return (
       <div className="container mx-auto px-4 py-16 max-w-lg text-center">
         <div className="animate-pulse space-y-4">
