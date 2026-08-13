@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@mdh/ui', '@mdh/types', '@mdh/utils', '@mdh/sdk', '@mdh/auth-client'],
   poweredByHeader: false,
   compress: true,
+  async redirects() {
+    return [{ source: '/favicon.ico', destination: '/favicon.png', permanent: true }];
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: isProd

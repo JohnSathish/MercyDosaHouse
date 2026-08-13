@@ -12,6 +12,10 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: { default: 'Admin | Mercy Dosa House', template: '%s | MDH Admin' },
+  icons: {
+    icon: [{ url: '/favicon.png', type: 'image/png' }, { url: '/favicon.ico' }],
+    apple: '/icon-192.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
     '@mdh/pos-ui',
   ],
   poweredByHeader: false,
+  async redirects() {
+    return [{ source: '/favicon.ico', destination: '/favicon.png', permanent: true }];
+  },
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: hostnameFrom(websiteUrl), pathname: '/**' },
