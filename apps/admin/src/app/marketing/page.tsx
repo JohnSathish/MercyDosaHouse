@@ -13,6 +13,7 @@ import type {
   MarketingAnnouncementDto,
   MarketingDashboardDto,
 } from '@mdh/types';
+import { normalizeDeliveryConfigInput } from '@mdh/types';
 
 const PLACEMENTS = [
   'TOP_BAR',
@@ -103,20 +104,26 @@ export default function MarketingHubPage() {
   });
 
   const saveDelivery = useMutation({
-    mutationFn: (data: Partial<DeliveryConfigDto>) =>
-      api.patch('/marketing/delivery-config', {
+    mutationFn: (data: Partial<DeliveryConfigDto>) => {
+      const normalized = normalizeDeliveryConfigInput({
         status: data.status,
+        message: data.message || null,
+      });
+      return api.patch('/marketing/delivery-config', {
+        status: normalized.status,
         areas: data.areas ?? [],
         orderStartTime: data.orderStartTime || null,
         orderEndTime: data.orderEndTime || null,
         deliveryStartTime: data.deliveryStartTime || null,
         deliveryEndTime: data.deliveryEndTime || null,
-        message: data.message || null,
+        message: normalized.message,
         expansionMessage: data.expansionMessage || null,
         isActive: data.isActive ?? true,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing-delivery'] });
+      queryClient.invalidateQueries({ queryKey: ['marketing-dashboard'] });
       setDeliveryForm(null);
       toast('Delivery configuration saved.');
     },

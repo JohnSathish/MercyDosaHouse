@@ -187,8 +187,19 @@ export class MarketingService {
   async upsertDeliveryConfig(data: Record<string, unknown> | Prisma.DeliveryConfigUpdateInput) {
     const raw = data as Record<string, unknown>;
     const payload: Prisma.DeliveryConfigUpdateInput = {};
+    const messageText = raw.message !== undefined ? String(raw.message || '') : undefined;
+    const noDeliveryMsg =
+      /pickup orders only|home delivery is not available|no home delivery|delivery is currently unavailable|delivery not available/i;
+    let status = raw.status as DeliveryAvailabilityStatus | undefined;
+    if (
+      messageText !== undefined &&
+      noDeliveryMsg.test(messageText) &&
+      (status === 'AVAILABLE' || status === 'LIMITED_AREA' || status === undefined)
+    ) {
+      status = DeliveryAvailabilityStatus.TEMPORARILY_UNAVAILABLE;
+    }
 
-    if (raw.status !== undefined) payload.status = raw.status as DeliveryAvailabilityStatus;
+    if (status !== undefined) payload.status = status;
     if (Array.isArray(raw.areas)) payload.areas = raw.areas as string[];
     if (Array.isArray(raw.pincodes)) payload.pincodes = raw.pincodes as string[];
     if (raw.orderStartTime !== undefined)
@@ -214,8 +225,7 @@ export class MarketingService {
       ? await this.prisma.deliveryConfig.update({ where: { id: existing.id }, data: payload })
       : await this.prisma.deliveryConfig.create({
           data: {
-            status:
-              (raw.status as DeliveryAvailabilityStatus) ?? DeliveryAvailabilityStatus.LIMITED_AREA,
+            status: status ?? DeliveryAvailabilityStatus.LIMITED_AREA,
             areas: Array.isArray(raw.areas) ? (raw.areas as string[]) : [],
             pincodes: Array.isArray(raw.pincodes) ? (raw.pincodes as string[]) : [],
             orderStartTime: (raw.orderStartTime as string) || null,
@@ -234,6 +244,22 @@ export class MarketingService {
     return this.mapDeliveryConfig(saved);
   }
 
+  private isDeliveryOffered(config: { status: string; message?: string | null }) {
+    if (config.status === 'TEMPORARILY_UNAVAILABLE' || config.status === 'COMING_SOON') {
+      return false;
+    }
+    if (config.status !== 'AVAILABLE' && config.status !== 'LIMITED_AREA') return false;
+    if (
+      config.message &&
+      /pickup orders only|home delivery is not available|no home delivery|delivery is currently unavailable|delivery not available/i.test(
+        config.message,
+      )
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   async checkDeliveryArea(address: string, pincode?: string) {
     const config = await this.getDeliveryConfig();
     if (!config) {
@@ -242,6 +268,19 @@ export class MarketingService {
         matchedArea: null,
         status: 'TEMPORARILY_UNAVAILABLE' as const,
         message: 'Delivery information is currently unavailable.',
+      };
+    }
+
+    if (!this.isDeliveryOffered(config)) {
+      return {
+        available: false,
+        matchedArea: null,
+        status:
+          config.status === 'COMING_SOON'
+            ? ('COMING_SOON' as const)
+            : ('TEMPORARILY_UNAVAILABLE' as const),
+        message: config.message ?? 'Pickup Orders Only — Home Delivery Is Not Available.',
+        expansionMessage: config.expansionMessage,
       };
     }
 

@@ -81,6 +81,37 @@ export interface DeliveryConfigDto {
   isActive: boolean;
 }
 
+const NO_DELIVERY_MESSAGE_RE =
+  /pickup orders only|home delivery is not available|no home delivery|delivery is currently unavailable|delivery not available/i;
+
+/** True when home delivery should be offered (areas/windows shown, checkout allows delivery). */
+export function isHomeDeliveryActive(
+  delivery?: Pick<DeliveryConfigDto, 'status' | 'message'> | null,
+): boolean {
+  if (!delivery) return false;
+  const status = delivery.status ?? 'LIMITED_AREA';
+  if (status === 'TEMPORARILY_UNAVAILABLE' || status === 'COMING_SOON') return false;
+  if (status !== 'AVAILABLE' && status !== 'LIMITED_AREA') return false;
+  if (delivery.message && NO_DELIVERY_MESSAGE_RE.test(delivery.message)) return false;
+  return true;
+}
+
+/** Normalize admin payload when message says pickup-only but status is still Available. */
+export function normalizeDeliveryConfigInput<
+  T extends { status?: DeliveryAvailabilityStatus; message?: string | null },
+>(data: T): T {
+  const message = data.message?.trim() || null;
+  let status = data.status;
+  if (
+    message &&
+    NO_DELIVERY_MESSAGE_RE.test(message) &&
+    (status === 'AVAILABLE' || status === 'LIMITED_AREA' || status == null)
+  ) {
+    status = 'TEMPORARILY_UNAVAILABLE';
+  }
+  return { ...data, status, message };
+}
+
 export interface MarketingPublicBundleDto {
   version: number;
   updatedAt: string;

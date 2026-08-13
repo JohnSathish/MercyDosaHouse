@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Phone, Mail, MapPin, Clock, Bike } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import type { BusinessSettingsDto, DeliveryConfigDto } from '@mdh/types';
+import { isHomeDeliveryActive } from '@mdh/types';
 
 interface ContactInfoPanelProps {
   settings: BusinessSettingsDto | null;
@@ -47,7 +48,7 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
   const address = settings?.address || FALLBACK.address;
   const hours = settings?.openingHours || FALLBACK.hours;
 
-  const deliveryActive = delivery?.status === 'AVAILABLE' || delivery?.status === 'LIMITED_AREA';
+  const deliveryActive = isHomeDeliveryActive(delivery);
   const deliveryAreas = delivery?.areas?.length ? delivery.areas.slice(0, 2).join(' & ') : null;
   const deliveryTitle = deliveryActive ? 'Home Delivery Available' : 'Pickup Orders Only';
   const deliveryMessage =

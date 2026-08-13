@@ -7,6 +7,7 @@ import { FiClock, FiMapPin } from 'react-icons/fi';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { trackMarketingEvent } from '@/lib/marketing-content';
 import { APP_URLS } from '@/lib/app-urls';
+import { isHomeDeliveryActive } from '@mdh/types';
 
 function resolveImageUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
@@ -22,8 +23,7 @@ export function HomeDeliverySection() {
 
   if (!delivery && !cardAnnouncement) return null;
 
-  const status = delivery?.status ?? 'LIMITED_AREA';
-  const deliveryActive = status === 'AVAILABLE' || status === 'LIMITED_AREA';
+  const deliveryActive = isHomeDeliveryActive(delivery);
   const areas = delivery?.areas?.length
     ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
     : cardAnnouncement?.shortMessage;

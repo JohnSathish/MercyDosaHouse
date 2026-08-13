@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { router } from 'expo-router';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import type { MarketingAnnouncementDto } from '@mdh/types';
+import { isHomeDeliveryActive } from '@mdh/types';
 import { WEBSITE_URL } from '@/lib/constants';
 import { SectionHeader } from '@/ui';
 import { COLORS, RADIUS, SHADOW, resolveAssetUrl } from '@/ui/theme';
@@ -42,8 +43,7 @@ export function HomeDeliverySection() {
 
   if (!delivery && !card) return null;
 
-  const status = delivery?.status ?? 'LIMITED_AREA';
-  const deliveryActive = status === 'AVAILABLE' || status === 'LIMITED_AREA';
+  const deliveryActive = isHomeDeliveryActive(delivery);
   const areas = delivery?.areas?.length
     ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
     : card?.shortMessage;
