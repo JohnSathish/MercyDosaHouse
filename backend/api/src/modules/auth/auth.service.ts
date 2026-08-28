@@ -3,7 +3,8 @@ import {
   UnauthorizedException,
   BadRequestException,
   ServiceUnavailableException,
-  TooManyRequestsException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -83,8 +84,9 @@ export class AuthService {
 
     if (session.attempts >= LOGIN_OTP_MAX_ATTEMPTS) {
       await this.deleteLoginOtpSession(sessionId);
-      throw new TooManyRequestsException(
+      throw new HttpException(
         'Too many failed attempts. Please sign in again to receive a new OTP.',
+        HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
@@ -122,7 +124,10 @@ export class AuthService {
     }
 
     if (session.resends >= LOGIN_OTP_MAX_RESENDS) {
-      throw new TooManyRequestsException('Maximum resend limit reached. Please sign in again.');
+      throw new HttpException(
+        'Maximum resend limit reached. Please sign in again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     if (this.redis) {
