@@ -64,6 +64,9 @@ for i in $(seq 1 30); do
   sleep 5
 done
 
+echo "Applying database migrations..."
+docker compose --env-file .env -f "$COMPOSE_FILE" exec -T api npx prisma migrate deploy
+
 if [ -x docker/scripts/install-host-nginx.sh ]; then
   echo "Updating host nginx..."
   bash docker/scripts/install-host-nginx.sh
