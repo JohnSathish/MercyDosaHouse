@@ -285,6 +285,48 @@ export class NotificationsService {
     }
   }
 
+  async notifyCustomerNearby(orderId: string): Promise<void> {
+    try {
+      if (!(await this.claimDispatch(`customer:nearby:${orderId}`))) return;
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, orderNumber: true, userId: true },
+      });
+      if (!order?.userId) return;
+      const title = '📍 Almost There!';
+      const body = 'Your Mercy Dosa House delivery partner is nearby.';
+      const data = {
+        type: 'NEAR_CUSTOMER',
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        screen: 'track',
+        channelId: 'order_updates',
+      };
+      await this.prisma.notification.create({
+        data: { userId: order.userId, type: NotificationType.NEAR_CUSTOMER, title, body, data },
+      });
+      const tokens = await this.prisma.deviceToken.findMany({
+        where: { userId: order.userId },
+        select: { token: true },
+      });
+      await this.dispatchPush(
+        tokens.map((token) => token.token),
+        {
+          title,
+          body,
+          data,
+          channelId: 'order_updates',
+          sound: 'default',
+          collapseId: `order-nearby-${order.id}`,
+        },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed nearby notification for order ${orderId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   getUserNotifications(userId: string) {
     return this.prisma.notification.findMany({
       where: { userId },

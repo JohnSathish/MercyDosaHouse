@@ -16,8 +16,16 @@ export class MarketingController {
 
   @Public()
   @Get('delivery/check')
-  checkDelivery(@Query('address') address = '', @Query('pincode') pincode?: string) {
-    return this.marketingService.checkDeliveryArea(address, pincode);
+  checkDelivery(
+    @Query('address') address = '',
+    @Query('pincode') pincode?: string,
+    @Query('latitude') latitude?: string,
+    @Query('longitude') longitude?: string,
+  ) {
+    return this.marketingService.checkDeliveryArea(address, pincode, {
+      latitude: latitude == null ? undefined : Number(latitude),
+      longitude: longitude == null ? undefined : Number(longitude),
+    });
   }
 
   @Public()

@@ -3,10 +3,11 @@ import { DeliveryService } from './delivery.service';
 import { DeliveryController } from './delivery.controller';
 import { OrdersModule } from '../orders/orders.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { RoutingService } from './routing.service';
 
 @Module({
   imports: [OrdersModule, NotificationsModule],
   controllers: [DeliveryController],
-  providers: [DeliveryService],
+  providers: [DeliveryService, RoutingService],
 })
 export class DeliveryModule {}

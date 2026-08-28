@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { api } from '@/lib/api';
 import { Card, EmptyState, KpiCard, Money, PrimaryButton, Screen, StatusChip } from '@/ui';
 import { theme } from '@/ui/theme';
@@ -26,12 +35,20 @@ export default function DeliveryScreen() {
   });
   const assign = useMutation({
     mutationFn: ({ orderId, executiveId }: any) =>
-      api.patch(`/delivery/orders/${orderId}/assign`, { executiveId }),
+      api.post(`/delivery/orders/${orderId}/assign`, { staffId: executiveId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['delivery-orders'] });
       qc.invalidateQueries({ queryKey: ['delivery-dashboard'] });
     },
     onError: (e: Error) => Alert.alert('Assignment failed', e.message),
+  });
+  const start = useMutation({
+    mutationFn: (orderId: string) => api.post(`/delivery/orders/${orderId}/start`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery-orders'] });
+      qc.invalidateQueries({ queryKey: ['delivery-dashboard'] });
+    },
+    onError: (e: Error) => Alert.alert('Could not start delivery', e.message),
   });
   const d = dashboard.data ?? {};
   return (
@@ -94,6 +111,27 @@ export default function DeliveryScreen() {
               loading={assign.isPending && assign.variables?.orderId === o.id}
               onPress={() => assign.mutate({ orderId: o.id, executiveId: selected[o.id] })}
             />
+            {o.assignment?.status === 'ASSIGNED' || o.assignment?.status === 'PICKED_UP' ? (
+              <PrimaryButton
+                title="🛵 Start Delivery"
+                variant="secondary"
+                loading={start.isPending && start.variables === o.id}
+                onPress={() => start.mutate(o.id)}
+              />
+            ) : null}
+            {o.assignment?.status === 'OUT_FOR_DELIVERY' &&
+            o.deliveryLatitude != null &&
+            o.deliveryLongitude != null ? (
+              <PrimaryButton
+                title="Navigate to customer"
+                variant="ghost"
+                onPress={() =>
+                  void Linking.openURL(
+                    `https://www.google.com/maps/dir/?api=1&destination=${o.deliveryLatitude},${o.deliveryLongitude}`,
+                  )
+                }
+              />
+            ) : null}
           </Card>
         )}
       />

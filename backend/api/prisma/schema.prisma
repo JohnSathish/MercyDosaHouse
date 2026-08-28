@@ -225,6 +225,7 @@ enum NotificationType {
   NEW_ORDER
   ORDER_PLACED
   CANCELLED
+  NEAR_CUSTOMER
 }
 
 enum LoyaltyTier {
@@ -621,6 +622,9 @@ model Order {
   customerName         String
   customerPhone        String
   deliveryAddress      String?
+  deliveryLandmark     String?
+  deliveryLatitude     Float?
+  deliveryLongitude    Float?
   addressId            String?
   address              Address?          @relation(fields: [addressId], references: [id])
   posTableId           String?
@@ -983,6 +987,11 @@ model DeliveryTracking {
   distanceKm      Decimal?                 @db.Decimal(8, 2)
   etaMinutes      Int?
   deliveryNotes   String?
+  lastLocationAt DateTime?
+  locationAccuracyMeters Float?
+  locationSharingActive Boolean @default(false)
+  routePolyline   String?
+  nearCustomerNotifiedAt DateTime?
   assignedAt      DateTime?
   pickedUpAt      DateTime?
   outForDeliveryAt DateTime?
@@ -992,6 +1001,7 @@ model DeliveryTracking {
   proof           DeliveryProof?
   rating          DeliveryRating?
   logs            DeliveryLog[]
+  locationPoints  DeliveryLocationPoint[]
   notes           String?
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
@@ -1006,6 +1016,9 @@ model DeliveryZone {
   minKm     Decimal            @db.Decimal(6, 2)
   maxKm     Decimal            @db.Decimal(6, 2)
   charge    Decimal            @db.Decimal(10, 2)
+  minimumOrderAmount Decimal?   @db.Decimal(10, 2)
+  estimatedDeliveryMinutes Int?
+  polygon   Json?
   isActive  Boolean            @default(true)
   sortOrder Int                @default(0)
   tracking  DeliveryTracking[]
@@ -1043,6 +1056,19 @@ model DeliveryLog {
   createdAt       DateTime          @default(now())
 
   @@map("delivery_logs")
+}
+
+model DeliveryLocationPoint {
+  id              String           @id @default(uuid())
+  trackingId      String
+  tracking        DeliveryTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  latitude        Float
+  longitude       Float
+  accuracyMeters  Float?
+  recordedAt      DateTime         @default(now())
+
+  @@index([trackingId, recordedAt])
+  @@map("delivery_location_points")
 }
 
 model DeliveryRating {
@@ -1388,6 +1414,16 @@ model DeliveryConfig {
   minOrderAmount        Decimal?                   @db.Decimal(10, 2)
   message               String?
   expansionMessage      String?
+  trackingEnabled       Boolean                    @default(true)
+  customerTrackingEnabled Boolean                  @default(true)
+  deliveryRadiusKm      Decimal?                   @db.Decimal(6, 2)
+  locationUpdateIntervalSeconds Int                 @default(10)
+  locationMinDistanceMeters Int                    @default(25)
+  locationHistoryRetentionDays Int                 @default(30)
+  mapProvider           String                     @default("google")
+  etaEnabled            Boolean                    @default(true)
+  nearCustomerEnabled   Boolean                    @default(false)
+  nearCustomerThresholdMeters Int                  @default(500)
   isActive              Boolean                    @default(true)
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt

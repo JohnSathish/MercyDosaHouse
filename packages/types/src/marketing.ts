@@ -67,6 +67,7 @@ export interface DeliveryConfigDto {
   id: string;
   status: DeliveryAvailabilityStatus;
   areas: string[];
+  pincodes?: string[];
   orderStartTime?: string | null;
   orderEndTime?: string | null;
   deliveryStartTime?: string | null;
@@ -78,6 +79,16 @@ export interface DeliveryConfigDto {
   minOrderAmount?: number | null;
   message?: string | null;
   expansionMessage?: string | null;
+  trackingEnabled?: boolean;
+  customerTrackingEnabled?: boolean;
+  deliveryRadiusKm?: number | null;
+  locationUpdateIntervalSeconds?: number;
+  locationMinDistanceMeters?: number;
+  locationHistoryRetentionDays?: number;
+  mapProvider?: string;
+  etaEnabled?: boolean;
+  nearCustomerEnabled?: boolean;
+  nearCustomerThresholdMeters?: number;
   isActive: boolean;
 }
 

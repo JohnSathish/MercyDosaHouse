@@ -17,6 +17,16 @@ const PRIORITY_WEIGHT: Record<string, number> = {
 
 type PlatformFilter = 'WEBSITE' | 'ANDROID';
 
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const radians = (value: number) => (value * Math.PI) / 180;
+  const dLat = radians(lat2 - lat1);
+  const dLng = radians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 @Injectable()
 export class MarketingService {
   private configVersion = 1;
@@ -218,6 +228,32 @@ export class MarketingService {
     if (raw.message !== undefined) payload.message = (raw.message as string) || null;
     if (raw.expansionMessage !== undefined)
       payload.expansionMessage = (raw.expansionMessage as string) || null;
+    for (const key of [
+      'trackingEnabled',
+      'customerTrackingEnabled',
+      'etaEnabled',
+      'nearCustomerEnabled',
+    ] as const) {
+      if (typeof raw[key] === 'boolean') payload[key] = raw[key];
+    }
+    for (const key of [
+      'locationUpdateIntervalSeconds',
+      'locationMinDistanceMeters',
+      'locationHistoryRetentionDays',
+      'nearCustomerThresholdMeters',
+    ] as const) {
+      if (raw[key] !== undefined) {
+        const value = Number(raw[key]);
+        if (Number.isInteger(value) && value > 0) payload[key] = value;
+      }
+    }
+    if (raw.deliveryRadiusKm !== undefined) {
+      const value = Number(raw.deliveryRadiusKm);
+      payload.deliveryRadiusKm = Number.isFinite(value) && value > 0 ? value : null;
+    }
+    if (raw.mapProvider !== undefined && typeof raw.mapProvider === 'string') {
+      payload.mapProvider = raw.mapProvider.trim().toLowerCase() || 'google';
+    }
     if (typeof raw.isActive === 'boolean') payload.isActive = raw.isActive;
 
     const existing = await this.prisma.deliveryConfig.findFirst();
@@ -237,6 +273,16 @@ export class MarketingService {
             minOrderAmount: (raw.minOrderAmount as number) ?? null,
             message: (raw.message as string) || null,
             expansionMessage: (raw.expansionMessage as string) || null,
+            trackingEnabled: raw.trackingEnabled !== false,
+            customerTrackingEnabled: raw.customerTrackingEnabled !== false,
+            deliveryRadiusKm: (raw.deliveryRadiusKm as number) ?? null,
+            locationUpdateIntervalSeconds: Number(raw.locationUpdateIntervalSeconds) || 10,
+            locationMinDistanceMeters: Number(raw.locationMinDistanceMeters) || 25,
+            locationHistoryRetentionDays: Number(raw.locationHistoryRetentionDays) || 30,
+            mapProvider: (raw.mapProvider as string) || 'google',
+            etaEnabled: raw.etaEnabled !== false,
+            nearCustomerEnabled: raw.nearCustomerEnabled === true,
+            nearCustomerThresholdMeters: Number(raw.nearCustomerThresholdMeters) || 500,
             isActive: typeof raw.isActive === 'boolean' ? raw.isActive : true,
           },
         });
@@ -260,7 +306,11 @@ export class MarketingService {
     return true;
   }
 
-  async checkDeliveryArea(address: string, pincode?: string) {
+  async checkDeliveryArea(
+    address: string,
+    pincode?: string,
+    coordinates?: { latitude?: number; longitude?: number },
+  ) {
     const config = await this.getDeliveryConfig();
     if (!config) {
       return {
@@ -282,6 +332,35 @@ export class MarketingService {
         message: config.message ?? 'Pickup Orders Only — Home Delivery Is Not Available.',
         expansionMessage: config.expansionMessage,
       };
+    }
+
+    const restaurantLat = Number(process.env.RESTAURANT_LATITUDE);
+    const restaurantLng = Number(process.env.RESTAURANT_LONGITUDE);
+    const radiusKm = config.deliveryRadiusKm ? Number(config.deliveryRadiusKm) : null;
+    if (
+      radiusKm &&
+      Number.isFinite(restaurantLat) &&
+      Number.isFinite(restaurantLng) &&
+      coordinates?.latitude != null &&
+      coordinates.longitude != null
+    ) {
+      const distanceKm = haversineKm(
+        restaurantLat,
+        restaurantLng,
+        coordinates.latitude,
+        coordinates.longitude,
+      );
+      if (distanceKm > radiusKm) {
+        return {
+          available: false,
+          matchedArea: null,
+          status: config.status,
+          message: 'We’re not delivering to this location yet.',
+          expansionMessage:
+            config.expansionMessage ??
+            'We’re expanding our delivery service across Tura. Please check again soon.',
+        };
+      }
     }
 
     if (config.status === 'AVAILABLE') {
@@ -641,6 +720,16 @@ export class MarketingService {
     minOrderAmount?: Prisma.Decimal | null;
     message?: string | null;
     expansionMessage?: string | null;
+    trackingEnabled: boolean;
+    customerTrackingEnabled: boolean;
+    deliveryRadiusKm?: Prisma.Decimal | null;
+    locationUpdateIntervalSeconds: number;
+    locationMinDistanceMeters: number;
+    locationHistoryRetentionDays: number;
+    mapProvider: string;
+    etaEnabled: boolean;
+    nearCustomerEnabled: boolean;
+    nearCustomerThresholdMeters: number;
     isActive: boolean;
   }) {
     return {
@@ -657,6 +746,16 @@ export class MarketingService {
       minOrderAmount: c.minOrderAmount ? Number(c.minOrderAmount) : null,
       message: c.message,
       expansionMessage: c.expansionMessage,
+      trackingEnabled: c.trackingEnabled,
+      customerTrackingEnabled: c.customerTrackingEnabled,
+      deliveryRadiusKm: c.deliveryRadiusKm ? Number(c.deliveryRadiusKm) : null,
+      locationUpdateIntervalSeconds: c.locationUpdateIntervalSeconds,
+      locationMinDistanceMeters: c.locationMinDistanceMeters,
+      locationHistoryRetentionDays: c.locationHistoryRetentionDays,
+      mapProvider: c.mapProvider,
+      etaEnabled: c.etaEnabled,
+      nearCustomerEnabled: c.nearCustomerEnabled,
+      nearCustomerThresholdMeters: c.nearCustomerThresholdMeters,
       isActive: c.isActive,
       orderWindow: this.formatWindow(c.orderStartTime, c.orderEndTime),
       deliveryWindow: this.formatWindow(c.deliveryStartTime, c.deliveryEndTime),

@@ -24,6 +24,9 @@ module.exports = ({ config }) => ({
       backgroundColor: '#123D28',
     },
     package: 'com.mercydosahouse.customer',
+    ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+      ? { config: { googleMaps: { apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY } } }
+      : {}),
     versionCode: 9,
     permissions: ['INTERNET', 'ACCESS_NETWORK_STATE'],
     allowBackup: true,
@@ -34,6 +37,13 @@ module.exports = ({ config }) => ({
     'expo-font',
     'expo-web-browser',
     'expo-notifications',
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Mercy Dosa House uses your location to place an accurate delivery pin.',
+      },
+    ],
     './plugins/with-android-16kb',
     [
       'expo-build-properties',

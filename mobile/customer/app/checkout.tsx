@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,8 +12,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Location from 'expo-location';
+import MapView, { Marker } from 'react-native-maps';
 import { PaymentMethod } from '@mdh/types';
-import type { CheckoutProfileDto, OrderDto } from '@mdh/types';
+import type { AddressDto, CheckoutProfileDto, OrderDto } from '@mdh/types';
 import { STORE_CLOSED_ORDER_MESSAGE } from '@/lib/mobile-messages';
 import { DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
 import { formatCurrency, getScheduleDateOptions, firstPreOrderDate } from '@mdh/utils';
@@ -515,6 +518,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function GuestAddressForm() {
   const session = useCheckoutStore();
+  const [locating, setLocating] = useState(false);
   const draft = session.guestAddressDraft ?? {
     contactName: '',
     mobileNumber: '',
@@ -524,12 +528,75 @@ function GuestAddressForm() {
     state: 'Meghalaya',
   };
 
-  function update(patch: Partial<typeof draft>) {
+  function update(patch: Partial<AddressDto>) {
     session.setGuestAddressDraft({ ...draft, ...patch });
+  }
+
+  async function useCurrentLocation() {
+    setLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        Alert.alert(
+          'Location permission needed',
+          'Allow location access to set an accurate delivery pin.',
+        );
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = position.coords;
+      const places = await Location.reverseGeocodeAsync({ latitude, longitude });
+      const place = places[0];
+      const line1 = [place?.name, place?.street].filter(Boolean).join(', ');
+      update({
+        latitude,
+        longitude,
+        line1: line1 || `Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`,
+        city: place?.city || place?.district || draft.city || 'Tura',
+        state: place?.region || draft.state || 'Meghalaya',
+        pincode: place?.postalCode || draft.pincode || '',
+      });
+    } catch {
+      Alert.alert('Location unavailable', 'Enter the address manually or try again outdoors.');
+    } finally {
+      setLocating(false);
+    }
   }
 
   return (
     <View style={styles.guestForm}>
+      <Pressable
+        style={styles.locationButton}
+        onPress={() => void useCurrentLocation()}
+        disabled={locating}
+      >
+        <Text style={styles.locationButtonText}>
+          {locating ? 'Finding your location…' : '📍 Use My Current Location'}
+        </Text>
+      </Pressable>
+      {draft.latitude != null && draft.longitude != null ? (
+        <MapView
+          style={styles.checkoutMap}
+          initialRegion={{
+            latitude: draft.latitude,
+            longitude: draft.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}
+        >
+          <Marker
+            coordinate={{ latitude: draft.latitude, longitude: draft.longitude }}
+            draggable
+            onDragEnd={(event) => {
+              const { latitude, longitude } = event.nativeEvent.coordinate;
+              update({ latitude, longitude });
+            }}
+            title="Delivery location"
+          />
+        </MapView>
+      ) : null}
       <TextInput
         style={styles.input}
         placeholder="Your name"
@@ -644,6 +711,17 @@ const styles = StyleSheet.create({
   applyBtn: { borderRadius: 10, paddingHorizontal: 16, justifyContent: 'center' },
   applyText: { color: '#fff', fontWeight: '700' },
   guestForm: { gap: 0 },
+  locationButton: {
+    borderWidth: 1,
+    borderColor: '#14532D',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    marginBottom: 8,
+  },
+  locationButtonText: { color: '#14532D', fontWeight: '700' },
+  checkoutMap: { height: 190, borderRadius: 12, marginBottom: 8 },
   line: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   totalLine: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
   totalLabel: { fontWeight: '800', fontSize: 16 },

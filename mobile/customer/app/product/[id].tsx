@@ -63,13 +63,14 @@ export default function ProductDetailScreen() {
       </View>
     );
   }
+  const loadedProduct = product;
 
   function handleAdd() {
     addItem(
       {
-        productId: product.id,
+        productId: loadedProduct.id,
         variantId: activeVariant?.id,
-        name: activeVariant ? `${product.name} (${activeVariant.name})` : product.name,
+        name: activeVariant ? `${loadedProduct.name} (${activeVariant.name})` : loadedProduct.name,
         price: unitPrice,
         packingCharge,
         notes: notes.trim() || undefined,

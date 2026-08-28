@@ -30,6 +30,10 @@ export interface DeliveryAssignmentDto {
   deliveredAt?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  lastLocationAt?: string | null;
+  locationAccuracyMeters?: number | null;
+  locationSharingActive?: boolean;
+  routePolyline?: string | null;
   deliveryNotes?: string | null;
   executive?: {
     id: string;
@@ -52,6 +56,9 @@ export interface DeliveryOrderDto {
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
+  deliveryLandmark?: string | null;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
   deliveryInstructions?: string | null;
   deliveryOtp?: string | null;
   grandTotal: number;
@@ -61,6 +68,26 @@ export interface DeliveryOrderDto {
   createdAt: string;
   items: { productName: string; quantity: number }[];
   assignment?: DeliveryAssignmentDto | null;
+}
+
+export interface LiveDeliveryLocationDto {
+  orderId: string;
+  orderNumber: string;
+  status: string;
+  active: boolean;
+  customer: { latitude: number | null; longitude: number | null; address: string | null };
+  agent: {
+    name: string | null;
+    phone: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    accuracyMeters: number | null;
+    lastUpdatedAt: string | null;
+  } | null;
+  distanceKm: number | null;
+  etaMinutes: number | null;
+  routePolyline: string | null;
+  lastUpdatedAt: string | null;
 }
 
 export interface DeliveryDashboardDto {
@@ -94,6 +121,9 @@ export interface DeliveryZoneDto {
   minKm: number;
   maxKm: number;
   charge: number;
+  minimumOrderAmount?: number | null;
+  estimatedDeliveryMinutes?: number | null;
+  polygon?: Array<{ latitude: number; longitude: number }> | null;
   isActive: boolean;
   sortOrder: number;
 }

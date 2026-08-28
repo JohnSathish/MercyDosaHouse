@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Badge, Card, CardContent } from '@mdh/ui';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
-import type { OrderDto } from '@mdh/types';
+import { getAccessToken } from '@mdh/auth-client';
+import type { LiveDeliveryLocationDto, OrderDto } from '@mdh/types';
 import { io } from 'socket.io-client';
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
 
@@ -25,7 +26,9 @@ const TRACK_STEPS = [
 export default function TrackOrderPage() {
   const params = useParams();
   const orderNumber = params.orderNumber as string;
+  const queryClient = useQueryClient();
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState(false);
 
   const {
     data: order,
@@ -40,21 +43,40 @@ export default function TrackOrderPage() {
   });
 
   useEffect(() => {
+    setHasSession(Boolean(getAccessToken()));
+  }, []);
+
+  const { data: liveLocation } = useQuery({
+    queryKey: ['delivery-live-location', order?.id],
+    queryFn: () => api.get<LiveDeliveryLocationDto>(`/delivery/orders/${order!.id}/live-location`),
+    enabled: hasSession && order?.status === 'OUT_FOR_DELIVERY',
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
     if (!order) return;
-    const socket = io(`${API_BASE}/orders`, {
-      transports: ['websocket', 'polling'],
-      timeout: 10_000,
-    });
-    socket.emit('subscribe', order.id);
-    const onUpdate = (data: { status: string }) => setLiveStatus(data.status);
-    socket.on('orderUpdate', onUpdate);
-    socket.on('orderStatusChanged', onUpdate);
+    let socket: ReturnType<typeof io> | undefined;
+    let cancelled = false;
+    const token = getAccessToken();
+    if (!token) return;
+    {
+      socket = io(`${API_BASE}/orders`, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        timeout: 10_000,
+      });
+      socket.emit('subscribe', order.id);
+      const onUpdate = (data: { status: string }) => setLiveStatus(data.status);
+      socket.on('orderUpdate', onUpdate);
+      socket.on('deliveryLocation', () => {
+        void queryClient.invalidateQueries({ queryKey: ['delivery-live-location', order.id] });
+      });
+    }
     return () => {
-      socket.off('orderUpdate', onUpdate);
-      socket.off('orderStatusChanged', onUpdate);
-      socket.disconnect();
+      cancelled = true;
+      socket?.disconnect();
     };
-  }, [order?.id]);
+  }, [order?.id, queryClient]);
 
   if (isLoading) {
     return (
@@ -92,6 +114,8 @@ export default function TrackOrderPage() {
         )}
       </div>
       <p className="text-muted-foreground mb-6 font-mono">{order.orderNumber}</p>
+
+      {liveLocation?.active ? <LiveDeliveryPanel data={liveLocation} /> : null}
 
       <Card className="mb-6 overflow-hidden">
         <CardContent className="p-6">
@@ -166,5 +190,56 @@ export default function TrackOrderPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function LiveDeliveryPanel({ data }: { data: LiveDeliveryLocationDto }) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const agent =
+    data.agent?.latitude != null && data.agent.longitude != null
+      ? `${data.agent.latitude},${data.agent.longitude}`
+      : null;
+  const customer =
+    data.customer.latitude != null && data.customer.longitude != null
+      ? `${data.customer.latitude},${data.customer.longitude}`
+      : null;
+  return (
+    <Card className="mb-6 overflow-hidden">
+      <CardContent className="p-0">
+        <div className="p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-[#14532D]">🛵 Your Order Is On The Way</h2>
+            <Badge className="bg-emerald-600">LIVE</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Your delivery partner is heading to you.
+          </p>
+          <p className="font-semibold mt-3">
+            {data.distanceKm != null ? `${data.distanceKm.toFixed(1)} km away` : 'Route updating'}
+            {data.etaMinutes != null ? ` • ETA ${data.etaMinutes} min` : ''}
+          </p>
+        </div>
+        {apiKey && agent && customer ? (
+          <iframe
+            title="Live delivery route"
+            className="w-full h-64 border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            src={`https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${agent}&destination=${customer}&mode=driving`}
+          />
+        ) : (
+          <div className="mx-5 mb-5 rounded-xl bg-[#FFF8E8] p-4 text-sm text-muted-foreground">
+            Live GPS is active. The map provider is being configured for this restaurant.
+          </div>
+        )}
+        <div className="px-5 pb-5 text-sm">
+          <p className="font-medium">Delivery Partner {data.agent?.name ?? 'on the way'}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Last updated:{' '}
+            {data.lastUpdatedAt ? new Date(data.lastUpdatedAt).toLocaleString() : 'Waiting for GPS'}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

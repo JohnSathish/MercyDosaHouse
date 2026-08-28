@@ -146,6 +146,9 @@ export interface OrderDto {
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
+  deliveryLandmark?: string | null;
+  deliveryLatitude?: number | null;
+  deliveryLongitude?: number | null;
   deliveryInstructions?: string | null;
   subtotal: number;
   deliveryCharge: number;

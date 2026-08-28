@@ -1,14 +1,18 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Radio, Truck, MapPin, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getAccessToken } from '@mdh/auth-client';
+import { io } from 'socket.io-client';
 import type { DeliveryDashboardDto, DeliveryOrderDto } from '@mdh/types';
 import { DeliveryStatusBadge } from '@/components/delivery/delivery-status-badge';
 import { ExecutiveStatusBadge } from '@/components/delivery/delivery-status-badge';
 
 export default function LiveTrackingPage() {
+  const queryClient = useQueryClient();
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['delivery-dashboard'],
     queryFn: () => api.get<DeliveryDashboardDto>('/delivery/dashboard'),
@@ -20,6 +24,33 @@ export default function LiveTrackingPage() {
     queryFn: () => api.get<DeliveryOrderDto[]>('/delivery/orders/list?status=on_the_way'),
     refetchInterval: 10_000,
   });
+  const activeOrderIds = activeOrders.map((order) => order.id).join(',');
+
+  useEffect(() => {
+    let socket: ReturnType<typeof io> | undefined;
+    let cancelled = false;
+    const token = getAccessToken();
+    if (cancelled || !token) return;
+    {
+      const base =
+        process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
+      socket = io(`${base}/orders`, { auth: { token }, transports: ['websocket', 'polling'] });
+      activeOrderIds
+        .split(',')
+        .filter(Boolean)
+        .forEach((orderId) => socket?.emit('subscribe', orderId));
+      const refresh = () => {
+        void queryClient.invalidateQueries({ queryKey: ['delivery-active'] });
+        void queryClient.invalidateQueries({ queryKey: ['delivery-dashboard'] });
+      };
+      socket.on('deliveryLocation', refresh);
+      socket.on('orderUpdate', refresh);
+    }
+    return () => {
+      cancelled = true;
+      socket?.disconnect();
+    };
+  }, [activeOrderIds, queryClient]);
 
   if (isLoading || !dashboard) {
     return <div className="h-96 rounded-xl bg-muted animate-pulse" />;
@@ -98,6 +129,12 @@ export default function LiveTrackingPage() {
                     <DeliveryStatusBadge status={o.assignment?.status ?? 'WAITING'} />
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{o.deliveryAddress}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {o.assignment?.executive?.name ?? 'Unassigned'} ·{' '}
+                    {o.assignment?.latitude != null && o.assignment?.longitude != null
+                      ? 'GPS active'
+                      : 'Waiting for GPS'}
+                  </p>
                   {o.assignment?.etaMinutes && (
                     <p className="text-xs font-semibold text-purple-600 mt-0.5">
                       ETA: {o.assignment.etaMinutes} min

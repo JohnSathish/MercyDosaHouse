@@ -12,14 +12,18 @@ export class DeliveryController {
 
   @Get('dashboard')
   @RequirePermissions('delivery.read')
-  getDashboard() {
-    return this.deliveryService.getDashboard();
+  getDashboard(@Req() req: { user: RequestUser }) {
+    return this.deliveryService.getDashboard(req.user.id, req.user.roles);
   }
 
   @Get('orders/list')
   @RequirePermissions('delivery.read')
-  listOrders(@Query('status') status?: string, @Query('search') search?: string) {
-    return this.deliveryService.listOrders({ status, search });
+  listOrders(
+    @Query('status') status: string | undefined,
+    @Query('search') search: string | undefined,
+    @Req() req: { user: RequestUser },
+  ) {
+    return this.deliveryService.listOrders({ status, search }, req.user.id, req.user.roles);
   }
 
   @Get('orders')
@@ -30,14 +34,19 @@ export class DeliveryController {
 
   @Get('orders/available')
   @RequirePermissions('delivery.manage')
-  getAvailableOrders() {
-    return this.deliveryService.getAvailableOrders();
+  getAvailableOrders(@Req() req: { user: RequestUser }) {
+    return this.deliveryService.getAvailableOrders(req.user.id, req.user.roles);
   }
 
   @Get('orders/:id')
   @RequirePermissions('delivery.read')
-  getOrder(@Param('id') id: string) {
-    return this.deliveryService.getOrder(id);
+  getOrder(@Param('id') id: string, @Req() req: { user: RequestUser }) {
+    return this.deliveryService.getOrder(id, req.user.id, req.user.roles);
+  }
+
+  @Get('orders/:id/live-location')
+  getLiveLocation(@Param('id') id: string, @Req() req: { user: RequestUser }) {
+    return this.deliveryService.getLiveLocation(id, req.user.id, req.user.roles);
   }
 
   @Get('orders/:id/timeline')
@@ -48,8 +57,8 @@ export class DeliveryController {
 
   @Get('executives')
   @RequirePermissions('delivery.read')
-  listExecutives() {
-    return this.deliveryService.listExecutives();
+  listExecutives(@Req() req: { user: RequestUser }) {
+    return this.deliveryService.listExecutives(req.user.id, req.user.roles);
   }
 
   @Get('zones')
@@ -62,6 +71,30 @@ export class DeliveryController {
   @RequirePermissions('delivery.read')
   calculateCharge(@Query('distanceKm') distanceKm: string) {
     return this.deliveryService.calculateZoneCharge(parseFloat(distanceKm));
+  }
+
+  @Post('zones')
+  @RequirePermissions('delivery.manage')
+  createZone(
+    @Body()
+    body: {
+      name: string;
+      slug: string;
+      minKm: number;
+      maxKm: number;
+      charge: number;
+      minimumOrderAmount?: number;
+      estimatedDeliveryMinutes?: number;
+      polygon?: unknown;
+    },
+  ) {
+    return this.deliveryService.createZone(body);
+  }
+
+  @Patch('zones/:id')
+  @RequirePermissions('delivery.manage')
+  updateZone(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.deliveryService.updateZone(id, body);
   }
 
   @Patch('orders/:id/assign')
@@ -93,7 +126,18 @@ export class DeliveryController {
     @Body() body: { status: DeliveryAssignmentStatus },
     @Req() req: { user: RequestUser },
   ) {
-    return this.deliveryService.updateAssignmentStatus(id, body.status, req.user.id);
+    return this.deliveryService.updateAssignmentStatus(
+      id,
+      body.status,
+      req.user.id,
+      req.user.roles,
+    );
+  }
+
+  @Post('orders/:id/start')
+  @RequirePermissions('delivery.manage')
+  startDelivery(@Param('id') id: string, @Req() req: { user: RequestUser }) {
+    return this.deliveryService.startDelivery(id, req.user.id, req.user.roles);
   }
 
   @Patch('orders/:id/deliver')
@@ -111,13 +155,23 @@ export class DeliveryController {
   updateExecutiveStatus(
     @Param('id') id: string,
     @Body() body: { status: DeliveryExecutiveStatus },
+    @Req() req: { user: RequestUser },
   ) {
-    return this.deliveryService.updateExecutiveStatus(id, body.status);
+    return this.deliveryService.updateExecutiveStatus(id, body.status, req.user.id, req.user.roles);
   }
 
   @Patch('location')
   @RequirePermissions('delivery.manage')
-  updateLocation(@Req() req: { user: RequestUser }, @Body() body: { lat: number; lng: number }) {
-    return this.deliveryService.updateExecutiveLocation(req.user.id, body.lat, body.lng);
+  updateLocation(
+    @Req() req: { user: RequestUser },
+    @Body() body: { lat: number; lng: number; orderId?: string; accuracyMeters?: number },
+  ) {
+    return this.deliveryService.updateExecutiveLocation(
+      req.user.id,
+      body.lat,
+      body.lng,
+      body.orderId,
+      body.accuracyMeters,
+    );
   }
 }

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import { api } from '@/lib/api';
 import { markOrderAlertRead } from '@/lib/notification-prefs';
 import { Card, EmptyState, LoadingBlock, Money, PrimaryButton, Screen, StatusChip } from '@/ui';
 import { formatInr, theme, timeAgo } from '@/ui/theme';
+import { useDeliveryLocationSharing } from '@/hooks/use-delivery-location';
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,18 +25,26 @@ export default function OrderDetailScreen() {
     queryFn: () => api.get<any>(`/orders/${id}`),
     enabled: !!id,
   });
+  const deliveryQuery = useQuery({
+    queryKey: ['delivery-order', id],
+    queryFn: () => api.get<any>(`/delivery/orders/${id}`),
+    enabled: !!id,
+  });
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['order', id] });
+    qc.invalidateQueries({ queryKey: ['delivery-order', id] });
     qc.invalidateQueries({ queryKey: ['orders'] });
   };
   const action = useMutation({
     mutationFn: ({ status }: { status: string }) =>
       status === 'CANCELLED'
         ? api.patch(`/orders/${id}/reject`, { reason: reason.trim() || 'Cancelled by admin' })
-        : api.patch(`/orders/${id}/status`, {
-            status,
-            trackingStatus: status === 'PREPARING' ? 'COOKING' : status,
-          }),
+        : status === 'OUT_FOR_DELIVERY'
+          ? api.post(`/delivery/orders/${id}/start`)
+          : api.patch(`/orders/${id}/status`, {
+              status,
+              trackingStatus: status === 'PREPARING' ? 'COOKING' : status,
+            }),
     onSuccess: refresh,
     onError: (e: Error) => Alert.alert('Action failed', e.message),
   });
@@ -43,6 +53,16 @@ export default function OrderDetailScreen() {
     onSuccess: () => Alert.alert('Email sent', 'Order email was queued successfully.'),
     onError: (e: Error) => Alert.alert('Email failed', e.message),
   });
+  useDeliveryLocationSharing(
+    id,
+    deliveryQuery.data?.status === 'OUT_FOR_DELIVERY' &&
+      deliveryQuery.data?.assignment?.status === 'OUT_FOR_DELIVERY' &&
+      deliveryQuery.data?.assignment?.locationSharingActive === true,
+    {
+      intervalSeconds: deliveryQuery.data?.deliveryConfig?.locationUpdateIntervalSeconds,
+      distanceMeters: deliveryQuery.data?.deliveryConfig?.locationMinDistanceMeters,
+    },
+  );
   if (query.isLoading)
     return (
       <Screen>
@@ -113,6 +133,10 @@ export default function OrderDetailScreen() {
             <Text style={styles.note}>Note: {o.notes ?? o.specialInstructions}</Text>
           ) : null}
         </Card>
+        {deliveryQuery.data?.deliveryLatitude != null &&
+        deliveryQuery.data?.deliveryLongitude != null ? (
+          <DeliveryMapCard order={deliveryQuery.data} />
+        ) : null}
         <Card>
           <Text style={styles.heading}>Payment summary</Text>
           <Line label="Subtotal" value={o.subtotal} />
@@ -131,7 +155,7 @@ export default function OrderDetailScreen() {
               { s: 'ACCEPTED', title: 'Confirm Order' },
               { s: 'PREPARING', title: 'Start Cooking' },
               { s: 'READY', title: 'Mark Ready' },
-              { s: 'OUT_FOR_DELIVERY', title: 'Out for Delivery' },
+              { s: 'OUT_FOR_DELIVERY', title: '🛵 Start Delivery' },
               { s: 'DELIVERED', title: 'Mark Delivered' },
             ].map(({ s, title }) => (
               <PrimaryButton
@@ -178,6 +202,74 @@ export default function OrderDetailScreen() {
   );
 }
 
+function DeliveryMapCard({ order }: { order: any }) {
+  const destination = {
+    latitude: Number(order.deliveryLatitude),
+    longitude: Number(order.deliveryLongitude),
+  };
+  const agent =
+    order.assignment?.latitude != null && order.assignment?.longitude != null
+      ? {
+          latitude: Number(order.assignment.latitude),
+          longitude: Number(order.assignment.longitude),
+        }
+      : null;
+  const region = agent ?? destination;
+  return (
+    <Card>
+      <Text style={styles.heading}>Live delivery map</Text>
+      <MapView
+        style={styles.deliveryMap}
+        initialRegion={{ ...region, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+      >
+        <Marker coordinate={destination} title="Customer">
+          <Text style={styles.mapMarker}>📍</Text>
+        </Marker>
+        {agent ? (
+          <Marker coordinate={agent} title="Delivery agent">
+            <Text style={styles.mapMarker}>🛵</Text>
+          </Marker>
+        ) : null}
+      </MapView>
+      <Text style={styles.muted}>
+        {order.assignment?.distanceKm != null
+          ? `${Number(order.assignment.distanceKm).toFixed(1)} km`
+          : 'Route estimate unavailable'}
+        {order.assignment?.etaMinutes != null ? ` • ETA ${order.assignment.etaMinutes} min` : ''}
+      </Text>
+      <View style={styles.mapActions}>
+        {order.customerPhone ? (
+          <PrimaryButton
+            title="Call customer"
+            variant="ghost"
+            onPress={() => void Linking.openURL(`tel:${order.customerPhone}`)}
+          />
+        ) : null}
+        {order.customerPhone ? (
+          <PrimaryButton
+            title="WhatsApp"
+            variant="ghost"
+            onPress={() =>
+              void Linking.openURL(
+                `https://wa.me/91${String(order.customerPhone).replace(/\D/g, '').slice(-10)}`,
+              )
+            }
+          />
+        ) : null}
+        <PrimaryButton
+          title="Navigate"
+          variant="secondary"
+          onPress={() =>
+            void Linking.openURL(
+              `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}`,
+            )
+          }
+        />
+      </View>
+    </Card>
+  );
+}
+
 function Line({ label, value, strong }: any) {
   if (value == null) return null;
   return (
@@ -215,4 +307,7 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     color: theme.colors.text,
   },
+  deliveryMap: { height: 230, borderRadius: 14, marginBottom: 8 },
+  mapMarker: { fontSize: 28 },
+  mapActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
 });

@@ -5,7 +5,13 @@ import {
   OnModuleInit,
   Logger,
 } from '@nestjs/common';
-import { OrderStatus, PaymentMethod, PaymentStatus, TrackingStatus } from '@prisma/client';
+import {
+  DeliveryAssignmentStatus,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  TrackingStatus,
+} from '@prisma/client';
 import { calculatePreOrderDiscount, calculateDeliveryCharge, isPreOrderEligible } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
@@ -13,6 +19,7 @@ import { OrderEmailNotificationService } from '../notifications/order-email-noti
 import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
 import { isValidOrderStatusTransition } from './order-status-transitions';
+import { MarketingService } from '../marketing/marketing.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -24,6 +31,7 @@ export class OrdersService implements OnModuleInit {
     private orderEmailNotification: OrderEmailNotificationService,
     private notificationsService: NotificationsService,
     private settingsService: SettingsService,
+    private marketingService: MarketingService,
   ) {}
 
   async onModuleInit() {
@@ -114,6 +122,9 @@ export class OrdersService implements OnModuleInit {
     customerName: string;
     customerPhone: string;
     deliveryAddress: string;
+    deliveryLandmark?: string;
+    deliveryLatitude?: number;
+    deliveryLongitude?: number;
     deliveryInstructions?: string;
     paymentMethod: PaymentMethod;
     items: { productId: string; variantId?: string; quantity: number }[];
@@ -128,6 +139,35 @@ export class OrdersService implements OnModuleInit {
     if (!data.items.length) throw new BadRequestException('Order must have items');
 
     const orderType = data.orderType ?? 'DELIVERY';
+    if (orderType === 'DELIVERY') {
+      const hasLatitude = data.deliveryLatitude != null;
+      const hasLongitude = data.deliveryLongitude != null;
+      if (hasLatitude !== hasLongitude) {
+        throw new BadRequestException('Both delivery latitude and longitude are required');
+      }
+      if (
+        hasLatitude &&
+        (data.deliveryLatitude! < -90 ||
+          data.deliveryLatitude! > 90 ||
+          data.deliveryLongitude! < -180 ||
+          data.deliveryLongitude! > 180)
+      ) {
+        throw new BadRequestException('Invalid delivery coordinates');
+      }
+      const deliveryCheck = await this.marketingService.checkDeliveryArea(
+        data.deliveryAddress,
+        undefined,
+        {
+          latitude: data.deliveryLatitude,
+          longitude: data.deliveryLongitude,
+        },
+      );
+      if (!deliveryCheck.available) {
+        throw new BadRequestException(
+          deliveryCheck.message || 'We are not delivering to this location yet.',
+        );
+      }
+    }
     const pricing = await this.computePricing({ ...data, orderType });
     const orderNumber = await this.generateOrderNumber();
     const branch = await this.prisma.branch.findFirst({ where: { isDefault: true } });
@@ -141,6 +181,9 @@ export class OrdersService implements OnModuleInit {
           customerName: data.customerName,
           customerPhone: data.customerPhone,
           deliveryAddress: data.deliveryAddress,
+          deliveryLandmark: data.deliveryLandmark,
+          deliveryLatitude: data.deliveryLatitude,
+          deliveryLongitude: data.deliveryLongitude,
           addressId: data.addressId,
           scheduledDeliveryAt: data.scheduledDeliveryAt,
           rewardPointsUsed: pricing.rewardPointsUsed,
@@ -457,6 +500,15 @@ export class OrdersService implements OnModuleInit {
     if (!isValidOrderStatusTransition(existing.status, status)) {
       throw new BadRequestException(`Cannot move order from ${existing.status} to ${status}`);
     }
+    if (status === OrderStatus.OUT_FOR_DELIVERY && existing.orderType === 'DELIVERY') {
+      const assignment = await this.prisma.deliveryTracking.findUnique({
+        where: { orderId: id },
+        select: { deliveryStaffId: true },
+      });
+      if (!assignment?.deliveryStaffId) {
+        throw new BadRequestException('Assign a delivery agent before starting delivery');
+      }
+    }
 
     const order = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -478,6 +530,30 @@ export class OrdersService implements OnModuleInit {
           remarks: options?.remarks,
         },
       });
+
+      if (
+        status === OrderStatus.OUT_FOR_DELIVERY ||
+        status === OrderStatus.DELIVERED ||
+        status === OrderStatus.CANCELLED
+      ) {
+        await tx.deliveryTracking.updateMany({
+          where: { orderId: id },
+          data: {
+            ...(status === OrderStatus.OUT_FOR_DELIVERY
+              ? {
+                  status: DeliveryAssignmentStatus.OUT_FOR_DELIVERY,
+                  outForDeliveryAt: new Date(),
+                  locationSharingActive: true,
+                }
+              : {
+                  locationSharingActive: false,
+                  ...(status === OrderStatus.DELIVERED
+                    ? { status: DeliveryAssignmentStatus.DELIVERED, deliveredAt: new Date() }
+                    : { status: DeliveryAssignmentStatus.CANCELLED }),
+                }),
+          },
+        });
+      }
 
       return updated;
     });
@@ -516,6 +592,13 @@ export class OrdersService implements OnModuleInit {
           newStatus: OrderStatus.CANCELLED,
           updatedById,
           remarks: reason,
+        },
+      });
+      await tx.deliveryTracking.updateMany({
+        where: { orderId: id },
+        data: {
+          status: DeliveryAssignmentStatus.CANCELLED,
+          locationSharingActive: false,
         },
       });
 
@@ -592,6 +675,9 @@ export class OrdersService implements OnModuleInit {
     customerName: string;
     customerPhone: string;
     deliveryAddress: string | null;
+    deliveryLandmark?: string | null;
+    deliveryLatitude?: number | null;
+    deliveryLongitude?: number | null;
     deliveryInstructions: string | null;
     rejectReason?: string | null;
     subtotal: { toNumber?: () => number } | number;
@@ -646,6 +732,9 @@ export class OrdersService implements OnModuleInit {
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       deliveryAddress: order.deliveryAddress ?? '',
+      deliveryLandmark: order.deliveryLandmark ?? null,
+      deliveryLatitude: order.deliveryLatitude ?? null,
+      deliveryLongitude: order.deliveryLongitude ?? null,
       deliveryInstructions: order.deliveryInstructions,
       rejectReason: order.rejectReason ?? null,
       subtotal: toNum(order.subtotal),

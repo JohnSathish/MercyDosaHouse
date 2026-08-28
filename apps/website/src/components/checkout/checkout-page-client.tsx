@@ -1149,10 +1149,63 @@ function GuestAddressForm({
   profilePhone?: string | null;
 }) {
   const d = draft ?? {};
-  const set = (key: keyof AddressDto, val: string) => onChange({ ...d, [key]: val });
+  const [locating, setLocating] = useState(false);
+  const set = (key: keyof AddressDto, val: string | number) => onChange({ ...d, [key]: val });
+
+  async function useCurrentLocation() {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15_000,
+        });
+      });
+      const { latitude, longitude } = position.coords;
+      onChange({ ...d, latitude, longitude });
+    } catch {
+      // The customer can continue with a manually entered address.
+    } finally {
+      setLocating(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
+      <button
+        type="button"
+        className="w-full rounded-xl border border-[#14532D] bg-[#F0FDF4] px-3 py-2 text-sm font-semibold text-[#14532D]"
+        onClick={() => void useCurrentLocation()}
+        disabled={locating}
+      >
+        <MapPin className="inline h-4 w-4 mr-1" />
+        {locating ? 'Finding your location…' : 'Use My Current Location'}
+      </button>
+      {d.latitude != null && d.longitude != null ? (
+        <>
+          <iframe
+            title="Selected delivery location"
+            className="h-40 w-full rounded-xl border"
+            loading="lazy"
+            src={`https://www.google.com/maps?q=${d.latitude},${d.longitude}&z=16&output=embed`}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              aria-label="Delivery latitude"
+              className="rounded-xl border px-3 py-2 text-xs"
+              value={d.latitude}
+              onChange={(e) => set('latitude', Number(e.target.value))}
+            />
+            <input
+              aria-label="Delivery longitude"
+              className="rounded-xl border px-3 py-2 text-xs"
+              value={d.longitude}
+              onChange={(e) => set('longitude', Number(e.target.value))}
+            />
+          </div>
+        </>
+      ) : null}
       <input
         className="w-full rounded-xl border px-3 py-2 text-sm"
         placeholder="Your name *"

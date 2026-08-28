@@ -79,4 +79,5 @@ export enum NotificationType {
   NEW_ORDER = 'NEW_ORDER',
   ORDER_PLACED = 'ORDER_PLACED',
   CANCELLED = 'CANCELLED',
+  NEAR_CUSTOMER = 'NEAR_CUSTOMER',
 }

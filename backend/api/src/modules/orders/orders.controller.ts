@@ -55,6 +55,8 @@ export class OrdersController {
           city: string;
           state?: string;
           pincode: string;
+          latitude?: number;
+          longitude?: number;
           deliveryNotes?: string;
         }
       | undefined;
@@ -77,6 +79,8 @@ export class OrdersController {
         state: saved.state,
         pincode: saved.pincode,
         deliveryNotes: saved.deliveryNotes ?? undefined,
+        latitude: saved.latitude ?? undefined,
+        longitude: saved.longitude ?? undefined,
       };
       customerName = customerName || saved.contactName;
       customerPhone = customerPhone || saved.mobileNumber;
@@ -103,6 +107,9 @@ export class OrdersController {
       deliveryAddress,
       deliveryInstructions:
         (body.deliveryInstructions as string | undefined) || address.deliveryNotes,
+      deliveryLandmark: address.landmark,
+      deliveryLatitude: address.latitude,
+      deliveryLongitude: address.longitude,
       paymentMethod: body.paymentMethod as never,
       items,
       userId: req.user?.id,

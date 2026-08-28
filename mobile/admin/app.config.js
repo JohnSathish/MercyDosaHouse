@@ -25,6 +25,9 @@ module.exports = ({ config }) => ({
       backgroundColor: '#14532D',
     },
     package: 'com.mercydosahouse.admin',
+    ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+      ? { config: { googleMaps: { apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY } } }
+      : {}),
     versionCode: 5,
     permissions: [
       'INTERNET',
@@ -56,6 +59,14 @@ module.exports = ({ config }) => ({
       },
     ],
     'expo-av',
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Mercy Dosa House shares your location only while an active delivery is in progress.',
+        isAndroidBackgroundLocationEnabled: true,
+      },
+    ],
     [
       'expo-build-properties',
       {

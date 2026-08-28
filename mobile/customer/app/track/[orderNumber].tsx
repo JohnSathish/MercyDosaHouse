@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Linking } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
@@ -10,10 +11,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { io, Socket } from 'socket.io-client';
-import type { OrderDto } from '@mdh/types';
+import type { LiveDeliveryLocationDto, OrderDto } from '@mdh/types';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
+import { getAccessToken } from '@/lib/auth-storage';
 import { SOCKET_URL } from '@/lib/constants';
 import { OrderTimeline } from '@/components/order-timeline';
 import { SupportLinks } from '@/components/support-links';
@@ -25,6 +28,7 @@ export default function TrackOrderScreen() {
   const queryClient = useQueryClient();
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
+  const [hasSession, setHasSession] = useState(false);
 
   const {
     data: order,
@@ -39,10 +43,24 @@ export default function TrackOrderScreen() {
   });
 
   useEffect(() => {
+    void getAccessToken().then((token) => setHasSession(Boolean(token)));
+  }, []);
+
+  const liveQuery = useQuery({
+    queryKey: ['delivery-live-location', order?.id],
+    queryFn: () => api.get<LiveDeliveryLocationDto>(`/delivery/orders/${order!.id}/live-location`),
+    enabled: hasSession && order?.status === 'OUT_FOR_DELIVERY',
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
     if (!order?.id) return;
     let socket: Socket | null = null;
-    try {
+    let cancelled = false;
+    void getAccessToken().then((token) => {
+      if (cancelled || !token) return;
       socket = io(`${SOCKET_URL}/orders`, {
+        auth: { token },
         transports: ['websocket', 'polling'],
         timeout: 10_000,
       });
@@ -53,14 +71,15 @@ export default function TrackOrderScreen() {
         void queryClient.invalidateQueries({ queryKey: ['order', orderNumber] });
       };
       socket.on('orderUpdate', onUpdate);
-      socket.on('orderStatusChanged', onUpdate);
-    } catch {
-      /* socket optional */
-    }
+      socket.on('deliveryLocation', () => {
+        void queryClient.invalidateQueries({ queryKey: ['delivery-live-location', order.id] });
+      });
+    });
     return () => {
+      cancelled = true;
       socket?.disconnect();
     };
-  }, [order?.id]);
+  }, [order?.id, orderNumber, queryClient]);
 
   if (isLoading) {
     return (
@@ -126,6 +145,8 @@ export default function TrackOrderScreen() {
           />
         </View>
 
+        {liveQuery.data?.active ? <LiveDeliveryCard data={liveQuery.data} colors={colors} /> : null}
+
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Order Details</Text>
           {order.items.map((item) => (
@@ -149,6 +170,106 @@ export default function TrackOrderScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function LiveDeliveryCard({
+  data,
+  colors,
+}: {
+  data: LiveDeliveryLocationDto;
+  colors: { primary: string };
+}) {
+  const agent =
+    data.agent?.latitude != null && data.agent.longitude != null
+      ? { latitude: data.agent.latitude, longitude: data.agent.longitude }
+      : null;
+  const customer =
+    data.customer.latitude != null && data.customer.longitude != null
+      ? { latitude: data.customer.latitude, longitude: data.customer.longitude }
+      : null;
+  const region = useMemo(() => {
+    const point = agent ?? customer;
+    return point
+      ? { ...point, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+      : { latitude: 25.5133, longitude: 90.2036, latitudeDelta: 0.04, longitudeDelta: 0.04 };
+  }, [agent?.latitude, agent?.longitude, customer?.latitude, customer?.longitude]);
+  const route = useMemo(
+    () => (data.routePolyline ? decodePolyline(data.routePolyline) : []),
+    [data.routePolyline],
+  );
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.statusRow}>
+        <Text style={[styles.cardTitle, { marginBottom: 0 }]}>🛵 Track My Order</Text>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}>Live</Text>
+      </View>
+      <Text style={styles.message}>Your delivery partner is heading to you.</Text>
+      <MapView style={styles.map} initialRegion={region} region={region}>
+        {agent ? (
+          <Marker coordinate={agent} title={data.agent?.name ?? 'Delivery partner'}>
+            <Text style={styles.marker}>🛵</Text>
+          </Marker>
+        ) : null}
+        {customer ? (
+          <Marker coordinate={customer} title="Your delivery location">
+            <Text style={styles.marker}>📍</Text>
+          </Marker>
+        ) : null}
+        {route.length > 1 ? (
+          <Polyline coordinates={route} strokeColor={colors.primary} strokeWidth={4} />
+        ) : null}
+      </MapView>
+      <View style={styles.liveMeta}>
+        <Text style={styles.name}>
+          {data.distanceKm != null ? `${data.distanceKm.toFixed(1)} km away` : 'Route updating'}
+          {data.etaMinutes != null ? ` • ETA ${data.etaMinutes} min` : ''}
+        </Text>
+        <Text style={styles.muted}>
+          {data.agent?.name ? `Delivery Partner ${data.agent.name}` : 'Delivery partner'}
+        </Text>
+        <Text style={styles.muted}>
+          Last updated:{' '}
+          {data.lastUpdatedAt
+            ? new Date(data.lastUpdatedAt).toLocaleTimeString()
+            : 'Waiting for GPS'}
+        </Text>
+        {data.agent?.phone ? (
+          <Pressable onPress={() => void Linking.openURL(`tel:${data.agent?.phone}`)}>
+            <Text style={styles.link}>Call delivery partner</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function decodePolyline(encoded: string): { latitude: number; longitude: number }[] {
+  const points: { latitude: number; longitude: number }[] = [];
+  let index = 0;
+  let latitude = 0;
+  let longitude = 0;
+  while (index < encoded.length) {
+    let result = 0;
+    let shift = 0;
+    let byte: number;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    latitude += result & 1 ? ~(result >> 1) : result >> 1;
+    result = 0;
+    shift = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    longitude += result & 1 ? ~(result >> 1) : result >> 1;
+    points.push({ latitude: latitude / 1e5, longitude: longitude / 1e5 });
+  }
+  return points;
 }
 
 const styles = StyleSheet.create({
@@ -195,6 +316,11 @@ const styles = StyleSheet.create({
   totalLabel: { fontWeight: '800' },
   totalValue: { fontWeight: '800', color: '#14532D' },
   address: { color: '#6B7280', fontSize: 13, marginTop: 10 },
+  map: { height: 240, borderRadius: 14, marginTop: 10 },
+  marker: { fontSize: 28 },
+  liveMeta: { marginTop: 10, gap: 4 },
+  name: { fontWeight: '700', color: '#1F2937' },
+  muted: { color: '#6B7280', fontSize: 13 },
   supportTitle: { fontWeight: '700', color: '#14532D', marginVertical: 12 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#14532D' },
   link: { color: '#14532D', fontWeight: '600', marginTop: 12 },
