@@ -3,7 +3,7 @@
 import type { ProductDto } from '@mdh/types';
 import { allocateHomeCatalog } from '@mdh/utils';
 import { HeroSection } from './hero-section';
-import { OffersSection, CategoriesSection } from './offers-section';
+import { CategoriesSection } from './offers-section';
 import {
   CompactProductGrid,
   SpecialtyTimelineSection,
@@ -43,7 +43,6 @@ export function HomePageClient({ products }: HomePageClientProps) {
         products={catalog.popular}
         viewAllHref="/menu?popular=true"
       />
-      <OffersSection />
       <SpecialtyTimelineSection preOrder={catalog.preOrder} comingSoon={catalog.comingSoon} />
       <MenuPreviewSection products={catalog.menuPreview} />
       <WhyChooseUsSection />
