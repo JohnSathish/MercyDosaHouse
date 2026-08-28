@@ -64,6 +64,7 @@ import { CheckoutLoginSheet } from './checkout-login-sheet';
 import { AddressFormDialog } from '@/components/dashboard/address-form-dialog';
 import { checkDeliveryArea } from '@/lib/marketing-content';
 import { DeliveryPopupTrigger } from '@/components/marketing/delivery-popup';
+import { DeliveryNoticeBody } from '@/components/marketing/delivery-notice';
 import {
   Dialog,
   DialogContent,
@@ -737,7 +738,7 @@ export function CheckoutPageClient() {
                 : 'border-amber-200 bg-amber-50 text-amber-900',
             )}
           >
-            {deliveryCheck.message}
+            <DeliveryNoticeBody text={deliveryCheck.message} />
             {!deliveryCheck.available && (
               <p className="text-xs mt-1 font-semibold text-[#14532D]">
                 You can still place a pickup order. Continue to confirm.
@@ -746,7 +747,10 @@ export function CheckoutPageClient() {
             {!deliveryCheck.available &&
               deliveryCheck.expansionMessage &&
               deliveryCheck.expansionMessage.trim() !== deliveryCheck.message.trim() && (
-                <p className="text-xs mt-1 text-[#F59E0B]">{deliveryCheck.expansionMessage}</p>
+                <DeliveryNoticeBody
+                  text={deliveryCheck.expansionMessage}
+                  className="mt-2 text-xs text-[#F59E0B]"
+                />
               )}
           </div>
         )}

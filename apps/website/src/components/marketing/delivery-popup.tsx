@@ -181,9 +181,9 @@ export function DeliveryPopupTrigger({
           <div className="w-full max-w-md rounded-2xl bg-[#FFF8E8] p-6 shadow-xl">
             <p className="text-2xl mb-2">🥡</p>
             <h2 className="text-lg font-bold text-[#14532D] mb-2">Delivery Update</h2>
-            <p className="text-sm text-gray-700 mb-2">{message}</p>
+            <DeliveryNoticeBody text={message} className="mb-2" />
             {showExpansion ? (
-              <p className="text-xs text-[#F59E0B] mb-4">{expansion}</p>
+              <DeliveryNoticeBody text={expansion} className="mb-4 text-xs text-[#F59E0B]" />
             ) : (
               <p className="text-xs text-[#14532D] font-medium mb-4">
                 You can still place a pickup order.
