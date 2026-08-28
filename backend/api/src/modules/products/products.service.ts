@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, FoodType, SpiceLevel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { displayCategoryName } from '../categories/category-display-name';
@@ -23,7 +23,7 @@ export class ProductsService {
   }) {
     const page = filters?.page || 1;
     const limit = filters?.limit || 50;
-    const where: Prisma.ProductWhereInput = {};
+    const where: Prisma.ProductWhereInput = { deletedAt: null };
 
     if (filters?.categoryId) where.categoryId = filters.categoryId;
     if (filters?.foodType) where.foodType = filters.foodType;
@@ -66,7 +66,7 @@ export class ProductsService {
       where: { id },
       include: { category: true, images: true, variants: true, reviews: { take: 10 } },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product || product.deletedAt) throw new NotFoundException('Product not found');
     return this.mapProduct(product);
   }
 
@@ -75,7 +75,7 @@ export class ProductsService {
       where: { slug },
       include: { category: true, images: true, variants: true, reviews: { take: 10 } },
     });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product || product.deletedAt) throw new NotFoundException('Product not found');
     return this.mapProduct(product);
   }
 
@@ -107,14 +107,14 @@ export class ProductsService {
   }
 
   async remove(id: string) {
-    await this.ensureExists(id);
-    await this.prisma.cartItem.deleteMany({ where: { productId: id } });
-
-    const usedInOrders = await this.prisma.orderItem.count({ where: { productId: id } });
-    if (usedInOrders > 0) {
-      await this.prisma.product.update({
+    const product = await this.ensureExists(id);
+    await this.prisma.$transaction([
+      this.prisma.cartItem.deleteMany({ where: { productId: id } }),
+      this.prisma.favorite.deleteMany({ where: { productId: id } }),
+      this.prisma.product.update({
         where: { id },
         data: {
+          deletedAt: new Date(),
           isAvailable: false,
           isComingSoon: false,
           isPopular: false,
@@ -122,20 +122,17 @@ export class ProductsService {
           isBestseller: false,
           isOnOffer: false,
           isPreOrder: false,
+          slug: `${product.slug}-deleted-${Date.now()}`,
         },
-      });
-      throw new BadRequestException(
-        'This item is in past orders, so it cannot be fully removed. It has been marked Unavailable instead.',
-      );
-    }
-
-    await this.prisma.product.delete({ where: { id } });
+      }),
+    ]);
     return { success: true };
   }
 
   private async ensureExists(id: string) {
     const product = await this.prisma.product.findUnique({ where: { id } });
-    if (!product) throw new NotFoundException('Product not found');
+    if (!product || product.deletedAt) throw new NotFoundException('Product not found');
+    return product;
   }
 
   private sanitizeProductData(data: Record<string, unknown>) {

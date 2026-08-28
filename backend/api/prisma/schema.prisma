@@ -541,6 +541,7 @@ model Product {
   ingredients     String?
   nutritionInfo   String?
   stock           Int?
+  deletedAt       DateTime?
   images          ProductImage[]
   variants        ProductVariant[]
   cartItems       CartItem[]

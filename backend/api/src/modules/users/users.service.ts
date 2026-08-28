@@ -168,13 +168,15 @@ export class UsersService {
 
   async getFavorites(userId: string) {
     const favorites = await this.prisma.favorite.findMany({
-      where: { userId },
+      where: { userId, product: { deletedAt: null } },
       include: { product: { include: { category: true, images: true } } },
     });
     return favorites.map((f) => f.product);
   }
 
-  addFavorite(userId: string, productId: string) {
+  async addFavorite(userId: string, productId: string) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product || product.deletedAt) throw new NotFoundException('Product not found');
     return this.prisma.favorite.upsert({
       where: { userId_productId: { userId, productId } },
       update: {},

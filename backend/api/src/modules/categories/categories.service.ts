@@ -4,13 +4,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { displayCategoryName, isGarbledCategoryName } from './category-display-name';
 
 const categoryInclude = {
-  products: { select: { id: true, name: true, isAvailable: true, price: true, isPopular: true } },
+  products: {
+    where: { deletedAt: null },
+    select: { id: true, name: true, isAvailable: true, price: true, isPopular: true },
+  },
   schedules: { orderBy: { label: 'asc' as const } },
   analytics: true,
   tags: true,
   images: { orderBy: { sortOrder: 'asc' as const } },
   banners: { orderBy: { sortOrder: 'asc' as const } },
-  _count: { select: { products: true } },
+  _count: { select: { products: { where: { deletedAt: null } } } },
 } satisfies Prisma.CategoryInclude;
 
 type CategoryRow = Prisma.CategoryGetPayload<{ include: typeof categoryInclude }>;
@@ -175,7 +178,7 @@ export class CategoriesService {
         include: categoryInclude,
         orderBy: { sortOrder: 'asc' },
       }),
-      this.prisma.product.count(),
+      this.prisma.product.count({ where: { deletedAt: null } }),
       this.prisma.orderItem.findMany({
         where: { order: { createdAt: { gte: monthStart }, status: { not: 'CANCELLED' } } },
         include: { product: { select: { categoryId: true, name: true } } },
@@ -316,7 +319,9 @@ export class CategoriesService {
   findBySlug(slug: string) {
     return this.prisma.category.findUnique({
       where: { slug },
-      include: { products: { where: { isAvailable: true }, orderBy: { name: 'asc' } } },
+      include: {
+        products: { where: { isAvailable: true, deletedAt: null }, orderBy: { name: 'asc' } },
+      },
     });
   }
 

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, CardContent, Input, Label, Select, Textarea } from '@mdh/ui';
 import { formatCurrency } from '@mdh/utils';
 import { api } from '@/lib/api';
+import { useToastStore } from '@/lib/toast-store';
 import type { BusinessSettingsDto, ProductDto } from '@mdh/types';
 import { FoodType, SpiceLevel } from '@mdh/types';
 
@@ -66,6 +67,7 @@ function parseMoney(value: string) {
 
 export default function MenuManagementPage() {
   const queryClient = useQueryClient();
+  const toast = useToastStore((s) => s.show);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, ItemDraft>>({});
@@ -119,7 +121,11 @@ export default function MenuManagementPage() {
 
   const deleteProduct = useMutation({
     mutationFn: (id: string) => api.delete(`/products/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      toast('Item deleted from the menu.');
+    },
+    onError: (err: Error) => toast(err.message || 'Could not delete this item.'),
   });
 
   const saveCharges = useMutation({
@@ -423,7 +429,7 @@ export default function MenuManagementPage() {
                       disabled={deleteProduct.isPending}
                       onClick={() => {
                         const ok = window.confirm(
-                          `Delete "${p.name}" from the menu? If it appears in past orders it will be hidden instead.`,
+                          `Delete "${p.name}" from the menu? Past orders will still keep the item name.`,
                         );
                         if (ok) deleteProduct.mutate(p.id);
                       }}

@@ -226,6 +226,7 @@ export class PosService {
         products: {
           where: {
             isAvailable: true,
+            deletedAt: null,
             ...(search
               ? {
                   OR: [
@@ -567,7 +568,9 @@ export class PosService {
       where: { id: data.productId },
       include: { variants: true, category: true },
     });
-    if (!product || !product.isAvailable) throw new NotFoundException('Product not available');
+    if (!product || product.deletedAt || !product.isAvailable) {
+      throw new NotFoundException('Product not available');
+    }
 
     let unitPrice = Number(product.price);
     let variantName: string | null = null;

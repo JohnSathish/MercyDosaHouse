@@ -240,7 +240,7 @@ export class OrdersService implements OnModuleInit {
 
     const productIds = data.items.map((i) => i.productId);
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, isAvailable: true },
+      where: { id: { in: productIds }, isAvailable: true, deletedAt: null },
       include: { variants: true },
     });
 
