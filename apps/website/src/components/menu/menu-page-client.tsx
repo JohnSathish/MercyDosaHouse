@@ -23,6 +23,26 @@ const CATEGORY_EMOJI: Record<string, string> = {
   rice: '🍚',
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  dosa: 'Dosa',
+  idly: 'Idly',
+  vada: 'Vada',
+  biryani: 'Biryani',
+  rice: 'Rice',
+  meals: 'Meals',
+  beverages: 'Beverages',
+  combos: 'Combos',
+};
+
+function categoryLabel(cat: { name: string; slug: string }) {
+  const expected = CATEGORY_LABELS[cat.slug];
+  const name = cat.name?.trim() ?? '';
+  if (expected && (/^[a-z]{4,12}$/.test(name) || name.toLowerCase() === cat.slug)) {
+    return expected;
+  }
+  return name || expected || cat.slug;
+}
+
 export function MenuPageClient() {
   const searchParams = useSearchParams();
   const initialCategorySlug = searchParams.get('category') ?? '';
@@ -135,7 +155,7 @@ export function MenuPageClient() {
                         : 'bg-white text-[#1F2937] border border-gray-200 hover:border-primary hover:text-primary'
                     }`}
                   >
-                    {CATEGORY_EMOJI[cat.slug] ?? '🍽️'} {cat.name}
+                    {cat.icon || CATEGORY_EMOJI[cat.slug] || '🍽️'} {categoryLabel(cat)}
                   </button>
                 ))}
               </div>

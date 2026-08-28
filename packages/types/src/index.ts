@@ -84,6 +84,7 @@ export interface CategoryDto {
   slug: string;
   description?: string | null;
   imageUrl?: string | null;
+  icon?: string | null;
   sortOrder: number;
   isActive: boolean;
 }

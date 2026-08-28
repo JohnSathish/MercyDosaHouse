@@ -3,6 +3,7 @@ import { Phone, Mail, MapPin, Clock, Bike } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import type { BusinessSettingsDto, DeliveryConfigDto } from '@mdh/types';
 import { isHomeDeliveryActive } from '@mdh/types';
+import { DeliveryNoticeBody } from '@/components/marketing/delivery-notice';
 
 interface ContactInfoPanelProps {
   settings: BusinessSettingsDto | null;
@@ -128,10 +129,12 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
           </div>
           <div>
             <p className="font-semibold text-[#14532D]">{deliveryTitle}</p>
-            <p className="mt-0.5 text-sm text-[#1F2937]/75">
-              {deliveryMessage}
-              {deliveryActive && deliveryAreas ? ` Currently serving ${deliveryAreas}.` : null}
-            </p>
+            <div className="mt-1">
+              <DeliveryNoticeBody text={deliveryMessage} />
+              {deliveryActive && deliveryAreas ? (
+                <p className="mt-2 text-sm text-[#1F2937]/75">Currently serving {deliveryAreas}.</p>
+              ) : null}
+            </div>
             {delivery?.expansionMessage ? (
               <p className="mt-1 text-sm font-medium text-[#F7941D]">{delivery.expansionMessage}</p>
             ) : null}

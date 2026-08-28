@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, FoodType, SpiceLevel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { displayCategoryName } from '../categories/category-display-name';
 
 @Injectable()
 export class ProductsService {
@@ -78,29 +79,18 @@ export class ProductsService {
     return this.mapProduct(product);
   }
 
-  create(data: {
-    name: string;
-    slug: string;
-    description?: string;
-    price: number;
-    packingCharge?: number;
-    categoryId: string;
-    foodType?: FoodType;
-    spiceLevel?: SpiceLevel;
-    prepTimeMinutes?: number;
-    isAvailable?: boolean;
-    isPopular?: boolean;
-    isFeatured?: boolean;
-    isBestseller?: boolean;
-    isOnOffer?: boolean;
-    isPreOrder?: boolean;
-    isComingSoon?: boolean;
-    ingredients?: string;
-    nutritionInfo?: string;
-  }) {
+  create(data: Record<string, unknown>) {
+    const payload = this.sanitizeProductData(data);
+    if (!payload.slug && payload.name) {
+      payload.slug = String(payload.name)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
     return this.prisma.product
       .create({
-        data: { ...data, price: data.price },
+        data: payload as Prisma.ProductUncheckedCreateInput,
         include: { category: true, images: true, variants: true },
       })
       .then((p) => this.mapProduct(p));
@@ -110,7 +100,7 @@ export class ProductsService {
     await this.ensureExists(id);
     const product = await this.prisma.product.update({
       where: { id },
-      data: data as Prisma.ProductUpdateInput,
+      data: this.sanitizeProductData(data) as Prisma.ProductUncheckedUpdateInput,
       include: { category: true, images: true, variants: true },
     });
     return this.mapProduct(product);
@@ -124,6 +114,54 @@ export class ProductsService {
   private async ensureExists(id: string) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException('Product not found');
+  }
+
+  private sanitizeProductData(data: Record<string, unknown>) {
+    const aliases: Record<string, string> = {
+      foodType: 'foodType',
+      spiceLevel: 'spiceLevel',
+      prepTimeMinutes: 'prepTimeMinutes',
+      isAvailable: 'isAvailable',
+    };
+    const allowed = new Set([
+      'name',
+      'slug',
+      'description',
+      'price',
+      'packingCharge',
+      'imageUrl',
+      'categoryId',
+      'foodType',
+      'spiceLevel',
+      'prepTimeMinutes',
+      'isAvailable',
+      'isPopular',
+      'isFeatured',
+      'isBestseller',
+      'isOnOffer',
+      'isPreOrder',
+      'isComingSoon',
+      'ingredients',
+      'nutritionInfo',
+    ]);
+    const decimals = new Set(['price', 'packingCharge']);
+    const spiceMap: Record<string, string> = {
+      EXTRA_HOT: 'EXTRA_HOT',
+    };
+    const sanitized: Record<string, unknown> = {};
+    for (const [rawKey, value] of Object.entries(data)) {
+      if (value === undefined) continue;
+      const key = aliases[rawKey] ?? rawKey;
+      if (!allowed.has(key)) continue;
+      if (decimals.has(key)) {
+        sanitized[key] = Number(value);
+      } else if (key === 'spiceLevel' && typeof value === 'string') {
+        sanitized[key] = spiceMap[value] ?? value;
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
   }
 
   private mapProduct(product: {
@@ -161,7 +199,12 @@ export class ProductsService {
       imageUrl: product.imageUrl,
       images: product.images?.map((i) => i.url) || [],
       categoryId: product.categoryId,
-      category: product.category,
+      category: product.category
+        ? {
+            ...product.category,
+            name: displayCategoryName(product.category.name, product.category.slug),
+          }
+        : product.category,
       foodType: product.foodType,
       spiceLevel: product.spiceLevel,
       prepTimeMinutes: product.prepTimeMinutes,

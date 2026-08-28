@@ -129,7 +129,7 @@ export function OffersSection() {
 
 const CATEGORIES = [
   { name: 'Dosa', slug: 'dosa', desc: '7 varieties', image: CATEGORY_IMAGES.dosa },
-  { name: 'Biryani', slug: 'biryani', desc: 'Chicken special', image: CATEGORY_IMAGES.biryani },
+  { name: 'Biryani', slug: 'biryani', desc: 'Premium dum-cooked', image: CATEGORY_IMAGES.biryani },
   { name: 'Idli', slug: 'idly', desc: 'Soft & fluffy', image: CATEGORY_IMAGES.idly },
   { name: 'Vada', slug: 'vada', desc: 'Crispy golden', image: CATEGORY_IMAGES.vada },
   { name: 'Drinks', slug: '', desc: 'Coming soon', emoji: '🥤' },

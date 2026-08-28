@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 import { Button } from '@mdh/ui';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { dismissAnnouncement, getSessionId, trackMarketingEvent } from '@/lib/marketing-content';
+import { DeliveryNoticeBody } from '@/components/marketing/delivery-notice';
 import type { MarketingAnnouncementDto } from '@mdh/types';
 
 const POPUP_SESSION_KEY = 'mdh_popup_shown';
@@ -91,7 +92,7 @@ export function DeliveryPopup() {
             )}
             {item.icon && <p className="text-3xl mb-2">{item.icon}</p>}
             <h2 className="text-lg font-bold text-[#14532D] mb-2">{item.title}</h2>
-            <p className="text-sm text-gray-700 mb-4">{item.message}</p>
+            <DeliveryNoticeBody text={item.message} className="mb-4" />
             {marketing?.delivery && (
               <div className="rounded-xl bg-white border border-[#14532D]/10 p-3 text-sm text-gray-600 mb-4 space-y-1">
                 {marketing.delivery.areas?.length > 0 && (

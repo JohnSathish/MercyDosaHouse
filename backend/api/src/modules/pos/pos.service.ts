@@ -19,6 +19,7 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { displayCategoryName } from '../categories/category-display-name';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { AuditService } from '../audit/audit.service';
 import { PosGateway } from './pos.gateway';
@@ -245,7 +246,7 @@ export class PosService {
     return {
       categories: categories.map((c) => ({
         id: c.id,
-        name: c.name,
+        name: displayCategoryName(c.name, c.slug),
         slug: c.slug,
         icon: c.icon,
         sortOrder: c.sortOrder,
@@ -257,7 +258,7 @@ export class PosService {
           packingCharge: Number(p.packingCharge ?? 20),
           imageUrl: p.imageUrl,
           categoryId: c.id,
-          categoryName: c.name,
+          categoryName: displayCategoryName(c.name, c.slug),
           foodType: p.foodType,
           prepTimeMinutes: p.prepTimeMinutes,
           isAvailable: p.isAvailable,

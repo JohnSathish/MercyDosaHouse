@@ -57,7 +57,7 @@ export class ProductsController {
   @RequirePermissions('products.write')
   @Post()
   create(@Body() body: Record<string, unknown>) {
-    return this.productsService.create(body as never);
+    return this.productsService.create(body);
   }
 
   @ApiBearerAuth()

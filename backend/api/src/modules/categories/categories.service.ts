@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CategoryStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { displayCategoryName, isGarbledCategoryName } from './category-display-name';
 
 const categoryInclude = {
   products: { select: { id: true, name: true, isAvailable: true, price: true, isPopular: true } },
@@ -43,7 +44,7 @@ export class CategoriesService {
 
     return {
       id: cat.id,
-      name: cat.name,
+      name: displayCategoryName(cat.name, cat.slug),
       slug: cat.slug,
       description: cat.description,
       imageUrl: cat.imageUrl,
@@ -104,7 +105,7 @@ export class CategoriesService {
   }
 
   /** Public API — lightweight list */
-  findAll(activeOnly = false, channel?: string) {
+  async findAll(activeOnly = false, channel?: string) {
     const where: {
       isActive?: boolean;
       status?: typeof CategoryStatus.PUBLISHED;
@@ -122,7 +123,7 @@ export class CategoriesService {
       }
     }
 
-    return this.prisma.category.findMany({
+    const rows = await this.prisma.category.findMany({
       where: Object.keys(where).length ? where : undefined,
       orderBy: { sortOrder: 'asc' },
       select: {
@@ -142,6 +143,26 @@ export class CategoriesService {
         showOnHome: true,
       },
     });
+
+    await this.repairGarbledCategoryNames(rows);
+
+    return rows.map((row) => ({
+      ...row,
+      name: displayCategoryName(row.name, row.slug),
+    }));
+  }
+
+  private async repairGarbledCategoryNames(
+    rows: Array<{ id: string; name: string; slug: string }>,
+  ) {
+    const repairs = rows.filter((row) => isGarbledCategoryName(row.name, row.slug));
+    await Promise.all(
+      repairs.map((row) => {
+        const name = displayCategoryName(row.name, row.slug);
+        row.name = name;
+        return this.prisma.category.update({ where: { id: row.id }, data: { name } });
+      }),
+    );
   }
 
   async getDashboard() {
@@ -161,6 +182,8 @@ export class CategoriesService {
       }),
     ]);
 
+    await this.repairGarbledCategoryNames(categories);
+
     const revenueByCategory = new Map<string, { revenue: number; orders: number }>();
     for (const item of orderItems) {
       if (!item.product?.categoryId) continue;
@@ -170,12 +193,15 @@ export class CategoriesService {
       revenueByCategory.set(item.product.categoryId, cur);
     }
 
-    let bestCategory = categories[0]?.name ?? '—';
+    let bestCategory = categories[0]
+      ? displayCategoryName(categories[0].name, categories[0].slug)
+      : '—';
     let bestRevenue = 0;
     for (const [catId, data] of revenueByCategory) {
       if (data.revenue > bestRevenue) {
         bestRevenue = data.revenue;
-        bestCategory = categories.find((c) => c.id === catId)?.name ?? bestCategory;
+        const match = categories.find((c) => c.id === catId);
+        bestCategory = match ? displayCategoryName(match.name, match.slug) : bestCategory;
       }
     }
 

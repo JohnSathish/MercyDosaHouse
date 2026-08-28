@@ -8,6 +8,7 @@ import { useMarketing } from '@/components/marketing/marketing-provider';
 import { trackMarketingEvent } from '@/lib/marketing-content';
 import { APP_URLS } from '@/lib/app-urls';
 import { isHomeDeliveryActive } from '@mdh/types';
+import { DeliveryNoticeBody } from '@/components/marketing/delivery-notice';
 
 function resolveImageUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
@@ -54,69 +55,71 @@ export function HomeDeliverySection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.45 }}
-          className="rounded-2xl border border-[#14532D]/10 bg-white shadow-sm p-5 sm:p-6 max-w-3xl mx-auto"
+          className="max-w-3xl mx-auto overflow-hidden rounded-3xl border border-[#14532D]/10 bg-white shadow-sm"
         >
-          <div className="flex items-start gap-3 sm:gap-4">
-            <span className="text-2xl sm:text-3xl shrink-0" aria-hidden>
-              {cardAnnouncement?.icon ?? (deliveryActive ? '🏠' : '🥡')}
-            </span>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-[#14532D] mb-2">
-                {title}
-              </h2>
-              {primaryMessage && (
-                <p className="text-[#1F2937] text-sm sm:text-base font-medium mb-3 flex items-start gap-2">
-                  <FiMapPin className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
-                  <span>
-                    <strong className="text-[#14532D]">{primaryMessage}</strong>
-                  </span>
-                </p>
+          <div className="h-1.5 bg-gradient-to-r from-[#14532D] via-[#F59E0B] to-[#14532D]" />
+          <div className="p-5 sm:p-7">
+            <div className="flex items-center gap-3 mb-4">
+              <span
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#FFF3D6] text-2xl"
+                aria-hidden
+              >
+                {cardAnnouncement?.icon ?? (deliveryActive ? '🏠' : '🥡')}
+              </span>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-[#14532D]">
+                  {title}
+                </h2>
+                <p className="text-xs text-gray-500">Please read before placing a delivery order</p>
+              </div>
+            </div>
+
+            {primaryMessage && <DeliveryNoticeBody text={primaryMessage} className="mb-4" />}
+
+            {deliveryActive && areas && !primaryMessage && (
+              <p className="text-[#1F2937] text-sm sm:text-base font-medium mb-4 flex items-start gap-2">
+                <FiMapPin className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
+                <span>
+                  Currently available in <strong className="text-[#14532D]">{areas}</strong>
+                </span>
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              {deliveryActive && areas && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14532D]/5 border border-[#14532D]/10 px-3 py-1.5 text-xs sm:text-sm text-[#14532D]">
+                  <FiMapPin className="w-3.5 h-3.5 text-[#F59E0B] shrink-0" />
+                  Serving <strong>{areas}</strong>
+                </span>
               )}
-              {deliveryActive && areas && !primaryMessage && (
-                <p className="text-[#1F2937] text-sm sm:text-base font-medium mb-3 flex items-start gap-2">
-                  <FiMapPin className="w-4 h-4 text-[#F59E0B] shrink-0 mt-0.5" />
-                  <span>
-                    Currently available in <strong className="text-[#14532D]">{areas}</strong>
-                  </span>
-                </p>
+              {orderWindow && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF8E8] border border-[#F59E0B]/20 px-3 py-1.5 text-xs sm:text-sm text-[#1F2937]">
+                  <FiClock className="w-3.5 h-3.5 text-[#F59E0B]" />
+                  Order <strong>{orderWindow}</strong>
+                </span>
               )}
-              {deliveryActive && areas && primaryMessage && (
-                <p className="text-sm text-gray-600 mb-3 flex items-start gap-2">
-                  <FiMapPin className="w-3.5 h-3.5 text-[#F59E0B] shrink-0 mt-0.5" />
-                  <span>
-                    Serving <strong className="text-[#14532D]">{areas}</strong>
-                  </span>
-                </p>
-              )}
-              {(orderWindow || deliveryWindow) && (
-                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-3">
-                  {orderWindow && (
-                    <span className="flex items-center gap-1.5">
-                      <FiClock className="w-3.5 h-3.5 text-[#F59E0B]" />
-                      Order: <strong className="text-[#1F2937]">{orderWindow}</strong>
-                    </span>
-                  )}
-                  {deliveryWindow && (
-                    <span className="flex items-center gap-1.5">
-                      <FiClock className="w-3.5 h-3.5 text-[#F59E0B]" />
-                      Delivery: <strong className="text-[#1F2937]">{deliveryWindow}</strong>
-                    </span>
-                  )}
-                </div>
-              )}
-              {expansionMessage && (
-                <p className="text-sm text-[#F59E0B] font-semibold">{expansionMessage}</p>
-              )}
-              {cardAnnouncement?.ctaText && cardAnnouncement?.ctaUrl && (
-                <Link
-                  href={cardAnnouncement.ctaUrl}
-                  className="inline-block mt-3 text-sm font-semibold text-[#14532D] hover:text-[#F59E0B] transition-colors"
-                  onClick={() => trackMarketingEvent(cardAnnouncement.id, 'cta_click')}
-                >
-                  {cardAnnouncement.ctaText} →
-                </Link>
+              {deliveryWindow && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF8E8] border border-[#F59E0B]/20 px-3 py-1.5 text-xs sm:text-sm text-[#1F2937]">
+                  <FiClock className="w-3.5 h-3.5 text-[#F59E0B]" />
+                  Delivery <strong>{deliveryWindow}</strong>
+                </span>
               )}
             </div>
+
+            {expansionMessage && (
+              <p className="mt-3 text-sm font-medium leading-relaxed text-[#B45309]">
+                {expansionMessage}
+              </p>
+            )}
+            {cardAnnouncement?.ctaText && cardAnnouncement?.ctaUrl && (
+              <Link
+                href={cardAnnouncement.ctaUrl}
+                className="inline-block mt-4 text-sm font-semibold text-[#14532D] hover:text-[#F59E0B] transition-colors"
+                onClick={() => trackMarketingEvent(cardAnnouncement.id, 'cta_click')}
+              >
+                {cardAnnouncement.ctaText} →
+              </Link>
+            )}
           </div>
         </motion.div>
       </div>

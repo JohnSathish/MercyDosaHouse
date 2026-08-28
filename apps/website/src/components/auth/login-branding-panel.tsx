@@ -10,7 +10,11 @@ const SHOWCASE_ITEMS = [
   { src: '/images/idli-4-pieces.png', label: 'Soft Idli', tag: '4 pcs' },
   { src: '/images/vada-4-pieces.png', label: 'Crispy Vada', tag: '4 pcs' },
   { src: '/images/ghee-roast-dosa.png', label: 'Ghee Roast', tag: 'Premium' },
-  { src: '/images/chicken-biryani.png', label: 'Chicken Biryani', tag: 'Popular' },
+  {
+    src: '/images/chicken-biryani.png',
+    label: 'Mercy Special Chicken Dum Biryani',
+    tag: 'Premium',
+  },
 ];
 
 const TRUST_STATS = [

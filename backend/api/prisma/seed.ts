@@ -120,7 +120,7 @@ async function main() {
   await prisma.businessSettings.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {
-      tagline: 'Crispy Dosas. Happy Hearts.',
+      tagline: 'Taste of Love, Made with Mercy',
       phone: '9566363655',
       whatsapp: '919566363655',
       address: 'Tura, Meghalaya',
@@ -129,7 +129,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000001',
       businessName: 'Mercy Dosa House',
-      tagline: 'Crispy Dosas. Happy Hearts.',
+      tagline: 'Taste of Love, Made with Mercy',
       phone: '9566363655',
       whatsapp: '919566363655',
       email: 'info@mercydosahouse.com',
@@ -185,6 +185,7 @@ async function main() {
       name: 'Biryani',
       slug: 'biryani',
       sortOrder: 4,
+      description: 'Premium dum-cooked biryani — pre-order one day prior. Ready everyday at 1PM.',
       icon: '🍛',
       badge: 'HOT' as const,
       isPopular: true,
@@ -410,16 +411,19 @@ async function main() {
       imageUrl: '/images/masala-vada.png',
     },
     {
-      name: 'Chicken Biryani',
+      name: 'Mercy Special Chicken Dum Biryani',
       slug: 'chicken-biryani',
       description:
-        'Aromatic & flavorful Chicken Biryani served with 1 Egg, 2 Pieces of Chicken & Onion Raitha.',
-      price: 270,
+        'Fragrant basmati rice • Tender chicken • Traditional dum-cooked. Premium dum-cooked quality.',
+      ingredients:
+        'Includes boiled egg, chicken gravy, onion curd raitha & rava kesari with every biryani. Pre-order one day prior — ready everyday at 1PM.',
+      price: 350,
       categoryId: biryaniCat!.id,
       foodType: FoodType.NON_VEG,
       spiceLevel: SpiceLevel.MEDIUM,
       prepTimeMinutes: 25,
       isPopular: true,
+      isPreOrder: true,
       imageUrl: '/images/chicken-biryani.png',
     },
     {
@@ -450,6 +454,7 @@ async function main() {
         prepTimeMinutes: product.prepTimeMinutes,
         isPopular: product.isPopular,
         ingredients: product.ingredients,
+        isPreOrder: (product as { isPreOrder?: boolean }).isPreOrder ?? false,
         isAvailable: true,
       },
       create: {
@@ -583,9 +588,9 @@ async function main() {
       type: 'BANNER' as const,
     },
     {
-      title: 'Chicken Biryani',
-      description: 'Aromatic & flavorful — ₹270',
-      buttonLabel: 'Order Now',
+      title: 'Mercy Special Chicken Dum Biryani',
+      description: 'Fragrant basmati rice • Tender chicken • Traditional dum-cooked — Only ₹350',
+      buttonLabel: 'Pre-Order',
       buttonUrl: '/menu/chicken-biryani',
       sortOrder: 3,
       type: 'BANNER' as const,
@@ -1163,6 +1168,25 @@ async function main() {
       dismissible: true,
       ctaText: 'Pre-Order',
       ctaUrl: '/checkout?preorder=1',
+      publishedAt: new Date(),
+    },
+    {
+      title: 'Mercy Special Chicken Dum Biryani ₹350',
+      message:
+        '🍛 Mercy Special Chicken Dum Biryani at ₹350 — Fragrant basmati rice, tender chicken, traditional dum-cooked. Includes egg, chicken gravy, onion curd raitha & rava kesari. Pre-order one day prior via WhatsApp. Ready everyday at 1PM.',
+      shortMessage: '₹350 · Pre-order 1 day ahead · Ready 1PM daily',
+      icon: '🍛',
+      type: 'BAR' as const,
+      priorityLevel: 'PROMOTION' as const,
+      platform: 'BOTH' as const,
+      placements: ['TOP_BAR', 'HERO_SECTION', 'APP_HOME'],
+      bannerImageUrl: '/images/chicken-biryani.png',
+      heroBannerImageUrl: '/images/chicken-biryani.png',
+      status: 'PUBLISHED' as const,
+      isActive: true,
+      dismissible: true,
+      ctaText: 'Pre-Order',
+      ctaUrl: '/menu/chicken-biryani',
       publishedAt: new Date(),
     },
   ];
