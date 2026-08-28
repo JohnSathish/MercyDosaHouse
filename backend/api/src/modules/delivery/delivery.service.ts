@@ -977,10 +977,14 @@ export class DeliveryService {
     });
 
     this.gateway.emitDeliveryLocation(orderId, {
+      staffId: staff.id,
       latitude: lat,
       longitude: lng,
       accuracyMeters: accuracyMeters ?? null,
       updatedAt: now.toISOString(),
+      distanceKm: updated.distanceKm ? this.num(updated.distanceKm) : null,
+      etaMinutes: updated.etaMinutes,
+      routePolyline: updated.routePolyline,
     });
     if (shouldNotifyNearby) void this.notifications.notifyCustomerNearby(orderId);
     return {

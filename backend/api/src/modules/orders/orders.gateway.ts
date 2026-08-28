@@ -86,10 +86,14 @@ export class OrdersGateway implements OnGatewayConnection {
   emitDeliveryLocation(
     orderId: string,
     data: {
+      staffId?: string | null;
       latitude: number;
       longitude: number;
       accuracyMeters: number | null;
       updatedAt: string;
+      distanceKm?: number | null;
+      etaMinutes?: number | null;
+      routePolyline?: string | null;
     },
   ) {
     this.server.to(`order:${orderId}`).emit('deliveryLocation', { orderId, ...data });

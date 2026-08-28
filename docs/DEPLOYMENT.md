@@ -30,7 +30,22 @@ without stopping other enabled sites.
 
 **Compose file:** `docker/docker-compose.prod.coexist.yml`
 
-### 3. Standalone Mode (dedicated VPS)
+### 3. Free maps and routing configuration
+
+The admin live-delivery maps use OpenStreetMap tiles and do not require Google Maps billing.
+For road distance, ETA, and route geometry, create a free OpenRouteService API key and add
+these values to the VPS `.env`:
+
+```env
+ROUTING_PROVIDER=openrouteservice
+OPENROUTESERVICE_API_KEY=replace-with-your-openrouteservice-key
+OPENROUTESERVICE_BASE_URL=https://api.openrouteservice.org
+```
+
+The API key stays server-side. If it is unavailable, the admin map still shows customer and
+agent coordinates, but route distance and ETA may be unavailable.
+
+### 4. Standalone Mode (dedicated VPS)
 
 If this server is only for Mercy Dosa House:
 
@@ -40,7 +55,7 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 
 Uses bundled nginx on ports 80/443.
 
-### 4. SSL with Certbot
+### 5. SSL with Certbot
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
@@ -49,7 +64,7 @@ sudo certbot --nginx -d mercydosahouse.com -d www.mercydosahouse.com -d admin.me
 
 After first deploy with `RUN_SEED=true`, set `RUN_SEED=false` in `.env` and redeploy.
 
-### 5. DNS Records
+### 6. DNS Records
 
 | Subdomain | Type | Value  |
 | --------- | ---- | ------ |
@@ -57,13 +72,13 @@ After first deploy with `RUN_SEED=true`, set `RUN_SEED=false` in `.env` and rede
 | www       | A    | VPS IP |
 | admin     | A    | VPS IP |
 
-### 6. Backups
+### 7. Backups
 
 ```bash
 bash docker/scripts/install-backup-cron.sh
 ```
 
-### 7. GitHub Actions Deploy
+### 8. GitHub Actions Deploy
 
 Set secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
 
@@ -71,7 +86,7 @@ Tag a release: `git tag v0.1.0 && git push origin v0.1.0`
 
 Deploy script on VPS: `docker/scripts/deploy-vps.sh`
 
-### 8. Verify
+### 9. Verify
 
 ```bash
 curl -s http://127.0.0.1:13001/api/v1/health/ready

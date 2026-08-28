@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import '@mdh/ui/globals.css';
+import 'leaflet/dist/leaflet.css';
 import { Providers } from '@/components/providers';
 import { AdminLayoutShell } from '@/components/admin-layout-shell';
 

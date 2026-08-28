@@ -1,18 +1,27 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Radio, Truck, MapPin, Clock } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Radio, MapPin, Clock } from 'lucide-react';
+import { Badge } from '@mdh/ui';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@mdh/auth-client';
-import { io } from 'socket.io-client';
 import type { DeliveryDashboardDto, DeliveryOrderDto } from '@mdh/types';
 import { DeliveryStatusBadge } from '@/components/delivery/delivery-status-badge';
 import { ExecutiveStatusBadge } from '@/components/delivery/delivery-status-badge';
+import { useDeliveryLiveUpdates } from '@/hooks/use-delivery-live-updates';
+
+const DeliveryLiveMap = dynamic(
+  () => import('@/components/delivery/delivery-live-map').then((module) => module.DeliveryLiveMap),
+  {
+    ssr: false,
+    loading: () => <div className="h-full min-h-[320px] animate-pulse bg-muted" />,
+  },
+);
 
 export default function LiveTrackingPage() {
-  const queryClient = useQueryClient();
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['delivery-dashboard'],
     queryFn: () => api.get<DeliveryDashboardDto>('/delivery/dashboard'),
@@ -24,33 +33,12 @@ export default function LiveTrackingPage() {
     queryFn: () => api.get<DeliveryOrderDto[]>('/delivery/orders/list?status=on_the_way'),
     refetchInterval: 10_000,
   });
-  const activeOrderIds = activeOrders.map((order) => order.id).join(',');
-
-  useEffect(() => {
-    let socket: ReturnType<typeof io> | undefined;
-    let cancelled = false;
-    const token = getAccessToken();
-    if (cancelled || !token) return;
-    {
-      const base =
-        process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
-      socket = io(`${base}/orders`, { auth: { token }, transports: ['websocket', 'polling'] });
-      activeOrderIds
-        .split(',')
-        .filter(Boolean)
-        .forEach((orderId) => socket?.emit('subscribe', orderId));
-      const refresh = () => {
-        void queryClient.invalidateQueries({ queryKey: ['delivery-active'] });
-        void queryClient.invalidateQueries({ queryKey: ['delivery-dashboard'] });
-      };
-      socket.on('deliveryLocation', refresh);
-      socket.on('orderUpdate', refresh);
-    }
-    return () => {
-      cancelled = true;
-      socket?.disconnect();
-    };
-  }, [activeOrderIds, queryClient]);
+  const { connected, error } = useDeliveryLiveUpdates(activeOrders.map((order) => order.id));
+  const hasMapData = activeOrders.some(
+    (order) =>
+      (order.deliveryLatitude != null && order.deliveryLongitude != null) ||
+      (order.assignment?.latitude != null && order.assignment.longitude != null),
+  );
 
   if (isLoading || !dashboard) {
     return <div className="h-96 rounded-xl bg-muted animate-pulse" />;
@@ -70,32 +58,32 @@ export default function LiveTrackingPage() {
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl border bg-white dark:bg-gray-900 p-5 shadow-sm">
-          <h3 className="font-semibold mb-4">Live Map</h3>
-          <div className="relative h-80 rounded-xl bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-800 dark:to-gray-900 border overflow-hidden">
-            <div className="absolute top-4 left-4 bg-white/95 dark:bg-gray-800 px-3 py-2 rounded-lg shadow text-xs">
-              <p className="font-semibold">🍽 Mercy Dosa House</p>
-              <p className="text-muted-foreground">Tura, Meghalaya</p>
-            </div>
-            {dashboard.liveRiders.map((r, i) => (
-              <motion.div
-                key={r.id}
-                animate={{ x: [0, 10, -5, 0], y: [0, -8, 5, 0] }}
-                transition={{ repeat: Infinity, duration: 4 + i, ease: 'easeInOut' }}
-                className="absolute"
-                style={{ left: `${15 + i * 28}%`, top: `${25 + (i % 3) * 18}%` }}
-              >
-                <div className="flex flex-col items-center">
-                  <div className="h-10 w-10 rounded-full bg-[#14532D] text-white flex items-center justify-center shadow-lg ring-2 ring-white">
-                    <Truck className="h-5 w-5" />
-                  </div>
-                  <span className="text-[10px] font-bold mt-1 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full shadow">
-                    {r.name}
-                  </span>
-                  <ExecutiveStatusBadge status={r.status} />
-                </div>
-              </motion.div>
-            ))}
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="font-semibold">Live Map</h3>
+            <Badge className={connected ? 'bg-emerald-600' : 'bg-amber-500'}>
+              {connected ? 'Live' : 'Reconnecting'}
+            </Badge>
           </div>
+          <div className="relative h-80 overflow-hidden rounded-xl border">
+            {hasMapData ? (
+              <DeliveryLiveMap
+                orders={activeOrders}
+                mapType={mapType}
+                onMapTypeChange={setMapType}
+                selectedOrderId={selectedOrderId}
+                onSelectOrder={setSelectedOrderId}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center bg-[#FFF8E8] p-6 text-center">
+                <MapPin className="mb-2 h-9 w-9 text-[#14532D] opacity-60" />
+                <p className="font-semibold">No delivery coordinates available</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Start an assigned delivery to receive agent GPS.
+                </p>
+              </div>
+            )}
+          </div>
+          {error ? <p className="mt-2 text-xs text-amber-700">{error}</p> : null}
         </div>
 
         <div className="space-y-4">
