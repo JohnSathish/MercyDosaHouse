@@ -2,13 +2,14 @@ import { BRAND } from '@/lib/constants';
 
 export const COLORS = {
   primary: BRAND.primary,
+  primaryDark: '#0F3D22',
   secondary: BRAND.secondary,
-  background: BRAND.background,
+  background: '#FFF6E8',
   surface: '#FFFFFF',
   text: BRAND.text,
   textMuted: '#6B7280',
   textLight: '#9CA3AF',
-  border: '#E5E7EB',
+  border: '#E8E0D4',
   success: '#059669',
   danger: '#B91C1C',
   cream: '#FFF8E8',
@@ -19,7 +20,7 @@ export const RADIUS = {
   sm: 10,
   md: 14,
   lg: 16,
-  xl: 20,
+  xl: 22,
   full: 999,
 } as const;
 
@@ -34,18 +35,18 @@ export const SPACE = {
 
 export const SHADOW = {
   card: {
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowColor: '#14532D',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   float: {
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowColor: '#14532D',
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
 } as const;
 

@@ -49,8 +49,8 @@ type OrderPushData = {
 async function ensureNewOrdersChannel(prefs: NotificationPrefs) {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync(NEW_ORDERS_CHANNEL, {
-    name: 'New orders',
-    description: 'High-priority alerts when customers place orders',
+    name: 'Mercy Dosa House — New Orders',
+    description: 'You have a new order. Please check the order.',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: prefs.vibrationEnabled ? [0, 400, 200, 400, 200, 400] : [0],
     enableVibrate: prefs.vibrationEnabled,

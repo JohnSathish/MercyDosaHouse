@@ -32,6 +32,8 @@ module.exports = ({ config }) => ({
     'expo-router',
     'expo-asset',
     'expo-font',
+    'expo-web-browser',
+    'expo-notifications',
     './plugins/with-android-16kb',
     [
       'expo-build-properties',

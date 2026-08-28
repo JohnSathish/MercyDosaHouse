@@ -12,6 +12,7 @@ import { OrdersGateway } from './orders.gateway';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
+import { isValidOrderStatusTransition } from './order-status-transitions';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -223,6 +224,7 @@ export class OrdersService implements OnModuleInit {
       void this.orderEmailNotification.notifyOrderConfirmed(order.id);
       void this.notificationsService.notifyStaffNewOrder(order.id);
     }
+    void this.notificationsService.notifyCustomerOrderPlaced(order.id);
     return this.findOne(order.id);
   }
 
@@ -419,10 +421,23 @@ export class OrdersService implements OnModuleInit {
   async findByOrderNumber(orderNumber: string) {
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
-      include: { items: true, payment: true },
+      include: {
+        items: true,
+        payment: true,
+        statusHistory: {
+          include: { updatedBy: { select: { name: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
     if (!order) throw new NotFoundException('Order not found');
-    return this.mapOrder(order);
+    const settings = await this.prisma.businessSettings.findFirst({
+      select: { estimatedDeliveryMinutes: true },
+    });
+    return {
+      ...this.mapOrder(order),
+      estimatedDeliveryMinutes: settings?.estimatedDeliveryMinutes ?? 30,
+    };
   }
 
   async updateStatus(
@@ -436,6 +451,12 @@ export class OrdersService implements OnModuleInit {
   ) {
     const existing = await this.prisma.order.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Order not found');
+    if (existing.status === status) {
+      return this.findOne(id);
+    }
+    if (!isValidOrderStatusTransition(existing.status, status)) {
+      throw new BadRequestException(`Cannot move order from ${existing.status} to ${status}`);
+    }
 
     const order = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -473,6 +494,7 @@ export class OrdersService implements OnModuleInit {
       trackingStatus: options?.trackingStatus,
       message: this.statusMessage(status),
     });
+    void this.notificationsService.notifyCustomerStatus(id, status);
     return this.findOne(order.id);
   }
 
@@ -504,12 +526,14 @@ export class OrdersService implements OnModuleInit {
       status: OrderStatus.CANCELLED,
       message: `Unfortunately your order was cancelled. Reason: ${reason}`,
     });
+    void this.notificationsService.notifyCustomerStatus(id, OrderStatus.CANCELLED);
     return this.findOne(order.id);
   }
 
   private statusMessage(status: OrderStatus): string {
     const messages: Partial<Record<OrderStatus, string>> = {
-      ACCEPTED: 'Your order has been accepted.',
+      PENDING: "We've received your order. Thank you for ordering from Mercy Dosa House!",
+      ACCEPTED: 'Your order has been confirmed and will be prepared shortly.',
       PREPARING: 'Your order is being prepared.',
       READY: 'Your order is ready for pickup.',
       OUT_FOR_DELIVERY: 'Your order is out for delivery.',
@@ -657,6 +681,7 @@ export class OrdersService implements OnModuleInit {
       emailNotification: this.orderEmailNotification.mapNotification(
         order.emailNotifications?.[0] ?? null,
       ),
+      statusMessage: this.statusMessage(order.status),
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
     };

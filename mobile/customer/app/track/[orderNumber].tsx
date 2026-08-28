@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
   ActivityIndicator,
@@ -22,7 +22,9 @@ import { useThemeColors } from '@/providers/config-context';
 export default function TrackOrderScreen() {
   const { orderNumber } = useLocalSearchParams<{ orderNumber: string }>();
   const colors = useThemeColors();
+  const queryClient = useQueryClient();
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
 
   const {
     data: order,
@@ -45,7 +47,11 @@ export default function TrackOrderScreen() {
         timeout: 10_000,
       });
       socket.emit('subscribe', order.id);
-      const onUpdate = (data: { status: string }) => setLiveStatus(data.status);
+      const onUpdate = (data: { status: string; message?: string }) => {
+        setLiveStatus(data.status);
+        if (data.message) setLiveMessage(data.message);
+        void queryClient.invalidateQueries({ queryKey: ['order', orderNumber] });
+      };
       socket.on('orderUpdate', onUpdate);
       socket.on('orderStatusChanged', onUpdate);
     } catch {
@@ -96,6 +102,9 @@ export default function TrackOrderScreen() {
           ) : null}
         </View>
         <Text style={styles.orderNum}>{order.orderNumber}</Text>
+        {order.estimatedDeliveryMinutes ? (
+          <Text style={styles.eta}>Estimated {order.estimatedDeliveryMinutes} minutes</Text>
+        ) : null}
 
         <View style={styles.card}>
           <View style={styles.statusRow}>
@@ -106,6 +115,10 @@ export default function TrackOrderScreen() {
               </Text>
             </View>
           </View>
+          <Text style={styles.message}>
+            {liveMessage ?? order.statusMessage ?? 'We are looking after your order.'}
+          </Text>
+          <Text style={styles.date}>{new Date(order.createdAt).toLocaleString()}</Text>
           <OrderTimeline
             status={status}
             orderType={(order as { orderType?: string }).orderType}
@@ -156,7 +169,10 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
   liveText: { color: '#059669', fontSize: 11, fontWeight: '700' },
-  orderNum: { fontFamily: 'monospace', color: '#6B7280', marginBottom: 16 },
+  orderNum: { fontFamily: 'monospace', color: '#6B7280', marginBottom: 4 },
+  eta: { color: '#14532D', fontWeight: '600', marginBottom: 12 },
+  message: { color: '#374151', fontSize: 14, marginBottom: 6, lineHeight: 20 },
+  date: { color: '#9CA3AF', fontSize: 12, marginBottom: 8 },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,

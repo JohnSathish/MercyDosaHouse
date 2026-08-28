@@ -580,8 +580,6 @@ export function HomeSectionList() {
 
       {!sections.length || hasCategories ? <CategoriesSection /> : null}
 
-      <InlineHomeSearch />
-
       {catalogQuery.isLoading ? (
         <View style={styles.section}>
           <FoodCardSkeleton />

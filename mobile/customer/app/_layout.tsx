@@ -7,6 +7,7 @@ import { BootstrapProvider, useBootstrap } from '@/providers/bootstrap-context';
 import { resetConfigStore } from '@/lib/config-store';
 import { StoreClosedBanner } from '@/components/store-closed-banner';
 import { RemoteSplashOverlay } from '@/components/remote-splash-overlay';
+import { useCustomerPush } from '@/hooks/use-customer-push';
 
 function OfflineBanner() {
   const { offline, retry } = useBootstrap();
@@ -25,6 +26,7 @@ function OfflineBanner() {
 function BootstrapShell({ children }: { children: React.ReactNode }) {
   const { phase, error, retry } = useBootstrap();
   const [showSplash, setShowSplash] = useState(true);
+  useCustomerPush();
 
   useEffect(() => {
     if (phase !== 'ready') {

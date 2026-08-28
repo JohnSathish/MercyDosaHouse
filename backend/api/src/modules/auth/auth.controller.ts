@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { IsEmail, IsString, MinLength } from 'class-validator';
@@ -27,6 +27,24 @@ class OtpVerifyDto {
   otp: string;
 }
 
+class EmailOtpSendDto {
+  @IsEmail()
+  email: string;
+}
+
+class EmailOtpVerifyDto {
+  @IsString()
+  sessionId: string;
+
+  @IsString()
+  otp: string;
+}
+
+class EmailOtpResendDto {
+  @IsString()
+  sessionId: string;
+}
+
 class GoogleAuthDto {
   @IsString()
   idToken: string;
@@ -50,6 +68,13 @@ export class AuthController {
   }
 
   @Public()
+  @SkipThrottle()
+  @Get('methods')
+  authMethods() {
+    return this.authService.getAuthMethods();
+  }
+
+  @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('login')
   login(@Body() dto: LoginDto) {
@@ -68,6 +93,27 @@ export class AuthController {
   @Post('otp/verify')
   verifyOtp(@Body() dto: OtpVerifyDto) {
     return this.authService.verifyOtp(dto.phone, dto.otp);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('otp/email/send')
+  sendEmailOtp(@Body() dto: EmailOtpSendDto, @Req() req: { ip?: string }) {
+    return this.authService.sendCustomerEmailOtp(dto.email, req.ip);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('otp/email/verify')
+  verifyEmailOtp(@Body() dto: EmailOtpVerifyDto) {
+    return this.authService.verifyCustomerEmailOtp(dto.sessionId, dto.otp);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('otp/email/resend')
+  resendEmailOtp(@Body() dto: EmailOtpResendDto, @Req() req: { ip?: string }) {
+    return this.authService.resendCustomerEmailOtp(dto.sessionId, req.ip);
   }
 
   @Public()

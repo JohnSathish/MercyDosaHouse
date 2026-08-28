@@ -5,6 +5,7 @@ import { Public, RequirePermissions, RequestUser } from '../../common/guards';
 import { EmailService } from '../notifications/email.service';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 import { OrderNotificationRecipientsService } from '../notifications/order-notification-recipients.service';
+import * as crypto from 'crypto';
 
 @ApiTags('settings')
 @Controller('settings')
@@ -50,6 +51,24 @@ export class SettingsController {
   @Patch('business')
   updateBusinessSettings(@Body() body: Record<string, unknown>) {
     return this.settingsService.updateBusinessSettings(body);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.read')
+  @Get('auth')
+  async getAuthConfig() {
+    const config = await this.settingsService.getAuthConfig();
+    return {
+      ...config,
+      emailStatus: this.emailService.getStatus(),
+    };
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('auth')
+  updateAuthConfig(@Body() body: Record<string, unknown>) {
+    return this.settingsService.updateAuthConfig(body);
   }
 
   @Public()
@@ -136,17 +155,37 @@ export class SettingsController {
   @ApiBearerAuth()
   @RequirePermissions('settings.write')
   @Post('email/test')
-  async sendTestEmail(@Body() body: { to?: string }) {
+  async sendTestEmail(@Body() body: { to?: string; kind?: 'generic' | 'login-otp' }) {
+    const to = body.to?.trim();
+    if (body.kind === 'login-otp') {
+      if (!to) {
+        return { sent: false, error: 'Enter a recipient email for the OTP template test.' };
+      }
+      const assets = await this.settingsService.getLoginEmailAssets();
+      const otp = String(crypto.randomInt(100000, 1000000));
+      const result = await this.emailService.sendCustomerLoginOtp({
+        to,
+        otp,
+        expiryMinutes: Math.max(1, Math.round(assets.cfg.otpExpirySeconds / 60)),
+        customerName: null,
+        websiteUrl: assets.websiteUrl,
+        logoUrl: assets.logoUrl,
+        senderName: assets.cfg.senderName,
+        senderEmail: assets.cfg.senderEmail,
+      });
+      return { sent: result.sent, error: result.error, provider: result.provider };
+    }
+
     const active = await this.orderEmailNotification.getRecipients();
-    const to = body.to?.trim() || active[0];
-    if (!to) {
+    const recipient = to || active[0];
+    if (!recipient) {
       return {
         sent: false,
         error: 'No active notification email — add one under Order Notification Emails',
       };
     }
     return this.emailService.send({
-      to,
+      to: recipient,
       subject: 'Mercy Dosa House — test order notification email',
       text: 'This is a test email from Mercy Dosa House. Order notification emails are working.',
       html: '<p>This is a <strong>test email</strong> from Mercy Dosa House.</p><p>Order notification emails are working.</p>',

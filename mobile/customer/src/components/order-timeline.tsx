@@ -1,12 +1,12 @@
 import { View, Text, StyleSheet } from 'react-native';
 
 const DELIVERY_STEPS = [
-  { key: 'PENDING', label: 'Order Confirmed', emoji: '✓' },
-  { key: 'ACCEPTED', label: 'Accepted', emoji: '✅' },
+  { key: 'PENDING', label: 'Order Placed', emoji: '✓' },
+  { key: 'ACCEPTED', label: 'Order Confirmed', emoji: '✅' },
   { key: 'PREPARING', label: 'Preparing', emoji: '👨‍🍳' },
-  { key: 'READY', label: 'Ready', emoji: '📦' },
+  { key: 'READY', label: 'Ready', emoji: '🍽️' },
   { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', emoji: '🛵' },
-  { key: 'DELIVERED', label: 'Delivered', emoji: '✓' },
+  { key: 'DELIVERED', label: 'Delivered', emoji: '❤️' },
 ];
 
 const TAKEAWAY_STEPS = [

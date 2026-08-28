@@ -73,7 +73,7 @@ export function FoodCard({
               {formatCurrency(product.price)}
             </Text>
             <Pressable
-              style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              style={[styles.addBtn, { borderColor: colors.primary }]}
               onPress={() =>
                 addItem({
                   productId: product.id,
@@ -84,7 +84,7 @@ export function FoodCard({
                 })
               }
             >
-              <Text style={styles.addText}>+ Add</Text>
+              <Text style={[styles.addText, { color: colors.primary }]}>ADD</Text>
             </Pressable>
           </View>
         </View>
@@ -136,7 +136,7 @@ export function FoodCard({
             {formatCurrency(product.price)}
           </Text>
           <Pressable
-            style={[styles.addBtn, { backgroundColor: colors.secondary }]}
+            style={[styles.addBtn, { borderColor: colors.primary }]}
             onPress={() =>
               addItem({
                 productId: product.id,
@@ -147,7 +147,7 @@ export function FoodCard({
               })
             }
           >
-            <Text style={styles.addTextDark}>+ Add</Text>
+            <Text style={[styles.addText, { color: colors.primary }]}>ADD</Text>
           </Pressable>
         </View>
       </View>
@@ -159,14 +159,14 @@ const styles = StyleSheet.create({
   row: {
     ...SHADOW.card,
     backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.xl,
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: 12,
     padding: 12,
     gap: 12,
   },
   imageWrap: { position: 'relative' },
-  image: { width: 92, height: 92, borderRadius: RADIUS.md },
+  image: { width: 96, height: 96, borderRadius: RADIUS.lg },
   imageFallback: {
     backgroundColor: COLORS.cream,
     alignItems: 'center',
@@ -199,17 +199,18 @@ const styles = StyleSheet.create({
   },
   price: { fontWeight: '800', fontSize: 15 },
   addBtn: {
-    borderRadius: RADIUS.sm,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderRadius: RADIUS.md,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
   },
-  addText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  addTextDark: { color: COLORS.text, fontWeight: '800', fontSize: 13 },
+  addText: { fontWeight: '800', fontSize: 12, letterSpacing: 0.4 },
   hCard: {
     ...SHADOW.card,
     backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    width: 158,
+    borderRadius: RADIUS.xl,
+    width: 164,
     marginRight: 12,
     overflow: 'hidden',
   },

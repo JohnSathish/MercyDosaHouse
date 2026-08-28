@@ -13,6 +13,7 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
   type?: string;
+  data?: { orderId?: string; orderNumber?: string } | null;
 }
 
 function iconFor(title: string, type?: string) {
@@ -55,6 +56,18 @@ export default function NotificationsScreen() {
         <Text style={[styles.title, { color: colors.primary }]}>Notifications</Text>
       </View>
 
+      {notifications.length ? (
+        <Pressable
+          onPress={async () => {
+            await api.post('/notifications/read-all');
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+          }}
+          style={{ paddingHorizontal: 16, marginBottom: 8 }}
+        >
+          <Text style={{ color: colors.primary, fontWeight: '700' }}>Mark all as read</Text>
+        </Pressable>
+      ) : null}
+
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
       ) : error ? (
@@ -77,7 +90,12 @@ export default function NotificationsScreen() {
             <Pressable
               key={n.id}
               style={[styles.card, !n.isRead && styles.unread]}
-              onPress={() => markRead(n.id)}
+              onPress={() => {
+                void markRead(n.id);
+                if (n.data?.orderNumber) {
+                  router.push(`/track/${encodeURIComponent(n.data.orderNumber)}`);
+                }
+              }}
             >
               <Text style={styles.icon}>{iconFor(n.title, n.type)}</Text>
               <View style={{ flex: 1 }}>

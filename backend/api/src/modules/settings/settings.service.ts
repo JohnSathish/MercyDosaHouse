@@ -2,6 +2,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
+import { DEFAULT_AUTH_CONFIG, parseAuthConfig, type AuthConfig } from './auth-config';
+import { resolvePublicAssetUrl, resolveWebsiteUrl } from '../notifications/email-branding';
 
 @Injectable()
 export class SettingsService {
@@ -220,5 +222,54 @@ export class SettingsService {
       openingHours: (s.openingHours as string | null) ?? null,
       operatingSchedule: (s.operatingSchedule as Record<string, unknown> | null) ?? null,
     };
+  }
+
+  async getAuthConfig(): Promise<AuthConfig> {
+    const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      await this.prisma.businessSettings.create({ data: { authConfig: DEFAULT_AUTH_CONFIG } });
+      return { ...DEFAULT_AUTH_CONFIG };
+    }
+    return parseAuthConfig(settings.authConfig);
+  }
+
+  async updateAuthConfig(patch: Record<string, unknown>): Promise<AuthConfig> {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      settings = await this.prisma.businessSettings.create({ data: {} });
+    }
+    const {
+      emailStatus: _emailStatus,
+      smtpPass: _smtpPass,
+      password: _password,
+      SMTP_PASS: _smtp,
+      ...safePatch
+    } = patch;
+    const next = parseAuthConfig({ ...parseAuthConfig(settings.authConfig), ...safePatch });
+    await this.prisma.businessSettings.update({
+      where: { id: settings.id },
+      data: { authConfig: next as Prisma.InputJsonValue },
+    });
+    return next;
+  }
+
+  async getLoginEmailAssets() {
+    const cfg = await this.getAuthConfig();
+    const business = await this.prisma.businessSettings.findFirst({
+      select: { websiteUrl: true },
+    });
+    const theme = await this.prisma.themeSettings.findFirst({
+      select: { logoUrl: true },
+    });
+    const websiteUrl = resolveWebsiteUrl(
+      cfg.websiteUrl || business?.websiteUrl,
+      process.env.NEXT_PUBLIC_WEBSITE_URL,
+    );
+    const logoUrl = resolvePublicAssetUrl(
+      theme?.logoUrl,
+      websiteUrl,
+      process.env.STORAGE_PUBLIC_URL,
+    );
+    return { cfg, websiteUrl, logoUrl };
   }
 }

@@ -8,8 +8,9 @@ import { FloatingCartBar } from '@/ui';
 function TabIcon({ label, focused, color }: { label: string; focused: boolean; color: string }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconFocused]}>
-      <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.7 }}>{label}</Text>
-      {focused ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
+      <View style={[styles.iconBubble, focused && { backgroundColor: `${color}18` }]}>
+        <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.65 }}>{label}</Text>
+      </View>
     </View>
   );
 }
@@ -29,12 +30,17 @@ export default function TabLayout() {
           tabBarInactiveTintColor: '#9CA3AF',
           tabBarStyle: {
             backgroundColor: '#fff',
-            borderTopColor: '#E5E7EB',
+            borderTopWidth: 0,
             height: tabHeight,
             paddingBottom: Math.max(insets.bottom, 8),
-            paddingTop: 6,
+            paddingTop: 8,
+            elevation: 16,
+            shadowColor: '#14532D',
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -4 },
           },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '800' },
         }}
       >
         <Tabs.Screen
@@ -97,6 +103,12 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   iconWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 28 },
-  iconFocused: { transform: [{ scale: 1.05 }] },
-  dot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
+  iconFocused: { transform: [{ scale: 1.06 }] },
+  iconBubble: {
+    width: 36,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

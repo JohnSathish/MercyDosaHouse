@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const orderInclude = {
   items: true,
@@ -25,6 +26,7 @@ export class DeliveryService {
   constructor(
     private prisma: PrismaService,
     private gateway: OrdersGateway,
+    private notifications: NotificationsService,
   ) {}
 
   private num(v: Prisma.Decimal | number | null | undefined): number {
@@ -422,6 +424,7 @@ export class DeliveryService {
         status: orderStatus,
         trackingStatus: TrackingStatus.OUT_FOR_DELIVERY,
       });
+      void this.notifications.notifyCustomerStatus(orderId, orderStatus);
     }
 
     await this.logDelivery(
@@ -498,6 +501,7 @@ export class DeliveryService {
       status: OrderStatus.DELIVERED,
       trackingStatus: TrackingStatus.DELIVERED,
     });
+    void this.notifications.notifyCustomerStatus(orderId, OrderStatus.DELIVERED);
 
     return this.getOrder(orderId);
   }

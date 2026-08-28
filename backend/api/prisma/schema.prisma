@@ -222,6 +222,9 @@ enum NotificationType {
   DELIVERED
   OFFER
   FESTIVAL
+  NEW_ORDER
+  ORDER_PLACED
+  CANCELLED
 }
 
 enum LoyaltyTier {
@@ -1107,6 +1110,10 @@ model BusinessSettings {
   operatingSchedule       Json?
   /// Remote defaults for admin Android new-order push (roles, master enable, sound)
   staffPushConfig         Json?
+  /// Customer auth toggles: email OTP, Google, mobile OTP, guest, OTP timings
+  authConfig              Json?
+  /// Customer/admin push templates and per-status toggles
+  notificationConfig      Json?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -1124,6 +1131,14 @@ model DeviceToken {
 
   @@unique([userId, token])
   @@map("device_tokens")
+}
+
+model PushDispatch {
+  id        String   @id @default(uuid())
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("push_dispatches")
 }
 
 model AuditLog {

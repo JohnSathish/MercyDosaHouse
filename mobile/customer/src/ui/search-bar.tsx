@@ -41,10 +41,9 @@ const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.cream,
     borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderWidth: 0,
     paddingHorizontal: 14,
     minHeight: 50,
     shadowColor: '#000',

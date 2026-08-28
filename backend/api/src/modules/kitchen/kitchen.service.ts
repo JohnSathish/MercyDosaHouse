@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import {
   OrderStatus,
   TrackingStatus,
@@ -9,6 +9,8 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { InventoryService } from '../inventory/inventory.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { isValidOrderStatusTransition } from '../orders/order-status-transitions';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.PENDING,
@@ -40,6 +42,7 @@ export class KitchenService {
     private prisma: PrismaService,
     private gateway: OrdersGateway,
     private inventoryService: InventoryService,
+    private notifications: NotificationsService,
   ) {}
 
   private mapOrder(order: OrderWithItems) {
@@ -243,6 +246,16 @@ export class KitchenService {
   async acceptOrder(id: string, userId?: string) {
     const existing = await this.prisma.order.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Order not found');
+    if (existing.status === OrderStatus.ACCEPTED) {
+      const current = await this.prisma.order.findUniqueOrThrow({
+        where: { id },
+        include: orderInclude,
+      });
+      return this.mapOrder(current);
+    }
+    if (!isValidOrderStatusTransition(existing.status, OrderStatus.ACCEPTED)) {
+      throw new BadRequestException(`Cannot move order from ${existing.status} to ACCEPTED`);
+    }
 
     const tokenNumber = existing.tokenNumber ?? (await this.nextTokenNumber());
 
@@ -269,6 +282,7 @@ export class KitchenService {
       status: OrderStatus.ACCEPTED,
       trackingStatus: TrackingStatus.ACCEPTED,
     });
+    void this.notifications.notifyCustomerStatus(id, OrderStatus.ACCEPTED);
 
     return this.mapOrder(order);
   }
@@ -287,6 +301,9 @@ export class KitchenService {
     await this.logAction(id, 'REJECTED', userId, undefined, { reason });
 
     this.gateway.emitOrderUpdate(id, { status: OrderStatus.CANCELLED });
+    if (existing.status !== OrderStatus.CANCELLED) {
+      void this.notifications.notifyCustomerStatus(id, OrderStatus.CANCELLED);
+    }
     return this.mapOrder(order);
   }
 
@@ -318,6 +335,9 @@ export class KitchenService {
       status: OrderStatus.PREPARING,
       trackingStatus,
     });
+    if (existing.status !== OrderStatus.PREPARING) {
+      void this.notifications.notifyCustomerStatus(id, OrderStatus.PREPARING);
+    }
 
     return this.mapOrder(order);
   }
@@ -347,6 +367,9 @@ export class KitchenService {
       status: OrderStatus.READY,
       trackingStatus: TrackingStatus.PACKING,
     });
+    if (existing.status !== OrderStatus.READY) {
+      void this.notifications.notifyCustomerStatus(id, OrderStatus.READY);
+    }
 
     return this.mapOrder(order);
   }

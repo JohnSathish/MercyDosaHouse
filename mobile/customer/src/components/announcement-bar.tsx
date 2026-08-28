@@ -5,7 +5,7 @@ import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import type { MarketingAnnouncementDto } from '@mdh/types';
 import { isHomeDeliveryActive } from '@mdh/types';
 import { WEBSITE_URL } from '@/lib/constants';
-import { SectionHeader } from '@/ui';
+import { MarkdownNotice, SectionHeader } from '@/ui';
 import { COLORS, RADIUS, SHADOW, resolveAssetUrl } from '@/ui/theme';
 
 function topBarAnnouncement(
@@ -33,7 +33,7 @@ export function AnnouncementBar() {
   );
 }
 
-/** Compact expandable home-delivery card — Admin marketing delivery config. */
+/** Expandable home-delivery card — Admin marketing delivery config. */
 export function HomeDeliverySection() {
   const config = useAppConfig();
   const colors = useThemeColors();
@@ -44,16 +44,30 @@ export function HomeDeliverySection() {
   if (!delivery && !card) return null;
 
   const deliveryActive = isHomeDeliveryActive(delivery);
-  const areas = delivery?.areas?.length
-    ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))].join(' & ')
-    : card?.shortMessage;
+  const areaList = delivery?.areas?.length
+    ? [...new Set(delivery.areas.map((a) => a.trim()).filter(Boolean))]
+    : card?.shortMessage
+      ? [card.shortMessage]
+      : [];
   const primaryMessage =
     delivery?.message?.trim() ||
     card?.message?.trim() ||
-    (deliveryActive ? areas : 'Pickup Orders Only — Home Delivery Is Not Available.');
+    (deliveryActive
+      ? areaList.join(' & ')
+      : 'Pickup orders only — home delivery is not available.');
   const orderWindow = deliveryActive ? delivery?.orderWindow : null;
   const deliveryWindow = deliveryActive ? delivery?.deliveryWindow : null;
   const detail = delivery?.expansionMessage ?? null;
+  const looksLikeMarkdown =
+    (primaryMessage?.includes('**') ?? false) || (primaryMessage?.length ?? 0) > 90;
+  const noticeBody = detail || (looksLikeMarkdown ? primaryMessage : null);
+  const subtitle = areaList.length
+    ? areaList.join(' · ')
+    : looksLikeMarkdown
+      ? deliveryActive
+        ? 'Available in selected areas'
+        : 'Pickup only'
+      : primaryMessage;
 
   return (
     <Pressable
@@ -63,35 +77,49 @@ export function HomeDeliverySection() {
     >
       <View style={styles.deliveryCard}>
         <View style={styles.deliveryTop}>
-          <Text style={styles.deliveryEmoji}>{card?.icon ?? (deliveryActive ? '🛵' : '🥡')}</Text>
+          <View style={styles.deliveryIconWrap}>
+            <Text style={styles.deliveryEmoji}>{card?.icon ?? (deliveryActive ? '🛵' : '🥡')}</Text>
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.deliveryTitle, { color: colors.primary }]}>
               {card?.title ?? 'Home Delivery'}
             </Text>
-            {primaryMessage ? (
-              <Text style={styles.deliveryAreas} numberOfLines={expanded ? 4 : 2}>
-                {primaryMessage}
+            {subtitle ? (
+              <Text style={styles.deliveryAreas} numberOfLines={expanded ? 3 : 2}>
+                {subtitle}
               </Text>
             ) : null}
           </View>
-          <Text style={[styles.chevron, { color: colors.secondary }]}>{expanded ? '▴' : '▾'}</Text>
+          <View style={styles.chevronWrap}>
+            <Text style={[styles.chevron, { color: colors.primary }]}>{expanded ? '▴' : '▾'}</Text>
+          </View>
         </View>
 
         {(orderWindow || deliveryWindow) && (
-          <Text style={styles.windows} numberOfLines={expanded ? 2 : 1}>
-            {[
-              orderWindow ? `Order: ${orderWindow}` : null,
-              deliveryWindow ? `Delivery: ${deliveryWindow}` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </Text>
+          <View style={styles.windowRow}>
+            {orderWindow ? (
+              <View style={styles.windowChip}>
+                <Text style={styles.windowChipLabel}>Order</Text>
+                <Text style={styles.windowChipValue}>{orderWindow}</Text>
+              </View>
+            ) : null}
+            {deliveryWindow ? (
+              <View style={styles.windowChip}>
+                <Text style={styles.windowChipLabel}>Delivery</Text>
+                <Text style={styles.windowChipValue}>{deliveryWindow}</Text>
+              </View>
+            ) : null}
+          </View>
         )}
 
-        {expanded && detail ? (
-          <Text style={[styles.deliveryFooter, { color: colors.secondary }]}>{detail}</Text>
+        {expanded && noticeBody ? (
+          <View style={styles.noticeBox}>
+            <MarkdownNotice text={noticeBody} />
+          </View>
         ) : (
-          <Text style={[styles.viewDetails, { color: colors.secondary }]}>View details →</Text>
+          <Text style={[styles.viewDetails, { color: colors.primary }]}>
+            {expanded ? 'Hide details' : 'View delivery notice'}
+          </Text>
         )}
       </View>
     </Pressable>
@@ -184,23 +212,63 @@ const styles = StyleSheet.create({
   },
   barText: { flex: 1, color: '#FDE68A', fontSize: 11.5, fontWeight: '600' },
   barArrow: { color: '#FDE68A', fontSize: 16, fontWeight: '700' },
-  deliveryWrap: { paddingHorizontal: 14, paddingTop: 8 },
+  deliveryWrap: { paddingHorizontal: 14, paddingTop: 10 },
   deliveryCard: {
+    ...SHADOW.card,
     backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(20, 83, 45, 0.08)',
+  },
+  deliveryTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  deliveryIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deliveryEmoji: { fontSize: 18 },
+  deliveryTitle: { fontSize: 15, fontWeight: '800' },
+  deliveryAreas: { color: COLORS.textMuted, fontSize: 12.5, marginTop: 2, lineHeight: 17 },
+  chevronWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: { fontSize: 12, fontWeight: '800' },
+  windowRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  windowChip: {
+    flexGrow: 1,
+    backgroundColor: COLORS.cream,
     borderRadius: RADIUS.md,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: '42%',
+  },
+  windowChipLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+  },
+  windowChipValue: { fontSize: 12, fontWeight: '700', color: COLORS.text, marginTop: 2 },
+  noticeBox: {
+    marginTop: 12,
+    backgroundColor: '#FFFBF3',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.22)',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(20, 83, 45, 0.1)',
   },
-  deliveryTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  deliveryEmoji: { fontSize: 16, marginTop: 1 },
-  deliveryTitle: { fontSize: 13, fontWeight: '800' },
-  deliveryAreas: { color: COLORS.textMuted, fontSize: 12, marginTop: 1, lineHeight: 16 },
-  chevron: { fontSize: 12, fontWeight: '700', paddingTop: 2 },
-  windows: { color: COLORS.textMuted, fontSize: 11.5, marginTop: 6, marginLeft: 24 },
-  viewDetails: { fontSize: 11.5, fontWeight: '700', marginTop: 6, marginLeft: 24 },
-  deliveryFooter: { fontSize: 12, fontWeight: '600', marginTop: 6, marginLeft: 24, lineHeight: 16 },
+  viewDetails: { fontSize: 12.5, fontWeight: '800', marginTop: 10 },
   preOrderWrap: { paddingTop: 8, paddingHorizontal: 14 },
   preOrderRow: { gap: 12, paddingRight: 8 },
   promoCard: {

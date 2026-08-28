@@ -127,10 +127,16 @@ export default function OrderDetailScreen() {
         <Card>
           <Text style={styles.heading}>Update order</Text>
           <View style={styles.actions}>
-            {['ACCEPTED', 'PREPARING', 'READY', 'DELIVERED'].map((s) => (
+            {[
+              { s: 'ACCEPTED', title: 'Confirm Order' },
+              { s: 'PREPARING', title: 'Start Cooking' },
+              { s: 'READY', title: 'Mark Ready' },
+              { s: 'OUT_FOR_DELIVERY', title: 'Out for Delivery' },
+              { s: 'DELIVERED', title: 'Mark Delivered' },
+            ].map(({ s, title }) => (
               <PrimaryButton
                 key={s}
-                title={s === 'ACCEPTED' ? 'Accept' : s[0] + s.slice(1).toLowerCase()}
+                title={title}
                 onPress={() => action.mutate({ status: s })}
                 loading={action.isPending && action.variables?.status === s}
                 style={styles.action}

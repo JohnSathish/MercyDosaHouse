@@ -76,4 +76,7 @@ export enum NotificationType {
   DELIVERED = 'DELIVERED',
   OFFER = 'OFFER',
   FESTIVAL = 'FESTIVAL',
+  NEW_ORDER = 'NEW_ORDER',
+  ORDER_PLACED = 'ORDER_PLACED',
+  CANCELLED = 'CANCELLED',
 }

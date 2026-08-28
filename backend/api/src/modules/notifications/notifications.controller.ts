@@ -19,6 +19,18 @@ export class NotificationsController {
     return this.notificationsService.getStaffPushConfig();
   }
 
+  @RequirePermissions('settings.read')
+  @Get('config')
+  getNotificationConfig() {
+    return this.notificationsService.getNotificationConfig();
+  }
+
+  @RequirePermissions('settings.write')
+  @Patch('config')
+  updateNotificationConfig(@Body() body: Record<string, unknown>) {
+    return this.notificationsService.updateNotificationConfig(body);
+  }
+
   @RequirePermissions('settings.write')
   @Patch('staff-push-config')
   updateStaffPushConfig(@Body() body: Partial<StaffPushConfig>) {
@@ -28,6 +40,11 @@ export class NotificationsController {
   @Patch(':id/read')
   markRead(@Param('id') id: string, @Req() req: { user: RequestUser }) {
     return this.notificationsService.markRead(id, req.user.id);
+  }
+
+  @Post('read-all')
+  markAllRead(@Req() req: { user: RequestUser }) {
+    return this.notificationsService.markAllRead(req.user.id);
   }
 
   @Post('read-by-order')
@@ -41,6 +58,11 @@ export class NotificationsController {
     @Body() body: { token: string; platform: string },
   ) {
     return this.notificationsService.registerDevice(req.user.id, body.token, body.platform);
+  }
+
+  @Post('device-token/remove')
+  unregisterDevice(@Req() req: { user: RequestUser }, @Body() body: { token: string }) {
+    return this.notificationsService.unregisterDevice(req.user.id, body.token);
   }
 
   @Post('test-push')

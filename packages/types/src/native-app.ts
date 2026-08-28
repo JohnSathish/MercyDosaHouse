@@ -4,6 +4,7 @@
  */
 export * from './enums';
 export * from './restaurant-status';
+export * from './auth';
 export * from './mobile';
 export * from './checkout';
 export * from './customers';

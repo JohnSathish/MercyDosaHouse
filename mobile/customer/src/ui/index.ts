@@ -7,3 +7,4 @@ export { AppHeader } from './app-header';
 export { StoreStatusCard } from './store-status-card';
 export { FloatingCartBar } from './floating-cart-bar';
 export { SearchBar } from './search-bar';
+export { MarkdownNotice } from './markdown-notice';

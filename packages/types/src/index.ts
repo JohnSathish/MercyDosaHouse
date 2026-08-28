@@ -10,6 +10,7 @@ import {
 
 export * from './enums';
 export * from './restaurant-status';
+export * from './auth';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -17,39 +18,6 @@ export interface PaginatedResult<T> {
   page: number;
   limit: number;
   totalPages: number;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface AuthUser {
-  id: string;
-  email?: string | null;
-  phone?: string | null;
-  name?: string | null;
-  roles: string[];
-  permissions: string[];
-  isSuperAdmin?: boolean;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface OtpSendRequest {
-  phone: string;
-}
-
-export interface OtpVerifyRequest {
-  phone: string;
-  otp: string;
-}
-
-export interface GoogleAuthRequest {
-  idToken: string;
 }
 
 export interface AddressDto {
@@ -193,6 +161,8 @@ export interface OrderDto {
   items: OrderItemDto[];
   statusHistory?: OrderStatusHistoryDto[];
   emailNotification?: OrderEmailNotificationDto;
+  estimatedDeliveryMinutes?: number;
+  statusMessage?: string;
   createdAt: string;
   updatedAt: string;
 }

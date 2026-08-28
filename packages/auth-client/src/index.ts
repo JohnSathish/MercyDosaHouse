@@ -4,6 +4,12 @@ import type {
   LoginRequest,
   OtpSendRequest,
   OtpVerifyRequest,
+  EmailOtpSendRequest,
+  EmailOtpVerifyRequest,
+  EmailOtpResendRequest,
+  EmailOtpSendResponse,
+  AuthMethodsDto,
+  GoogleAuthRequest,
 } from '@mdh/types';
 
 const ACCESS_KEY = 'mdh_access_token';
@@ -79,6 +85,79 @@ export async function sendOtp(apiBase: string, payload: OtpSendRequest): Promise
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
+}
+
+export async function getAuthMethods(apiBase: string): Promise<AuthMethodsDto> {
+  const res = await fetch(`${apiBase}/auth/methods`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || 'Unable to load sign-in options');
+  }
+  return data as AuthMethodsDto;
+}
+
+export async function sendEmailOtp(
+  apiBase: string,
+  payload: EmailOtpSendRequest,
+): Promise<EmailOtpSendResponse> {
+  const res = await fetch(`${apiBase}/auth/otp/email/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+  if (!res.ok) throw new Error(message || "We couldn't send the email. Please try again.");
+  return data as EmailOtpSendResponse;
+}
+
+export async function verifyEmailOtp(
+  apiBase: string,
+  payload: EmailOtpVerifyRequest,
+): Promise<{ tokens: AuthTokens; user: AuthUser }> {
+  const res = await fetch(`${apiBase}/auth/otp/email/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+  if (!res.ok) throw new Error(message || "We couldn't verify that code. Please try again.");
+  storeAuth(data.tokens, data.user);
+  return data;
+}
+
+export async function resendEmailOtp(
+  apiBase: string,
+  payload: EmailOtpResendRequest,
+): Promise<EmailOtpSendResponse> {
+  const res = await fetch(`${apiBase}/auth/otp/email/resend`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+  if (!res.ok) throw new Error(message || "We couldn't send the email. Please try again.");
+  return data as EmailOtpSendResponse;
+}
+
+export async function googleLogin(
+  apiBase: string,
+  payload: GoogleAuthRequest,
+): Promise<{ tokens: AuthTokens; user: AuthUser }> {
+  const res = await fetch(`${apiBase}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+  if (!res.ok) {
+    throw new Error(message || "We couldn't complete Google sign-in. Please try again.");
+  }
+  storeAuth(data.tokens, data.user);
+  return data;
 }
 
 export async function verifyOtp(
@@ -179,5 +258,5 @@ export function onAuthCleared(listener: () => void): () => void {
   return () => window.removeEventListener(AUTH_CLEARED_EVENT, listener);
 }
 
-export type { AuthUser, AuthTokens } from '@mdh/types';
+export type { AuthUser, AuthTokens, AuthMethodsDto, EmailOtpSendResponse } from '@mdh/types';
 export * from './roles';

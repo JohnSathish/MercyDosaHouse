@@ -2,10 +2,11 @@
 
 import { usePathname } from 'next/navigation';
 import { ResponsiveSubNav, type ResponsiveSubNavItem } from '@/components/ui/responsive-sub-nav';
-import { Bell, Settings } from 'lucide-react';
+import { Bell, Mail, Settings } from 'lucide-react';
 
 const SETTINGS_NAV: ResponsiveSubNavItem[] = [
   { href: '/settings', label: 'General', icon: Settings, exact: true },
+  { href: '/settings/authentication', label: 'Email & Authentication', icon: Mail },
   { href: '/settings/notifications', label: 'Notifications', icon: Bell },
 ];
 
