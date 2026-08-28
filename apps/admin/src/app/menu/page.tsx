@@ -43,7 +43,7 @@ const emptyForm = {
 };
 
 function isProductAvailable(p: MenuProduct) {
-  return p.isAvailable !== false && p.isAvailable !== false;
+  return p.isAvailable !== false;
 }
 
 function toItemDraft(p: MenuProduct): ItemDraft {
