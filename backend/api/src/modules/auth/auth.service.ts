@@ -73,7 +73,7 @@ export class AuthService {
       throw new BadRequestException('No email address on file for this account.');
     }
 
-    return this.initiateLoginOtp(user);
+    return this.buildAuthResponse(user);
   }
 
   async verifyLoginOtp(sessionId: string, otp: string) {

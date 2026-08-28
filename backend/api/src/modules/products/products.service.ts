@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma, FoodType, SpiceLevel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { displayCategoryName } from '../categories/category-display-name';
@@ -108,7 +108,29 @@ export class ProductsService {
 
   async remove(id: string) {
     await this.ensureExists(id);
-    return this.prisma.product.delete({ where: { id } });
+    await this.prisma.cartItem.deleteMany({ where: { productId: id } });
+
+    const usedInOrders = await this.prisma.orderItem.count({ where: { productId: id } });
+    if (usedInOrders > 0) {
+      await this.prisma.product.update({
+        where: { id },
+        data: {
+          isAvailable: false,
+          isComingSoon: false,
+          isPopular: false,
+          isFeatured: false,
+          isBestseller: false,
+          isOnOffer: false,
+          isPreOrder: false,
+        },
+      });
+      throw new BadRequestException(
+        'This item is in past orders, so it cannot be fully removed. It has been marked Unavailable instead.',
+      );
+    }
+
+    await this.prisma.product.delete({ where: { id } });
+    return { success: true };
   }
 
   private async ensureExists(id: string) {

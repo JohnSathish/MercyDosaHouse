@@ -32,6 +32,9 @@ export function getStoredUser(): AuthUser | null {
 }
 
 export function storeAuth(tokens: AuthTokens, user: AuthUser): void {
+  if (!tokens?.accessToken || !tokens?.refreshToken) {
+    throw new Error('Login failed. Please try again.');
+  }
   localStorage.setItem(ACCESS_KEY, tokens.accessToken);
   localStorage.setItem(REFRESH_KEY, tokens.refreshToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -48,17 +51,24 @@ export function clearAuth(): void {
 
 export async function login(
   apiBase: string,
-  payload: LoginRequest,
+  credentials: LoginRequest,
 ): Promise<{ tokens: AuthTokens; user: AuthUser }> {
   const res = await fetch(`${apiBase}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(credentials),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Login failed');
-  storeAuth(data.tokens, data.user);
-  return data;
+  const data = await res.json().catch(() => ({}));
+  const body = (data?.tokens ? data : data?.data) ?? data;
+  const message = Array.isArray(body?.message)
+    ? body.message.join(', ')
+    : body?.message || data.message || 'Login failed';
+  if (!res.ok) throw new Error(message);
+  if (!body?.tokens?.accessToken) {
+    throw new Error(message === 'Login failed' ? 'Login failed. Please try again.' : message);
+  }
+  storeAuth(body.tokens, body.user);
+  return body;
 }
 
 export async function sendOtp(apiBase: string, payload: OtpSendRequest): Promise<void> {

@@ -117,6 +117,11 @@ export default function MenuManagementPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
   });
 
+  const deleteProduct = useMutation({
+    mutationFn: (id: string) => api.delete(`/products/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
+  });
+
   const saveCharges = useMutation({
     mutationFn: (body: Record<string, number>) => api.patch('/settings/business', body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-business-settings'] }),
@@ -410,6 +415,20 @@ export default function MenuManagementPage() {
                       }
                     >
                       {available ? 'Available' : 'Unavailable'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full sm:w-auto min-h-[44px] text-red-600 border-red-200 hover:bg-red-50"
+                      disabled={deleteProduct.isPending}
+                      onClick={() => {
+                        const ok = window.confirm(
+                          `Delete "${p.name}" from the menu? If it appears in past orders it will be hidden instead.`,
+                        );
+                        if (ok) deleteProduct.mutate(p.id);
+                      }}
+                    >
+                      Delete
                     </Button>
                   </div>
                 </div>
