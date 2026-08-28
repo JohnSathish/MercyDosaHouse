@@ -89,6 +89,7 @@ export function useDeliveryLiveUpdates(orderIds: string[]) {
         if (!current || !event.staffId) return current;
         return {
           ...current,
+          pendingOrders: updateOrderList(current.pendingOrders, event) ?? current.pendingOrders,
           liveRiders: current.liveRiders.map((rider) =>
             rider.id === event.staffId
               ? { ...rider, lat: event.latitude, lng: event.longitude }
@@ -110,12 +111,16 @@ export function useDeliveryLiveUpdates(orderIds: string[]) {
         void queryClient.invalidateQueries({ queryKey: ['delivery-order', event.orderId] });
       }
     };
+    const handleNewOrder = () => {
+      void queryClient.invalidateQueries({ queryKey: ['delivery-dashboard'] });
+    };
 
     socket.on('connect', subscribe);
     socket.on('disconnect', handleDisconnect);
     socket.on('subscriptionDenied', handleDenied);
     socket.on('deliveryLocation', handleLocation);
     socket.on('orderUpdate', handleOrderUpdate);
+    socket.on('newOrder', handleNewOrder);
     if (socket.connected) subscribe();
 
     return () => {
@@ -124,6 +129,7 @@ export function useDeliveryLiveUpdates(orderIds: string[]) {
       socket.off('subscriptionDenied', handleDenied);
       socket.off('deliveryLocation', handleLocation);
       socket.off('orderUpdate', handleOrderUpdate);
+      socket.off('newOrder', handleNewOrder);
       socket.disconnect();
       setConnected(false);
     };

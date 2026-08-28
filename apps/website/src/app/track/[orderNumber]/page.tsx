@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +14,13 @@ import { io } from 'socket.io-client';
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
+const LiveDeliveryMap = dynamic(
+  () => import('@/components/maps/live-delivery-map').then((module) => module.LiveDeliveryMap),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 animate-pulse bg-[#FFF8E8]" />,
+  },
+);
 
 const TRACK_STEPS = [
   { key: 'PENDING', label: 'Order Received', emoji: '📋' },
@@ -194,15 +202,9 @@ export default function TrackOrderPage() {
 }
 
 function LiveDeliveryPanel({ data }: { data: LiveDeliveryLocationDto }) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const agent =
-    data.agent?.latitude != null && data.agent.longitude != null
-      ? `${data.agent.latitude},${data.agent.longitude}`
-      : null;
-  const customer =
-    data.customer.latitude != null && data.customer.longitude != null
-      ? `${data.customer.latitude},${data.customer.longitude}`
-      : null;
+  const hasMapPoints =
+    (data.agent?.latitude != null && data.agent.longitude != null) ||
+    (data.customer.latitude != null && data.customer.longitude != null);
   return (
     <Card className="mb-6 overflow-hidden">
       <CardContent className="p-0">
@@ -219,14 +221,8 @@ function LiveDeliveryPanel({ data }: { data: LiveDeliveryLocationDto }) {
             {data.etaMinutes != null ? ` • ETA ${data.etaMinutes} min` : ''}
           </p>
         </div>
-        {apiKey && agent && customer ? (
-          <iframe
-            title="Live delivery route"
-            className="w-full h-64 border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            src={`https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${agent}&destination=${customer}&mode=driving`}
-          />
+        {hasMapPoints ? (
+          <LiveDeliveryMap data={data} />
         ) : (
           <div className="mx-5 mb-5 rounded-xl bg-[#FFF8E8] p-4 text-sm text-muted-foreground">
             Live GPS is active. The map provider is being configured for this restaurant.

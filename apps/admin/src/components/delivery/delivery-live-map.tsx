@@ -65,11 +65,17 @@ function decodePolyline(encoded: string): Point[] {
 function AnimatedAgentMarker({
   point,
   orderNumber,
+  riderName,
+  status,
+  etaMinutes,
   selected,
   onClick,
 }: {
   point: Point;
   orderNumber: string;
+  riderName: string;
+  status: string;
+  etaMinutes?: number | null;
   selected: boolean;
   onClick?: () => void;
 }) {
@@ -110,9 +116,12 @@ function AnimatedAgentMarker({
       eventHandlers={{ click: onClick }}
     >
       <Tooltip direction="top" offset={[0, -8]} permanent={selected}>
-        <strong>{orderNumber}</strong>
+        <strong>{riderName}</strong>
         <br />
-        Delivery agent
+        {status.replaceAll('_', ' ')}
+        {etaMinutes != null ? ` · ETA ${etaMinutes} min` : ''}
+        <br />
+        {orderNumber}
       </Tooltip>
     </CircleMarker>
   );
@@ -323,6 +332,9 @@ export function DeliveryLiveMap({
                   <AnimatedAgentMarker
                     point={agent}
                     orderNumber={order.orderNumber}
+                    riderName={order.assignment?.executive?.name ?? 'Delivery rider'}
+                    status={order.assignment?.status ?? 'ASSIGNED'}
+                    etaMinutes={order.assignment?.etaMinutes}
                     selected={selected}
                     onClick={() => onSelectOrder?.(order.id)}
                   />

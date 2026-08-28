@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Linking, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
+import { buildOsmMapHtml } from '@mdh/mobile-shared';
 import { api } from '@/lib/api';
 import { markOrderAlertRead } from '@/lib/notification-prefs';
 import { Card, EmptyState, LoadingBlock, Money, PrimaryButton, Screen, StatusChip } from '@/ui';
 import { formatInr, theme, timeAgo } from '@/ui/theme';
 import { useDeliveryLocationSharing } from '@/hooks/use-delivery-location';
+
+const OSMWebView = WebView as unknown as ComponentType<any>;
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -214,23 +218,37 @@ function DeliveryMapCard({ order }: { order: any }) {
           longitude: Number(order.assignment.longitude),
         }
       : null;
-  const region = agent ?? destination;
+  const route = useMemo(
+    () => (order.assignment?.routePolyline ? decodePolyline(order.assignment.routePolyline) : []),
+    [order.assignment?.routePolyline],
+  );
+  const mapHtml = useMemo(
+    () =>
+      buildOsmMapHtml({
+        points: [
+          {
+            id: 'customer',
+            ...destination,
+            label: 'Customer',
+            type: 'customer',
+          },
+          ...(agent
+            ? [{ id: 'agent', ...agent, label: 'Delivery agent', type: 'agent' as const }]
+            : []),
+        ],
+        route,
+      }),
+    [agent?.latitude, agent?.longitude, destination.latitude, destination.longitude, route],
+  );
   return (
     <Card>
       <Text style={styles.heading}>Live delivery map</Text>
-      <MapView
+      <OSMWebView
+        originWhitelist={['*']}
+        source={{ html: mapHtml }}
+        javaScriptEnabled
         style={styles.deliveryMap}
-        initialRegion={{ ...region, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
-      >
-        <Marker coordinate={destination} title="Customer">
-          <Text style={styles.mapMarker}>📍</Text>
-        </Marker>
-        {agent ? (
-          <Marker coordinate={agent} title="Delivery agent">
-            <Text style={styles.mapMarker}>🛵</Text>
-          </Marker>
-        ) : null}
-      </MapView>
+      />
       <Text style={styles.muted}>
         {order.assignment?.distanceKm != null
           ? `${Number(order.assignment.distanceKm).toFixed(1)} km`
@@ -261,13 +279,41 @@ function DeliveryMapCard({ order }: { order: any }) {
           variant="secondary"
           onPress={() =>
             void Linking.openURL(
-              `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}`,
+              `geo:${destination.latitude},${destination.longitude}?q=${destination.latitude},${destination.longitude}`,
             )
           }
         />
       </View>
     </Card>
   );
+}
+
+function decodePolyline(encoded: string): { latitude: number; longitude: number }[] {
+  const points: { latitude: number; longitude: number }[] = [];
+  let index = 0;
+  let latitude = 0;
+  let longitude = 0;
+  while (index < encoded.length) {
+    let result = 0;
+    let shift = 0;
+    let byte: number;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20 && index < encoded.length);
+    latitude += result & 1 ? ~(result >> 1) : result >> 1;
+    result = 0;
+    shift = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20 && index < encoded.length);
+    longitude += result & 1 ? ~(result >> 1) : result >> 1;
+    points.push({ latitude: latitude / 1e5, longitude: longitude / 1e5 });
+  }
+  return points;
 }
 
 function Line({ label, value, strong }: any) {

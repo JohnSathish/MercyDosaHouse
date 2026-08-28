@@ -146,7 +146,7 @@ export default function DeliveryMapPage() {
                       variant="outline"
                       onClick={() =>
                         void window.open(
-                          `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLatitude},${order.deliveryLongitude}`,
+                          `https://www.openstreetmap.org/?mlat=${order.deliveryLatitude}&mlon=${order.deliveryLongitude}#map=16/${order.deliveryLatitude}/${order.deliveryLongitude}`,
                           '_blank',
                         )
                       }

@@ -31,6 +31,18 @@ export interface AnnouncementAnalyticsDto {
   androidViews: number;
 }
 
+export interface MarketingPromotionProductDto {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  imageUrl?: string | null;
+  description?: string | null;
+  ingredients?: string | null;
+  isAvailable: boolean;
+  isPreOrder?: boolean;
+}
+
 export interface MarketingAnnouncementDto {
   id: string;
   title: string;
@@ -58,6 +70,18 @@ export interface MarketingAnnouncementDto {
   startsAt?: string | null;
   endsAt?: string | null;
   publishedAt?: string | null;
+  promotionProductId?: string | null;
+  promotionProduct?: MarketingPromotionProductDto | null;
+  promotionDayOfWeek?: number | null;
+  promotionReadyTime?: string | null;
+  promotionPreOrderRequired?: boolean;
+  promotionPreOrderCutoffDay?: number | null;
+  promotionQuantityLimit?: number | null;
+  promotionWebsiteEnabled?: boolean;
+  promotionAndroidEnabled?: boolean;
+  promotionNextAvailableDate?: string | null;
+  promotionNextAvailableLabel?: string | null;
+  promotionRemainingQuantity?: number | null;
   isActive: boolean;
   lifecycle?: AnnouncementLifecycle;
   analytics?: AnnouncementAnalyticsDto;

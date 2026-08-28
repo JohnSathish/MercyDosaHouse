@@ -6,6 +6,7 @@ import { Button, Card, CardContent, cn } from '@mdh/ui';
 import { api } from '@/lib/api';
 import { OrderNotificationEmailsPanel } from '@/components/settings/order-notification-emails-panel';
 import { PushTemplatesPanel } from '@/components/settings/push-templates-panel';
+import { OrderNotificationLogsPanel } from '@/components/settings/order-notification-logs-panel';
 
 type StaffPushConfig = {
   enabled: boolean;
@@ -133,7 +134,8 @@ export default function SettingsNotificationsPage() {
           <h2 className="font-semibold mb-1">Customer status templates</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Saved on the server. Apps use the new wording without a rebuild. Placeholders:{' '}
-            <code>{'{{ORDER_NUMBER}}'}</code>, <code>{'{{AMOUNT}}'}</code>.
+            <code>{'{{ORDER_NUMBER}}'}</code>, <code>{'{{AMOUNT}}'}</code>,{' '}
+            <code>{'{{REASON}}'}</code>.
           </p>
           <PushTemplatesPanel />
         </CardContent>
@@ -142,6 +144,12 @@ export default function SettingsNotificationsPage() {
       <Card className="dark:bg-gray-900">
         <CardContent className="p-4 sm:p-6">
           <OrderNotificationEmailsPanel />
+        </CardContent>
+      </Card>
+
+      <Card className="dark:bg-gray-900">
+        <CardContent className="p-4 sm:p-6">
+          <OrderNotificationLogsPanel />
         </CardContent>
       </Card>
     </div>

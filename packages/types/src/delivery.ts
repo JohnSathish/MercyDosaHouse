@@ -98,9 +98,11 @@ export interface DeliveryDashboardDto {
     onTheWay: number;
     deliveredToday: number;
     cancelledToday: number;
-    avgDeliveryMinutes: number;
+    avgDeliveryMinutes: number | null;
     deliveryRevenue: number;
     onlineRiders: number;
+    deliveredYesterday?: number;
+    cancelledYesterday?: number | null;
   };
   executives: DeliveryExecutiveDto[];
   pendingOrders: DeliveryOrderDto[];
@@ -112,6 +114,24 @@ export interface DeliveryDashboardDto {
     lng?: number | null;
     status: DeliveryExecutiveStatus;
   }[];
+  performance?: {
+    averageDeliveryMinutesYesterday: number | null;
+    onTimeDeliveryPercent: number | null;
+    hourly: Array<{
+      hour: number;
+      revenue: number;
+      deliveries: number;
+      averageMinutes: number | null;
+    }>;
+  };
+  alerts?: Array<{
+    type: string;
+    severity: 'INFO' | 'WARNING' | 'CRITICAL';
+    orderId: string;
+    orderNumber: string;
+    message: string;
+    createdAt: string;
+  }>;
 }
 
 export interface DeliveryZoneDto {

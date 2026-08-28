@@ -226,6 +226,8 @@ enum NotificationType {
   ORDER_PLACED
   CANCELLED
   NEAR_CUSTOMER
+  ASSIGNED
+  PICKED_UP
 }
 
 enum LoyaltyTier {
@@ -243,45 +245,46 @@ enum RewardTransactionType {
 }
 
 model User {
-  id                 String    @id @default(uuid())
-  email              String?   @unique
-  phone              String?   @unique
-  passwordHash       String?
-  name               String?
-  googleId           String?   @unique
-  isActive           Boolean   @default(true)
-  isBlocked          Boolean   @default(false)
-  avatarUrl          String?
-  dateOfBirth        DateTime?
-  loyaltyPoints      Int       @default(0)
-  loyaltyTier        LoyaltyTier @default(BRONZE)
-  tags               String[]  @default([])
-  adminNotes         String?
-  preferredPayment   PaymentMethod?
-  preferredDelivery  String?
-  lastOrderAt        DateTime?
-  roleId             String?
-  role               Role?     @relation(fields: [roleId], references: [id])
-  addresses          Address[]
-  orders             Order[]
-  reviews            Review[]
-  favorites          Favorite[]
-  cart               Cart?
-  deviceTokens       DeviceToken[]
-  deliveryStaff      DeliveryStaff?
-  refreshTokens      RefreshToken[]
-  orderStatusUpdates OrderStatusHistory[]
-  kitchenLogs        KitchenLog[]
-  customerNotes      CustomerNote[]
-  rewardTransactions RewardTransaction[]
-  customerActivities CustomerActivity[]
-  userCoupons        UserCoupon[]
-  posSessions        PosSession[]         @relation("PosCashier")
-  posOrders          Order[]              @relation("PosCashierOrders")
-  posDiscountsApproved PosDiscount[]      @relation("PosDiscountApprover")
-  managerPinHash     String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                   String               @id @default(uuid())
+  email                String?              @unique
+  phone                String?              @unique
+  passwordHash         String?
+  name                 String?
+  googleId             String?              @unique
+  isActive             Boolean              @default(true)
+  isBlocked            Boolean              @default(false)
+  avatarUrl            String?
+  dateOfBirth          DateTime?
+  loyaltyPoints        Int                  @default(0)
+  loyaltyTier          LoyaltyTier          @default(BRONZE)
+  tags                 String[]             @default([])
+  adminNotes           String?
+  preferredPayment     PaymentMethod?
+  preferredDelivery    String?
+  lastOrderAt          DateTime?
+  roleId               String?
+  role                 Role?                @relation(fields: [roleId], references: [id])
+  addresses            Address[]
+  orders               Order[]
+  reviews              Review[]
+  favorites            Favorite[]
+  cart                 Cart?
+  deviceTokens         DeviceToken[]
+  deliveryStaff        DeliveryStaff?
+  refreshTokens        RefreshToken[]
+  orderStatusUpdates   OrderStatusHistory[]
+  kitchenLogs          KitchenLog[]
+  customerNotes        CustomerNote[]
+  rewardTransactions   RewardTransaction[]
+  customerActivities   CustomerActivity[]
+  userCoupons          UserCoupon[]
+  notifications        Notification[]
+  posSessions          PosSession[]         @relation("PosCashier")
+  posOrders            Order[]              @relation("PosCashierOrders")
+  posDiscountsApproved PosDiscount[]        @relation("PosDiscountApprover")
+  managerPinHash       String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
   @@map("users")
 }
@@ -335,53 +338,53 @@ enum AddressType {
 }
 
 model Address {
-  id             String      @id @default(uuid())
-  userId         String
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  contactName    String      @map("contact_name")
-  mobileNumber   String      @map("mobile_number")
-  label          String?
-  line1          String
-  line2          String?
-  landmark       String?
-  city           String
-  state          String      @default("Meghalaya")
-  pincode        String
-  country        String      @default("India")
-  latitude       Float?
-  longitude      Float?
-  deliveryNotes  String?     @map("delivery_notes")
-  addressType    AddressType @default(HOME) @map("address_type")
-  isDefault      Boolean     @default(false)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  orders         Order[]
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactName   String      @map("contact_name")
+  mobileNumber  String      @map("mobile_number")
+  label         String?
+  line1         String
+  line2         String?
+  landmark      String?
+  city          String
+  state         String      @default("Meghalaya")
+  pincode       String
+  country       String      @default("India")
+  latitude      Float?
+  longitude     Float?
+  deliveryNotes String?     @map("delivery_notes")
+  addressType   AddressType @default(HOME) @map("address_type")
+  isDefault     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orders        Order[]
 
   @@map("addresses")
 }
 
 model Branch {
-  id        String   @id @default(uuid())
-  name      String
-  address   String
-  phone     String?
-  isActive  Boolean  @default(true)
-  isDefault Boolean  @default(false)
-  orders    Order[]
-  posFloors PosFloor[]
+  id           String              @id @default(uuid())
+  name         String
+  address      String
+  phone        String?
+  isActive     Boolean             @default(true)
+  isDefault    Boolean             @default(false)
+  orders       Order[]
+  posFloors    PosFloor[]
   posTerminals PosTerminal[]
-  posSessions PosSession[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  locations InventoryLocation[]
+  posSessions  PosSession[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  locations    InventoryLocation[]
 
   @@map("branches")
 }
 
 model Category {
-  id                 String          @id @default(uuid())
+  id                 String             @id @default(uuid())
   name               String
-  slug               String          @unique
+  slug               String             @unique
   description        String?
   imageUrl           String?
   icon               String?
@@ -391,34 +394,34 @@ model Category {
   cardImageUrl       String?
   backgroundColor    String?
   textColor          String?
-  sortOrder          Int             @default(0)
-  isActive           Boolean         @default(true)
-  status             CategoryStatus  @default(PUBLISHED)
+  sortOrder          Int                @default(0)
+  isActive           Boolean            @default(true)
+  status             CategoryStatus     @default(PUBLISHED)
   badge              CategoryBadge?
-  isFeatured         Boolean         @default(false)
-  isPopular          Boolean         @default(false)
-  isSeasonal         Boolean         @default(false)
+  isFeatured         Boolean            @default(false)
+  isPopular          Boolean            @default(false)
+  isSeasonal         Boolean            @default(false)
   seasonalName       String?
   seasonalStart      DateTime?
   seasonalEnd        DateTime?
-  showOnHome         Boolean         @default(true)
-  showInMobileApp    Boolean         @default(true)
-  showInOffers       Boolean         @default(false)
-  allowOrdering      Boolean         @default(true)
-  showOnWebsite      Boolean         @default(true)
-  showOnPos          Boolean         @default(true)
-  showOnDelivery     Boolean         @default(true)
-  showOnQrMenu       Boolean         @default(true)
-  gstPercent         Decimal?        @db.Decimal(5, 2)
-  prepTimeMinutes    Int             @default(15)
-  servingTimeMinutes Int             @default(10)
+  showOnHome         Boolean            @default(true)
+  showInMobileApp    Boolean            @default(true)
+  showInOffers       Boolean            @default(false)
+  allowOrdering      Boolean            @default(true)
+  showOnWebsite      Boolean            @default(true)
+  showOnPos          Boolean            @default(true)
+  showOnDelivery     Boolean            @default(true)
+  showOnQrMenu       Boolean            @default(true)
+  gstPercent         Decimal?           @db.Decimal(5, 2)
+  prepTimeMinutes    Int                @default(15)
+  servingTimeMinutes Int                @default(10)
   seoTitle           String?
   seoDescription     String?
   seoKeywords        String?
   canonicalUrl       String?
   ogImageUrl         String?
   kitchenStationId   String?
-  kitchenStation     KitchenStation? @relation(fields: [kitchenStationId], references: [id])
+  kitchenStation     KitchenStation?    @relation(fields: [kitchenStationId], references: [id])
   products           Product[]
   images             CategoryImage[]
   schedules          CategorySchedule[]
@@ -427,8 +430,8 @@ model Category {
   logs               CategoryLog[]
   tags               CategoryTag[]
   banners            CategoryBanner[]
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@map("categories")
 }
@@ -523,38 +526,39 @@ model CategoryBanner {
 }
 
 model Product {
-  id              String           @id @default(uuid())
-  name            String
-  slug            String           @unique
-  description     String?
-  price           Decimal          @db.Decimal(10, 2)
-  packingCharge   Decimal          @default(20) @db.Decimal(10, 2)
-  imageUrl        String?
-  categoryId      String
-  category        Category         @relation(fields: [categoryId], references: [id])
-  foodType        FoodType         @default(VEG)
-  spiceLevel      SpiceLevel       @default(MILD)
-  prepTimeMinutes Int              @default(15)
-  isAvailable     Boolean          @default(true)
-  isPopular       Boolean          @default(false)
-  isFeatured      Boolean          @default(false)
-  isBestseller    Boolean          @default(false)
-  isOnOffer       Boolean          @default(false)
-  isPreOrder      Boolean          @default(false)
-  isComingSoon    Boolean          @default(false)
-  ingredients     String?
-  nutritionInfo   String?
-  stock           Int?
-  deletedAt       DateTime?
-  images          ProductImage[]
-  variants        ProductVariant[]
-  cartItems       CartItem[]
-  orderItems      OrderItem[]
-  reviews         Review[]
-  favorites       Favorite[]
-  recipe          Recipe?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                     String           @id @default(uuid())
+  name                   String
+  slug                   String           @unique
+  description            String?
+  price                  Decimal          @db.Decimal(10, 2)
+  packingCharge          Decimal          @default(20) @db.Decimal(10, 2)
+  imageUrl               String?
+  categoryId             String
+  category               Category         @relation(fields: [categoryId], references: [id])
+  foodType               FoodType         @default(VEG)
+  spiceLevel             SpiceLevel       @default(MILD)
+  prepTimeMinutes        Int              @default(15)
+  isAvailable            Boolean          @default(true)
+  isPopular              Boolean          @default(false)
+  isFeatured             Boolean          @default(false)
+  isBestseller           Boolean          @default(false)
+  isOnOffer              Boolean          @default(false)
+  isPreOrder             Boolean          @default(false)
+  isComingSoon           Boolean          @default(false)
+  ingredients            String?
+  nutritionInfo          String?
+  stock                  Int?
+  deletedAt              DateTime?
+  images                 ProductImage[]
+  variants               ProductVariant[]
+  cartItems              CartItem[]
+  orderItems             OrderItem[]
+  reviews                Review[]
+  favorites              Favorite[]
+  recipe                 Recipe?
+  promotionAnnouncements Announcement[]   @relation("AnnouncementPromotionProduct")
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   @@map("products")
 }
@@ -608,17 +612,17 @@ model CartItem {
 }
 
 model Order {
-  id                   String            @id @default(uuid())
-  orderNumber          String            @unique
+  id                   String                   @id @default(uuid())
+  orderNumber          String                   @unique
   userId               String?
-  user                 User?             @relation(fields: [userId], references: [id])
+  user                 User?                    @relation(fields: [userId], references: [id])
   branchId             String?
-  branch               Branch?           @relation(fields: [branchId], references: [id])
-  orderType            OrderType         @default(DELIVERY)
-  orderSource          OrderSource       @default(WEBSITE)
-  status               OrderStatus       @default(PENDING)
+  branch               Branch?                  @relation(fields: [branchId], references: [id])
+  orderType            OrderType                @default(DELIVERY)
+  orderSource          OrderSource              @default(WEBSITE)
+  status               OrderStatus              @default(PENDING)
   trackingStatus       TrackingStatus?
-  billStatus           PosBillStatus     @default(OPEN)
+  billStatus           PosBillStatus            @default(OPEN)
   customerName         String
   customerPhone        String
   deliveryAddress      String?
@@ -626,40 +630,40 @@ model Order {
   deliveryLatitude     Float?
   deliveryLongitude    Float?
   addressId            String?
-  address              Address?          @relation(fields: [addressId], references: [id])
+  address              Address?                 @relation(fields: [addressId], references: [id])
   posTableId           String?
-  posTable             PosTable?         @relation(fields: [posTableId], references: [id])
+  posTable             PosTable?                @relation(fields: [posTableId], references: [id])
   posSessionId         String?
-  posSession           PosSession?       @relation(fields: [posSessionId], references: [id])
+  posSession           PosSession?              @relation(fields: [posSessionId], references: [id])
   cashierId            String?
-  cashier              User?             @relation("PosCashierOrders", fields: [cashierId], references: [id])
+  cashier              User?                    @relation("PosCashierOrders", fields: [cashierId], references: [id])
   covers               Int?
   scheduledDeliveryAt  DateTime?
-  rewardPointsUsed     Int               @default(0)
+  rewardPointsUsed     Int                      @default(0)
   deliveryInstructions String?
-  subtotal             Decimal           @db.Decimal(10, 2)
-  deliveryCharge       Decimal           @db.Decimal(10, 2)
-  packingCharge        Decimal           @db.Decimal(10, 2)
-  taxAmount            Decimal           @default(0) @db.Decimal(10, 2)
-  cgstAmount           Decimal           @default(0) @db.Decimal(10, 2)
-  sgstAmount           Decimal           @default(0) @db.Decimal(10, 2)
-  discount             Decimal           @default(0) @db.Decimal(10, 2)
-  preOrderDiscount     Decimal           @default(0) @db.Decimal(10, 2)
-  grandTotal           Decimal           @db.Decimal(10, 2)
-  packedItemCount      Int               @default(0)
+  subtotal             Decimal                  @db.Decimal(10, 2)
+  deliveryCharge       Decimal                  @db.Decimal(10, 2)
+  packingCharge        Decimal                  @db.Decimal(10, 2)
+  taxAmount            Decimal                  @default(0) @db.Decimal(10, 2)
+  cgstAmount           Decimal                  @default(0) @db.Decimal(10, 2)
+  sgstAmount           Decimal                  @default(0) @db.Decimal(10, 2)
+  discount             Decimal                  @default(0) @db.Decimal(10, 2)
+  preOrderDiscount     Decimal                  @default(0) @db.Decimal(10, 2)
+  grandTotal           Decimal                  @db.Decimal(10, 2)
+  packedItemCount      Int                      @default(0)
   paymentMethod        PaymentMethod
-  paymentStatus        PaymentStatus     @default(PENDING)
+  paymentStatus        PaymentStatus            @default(PENDING)
   couponId             String?
-  coupon               Coupon?           @relation(fields: [couponId], references: [id])
+  coupon               Coupon?                  @relation(fields: [couponId], references: [id])
   deliveryOtp          String?
   rejectReason         String?
   tokenNumber          Int?
-  priority             KitchenPriority @default(NORMAL)
+  priority             KitchenPriority          @default(NORMAL)
   kitchenStartedAt     DateTime?
   kitchenCompletedAt   DateTime?
   servedAt             DateTime?
   completedAt          DateTime?
-  queuePosition        Int             @default(0)
+  queuePosition        Int                      @default(0)
   items                OrderItem[]
   payment              Payment?
   posPaymentLines      PosPaymentLine[]
@@ -668,29 +672,29 @@ model Order {
   statusHistory        OrderStatusHistory[]
   kitchenLogs          KitchenLog[]
   emailNotifications   OrderEmailNotification[]
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
   @@map("orders")
 }
 
 model OrderItem {
-  id          String          @id @default(uuid())
-  orderId     String
-  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product         @relation(fields: [productId], references: [id])
-  variantId   String?
-  variant     ProductVariant? @relation(fields: [variantId], references: [id])
-  productName String
-  variantName String?
-  quantity             Int
-  unitPrice            Decimal           @db.Decimal(10, 2)
-  totalPrice           Decimal           @db.Decimal(10, 2)
-  unitPackingCharge    Decimal           @default(0) @db.Decimal(10, 2)
-  packingCharge        Decimal           @default(0) @db.Decimal(10, 2)
-  kitchenStatus        KitchenItemStatus @default(WAITING)
-  specialInstructions  String?
+  id                  String            @id @default(uuid())
+  orderId             String
+  order               Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product           @relation(fields: [productId], references: [id])
+  variantId           String?
+  variant             ProductVariant?   @relation(fields: [variantId], references: [id])
+  productName         String
+  variantName         String?
+  quantity            Int
+  unitPrice           Decimal           @db.Decimal(10, 2)
+  totalPrice          Decimal           @db.Decimal(10, 2)
+  unitPackingCharge   Decimal           @default(0) @db.Decimal(10, 2)
+  packingCharge       Decimal           @default(0) @db.Decimal(10, 2)
+  kitchenStatus       KitchenItemStatus @default(WAITING)
+  specialInstructions String?
 
   @@map("order_items")
 }
@@ -710,16 +714,16 @@ model OrderStatusHistory {
 }
 
 model KitchenStation {
-  id         String     @id @default(uuid())
+  id         String       @id @default(uuid())
   name       String
-  slug       String     @unique
+  slug       String       @unique
   icon       String?
-  sortOrder  Int        @default(0)
-  isActive   Boolean    @default(true)
+  sortOrder  Int          @default(0)
+  isActive   Boolean      @default(true)
   categories Category[]
   logs       KitchenLog[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   @@map("kitchen_stations")
 }
@@ -805,19 +809,19 @@ model PaymentMethodConfig {
 }
 
 model Coupon {
-  id             String     @id @default(uuid())
-  code           String     @unique
+  id             String       @id @default(uuid())
+  code           String       @unique
   type           CouponType
-  value          Decimal    @db.Decimal(10, 2)
-  minOrderAmount Decimal    @default(0) @db.Decimal(10, 2)
-  maxDiscount    Decimal?   @db.Decimal(10, 2)
-  isActive       Boolean    @default(true)
+  value          Decimal      @db.Decimal(10, 2)
+  minOrderAmount Decimal      @default(0) @db.Decimal(10, 2)
+  maxDiscount    Decimal?     @db.Decimal(10, 2)
+  isActive       Boolean      @default(true)
   usageLimit     Int?
-  usageCount     Int        @default(0)
+  usageCount     Int          @default(0)
   expiresAt      DateTime?
   orders         Order[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   userCoupons    UserCoupon[]
 
   @@map("coupons")
@@ -860,6 +864,7 @@ model Banner {
 model Notification {
   id        String           @id @default(uuid())
   userId    String?
+  user      User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
   body      String
@@ -867,6 +872,7 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
 
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -976,68 +982,68 @@ model DeliveryStaff {
 }
 
 model DeliveryTracking {
-  id              String                   @id @default(uuid())
-  orderId         String                   @unique
-  order           Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  deliveryStaffId String?
-  deliveryStaff   DeliveryStaff?           @relation(fields: [deliveryStaffId], references: [id])
-  status          DeliveryAssignmentStatus @default(WAITING)
-  latitude        Float?
-  longitude       Float?
-  distanceKm      Decimal?                 @db.Decimal(8, 2)
-  etaMinutes      Int?
-  deliveryNotes   String?
-  lastLocationAt DateTime?
+  id                     String                   @id @default(uuid())
+  orderId                String                   @unique
+  order                  Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deliveryStaffId        String?
+  deliveryStaff          DeliveryStaff?           @relation(fields: [deliveryStaffId], references: [id])
+  status                 DeliveryAssignmentStatus @default(WAITING)
+  latitude               Float?
+  longitude              Float?
+  distanceKm             Decimal?                 @db.Decimal(8, 2)
+  etaMinutes             Int?
+  deliveryNotes          String?
+  lastLocationAt         DateTime?
   locationAccuracyMeters Float?
-  locationSharingActive Boolean @default(false)
-  routePolyline   String?
+  locationSharingActive  Boolean                  @default(false)
+  routePolyline          String?
   nearCustomerNotifiedAt DateTime?
-  assignedAt      DateTime?
-  pickedUpAt      DateTime?
-  outForDeliveryAt DateTime?
-  deliveredAt     DateTime?
-  zoneId          String?
-  zone            DeliveryZone?            @relation(fields: [zoneId], references: [id])
-  proof           DeliveryProof?
-  rating          DeliveryRating?
-  logs            DeliveryLog[]
-  locationPoints  DeliveryLocationPoint[]
-  notes           String?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
+  assignedAt             DateTime?
+  pickedUpAt             DateTime?
+  outForDeliveryAt       DateTime?
+  deliveredAt            DateTime?
+  zoneId                 String?
+  zone                   DeliveryZone?            @relation(fields: [zoneId], references: [id])
+  proof                  DeliveryProof?
+  rating                 DeliveryRating?
+  logs                   DeliveryLog[]
+  locationPoints         DeliveryLocationPoint[]
+  notes                  String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 
   @@map("delivery_tracking")
 }
 
 model DeliveryZone {
-  id        String             @id @default(uuid())
-  name      String
-  slug      String             @unique
-  minKm     Decimal            @db.Decimal(6, 2)
-  maxKm     Decimal            @db.Decimal(6, 2)
-  charge    Decimal            @db.Decimal(10, 2)
-  minimumOrderAmount Decimal?   @db.Decimal(10, 2)
+  id                       String             @id @default(uuid())
+  name                     String
+  slug                     String             @unique
+  minKm                    Decimal            @db.Decimal(6, 2)
+  maxKm                    Decimal            @db.Decimal(6, 2)
+  charge                   Decimal            @db.Decimal(10, 2)
+  minimumOrderAmount       Decimal?           @db.Decimal(10, 2)
   estimatedDeliveryMinutes Int?
-  polygon   Json?
-  isActive  Boolean            @default(true)
-  sortOrder Int                @default(0)
-  tracking  DeliveryTracking[]
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  polygon                  Json?
+  isActive                 Boolean            @default(true)
+  sortOrder                Int                @default(0)
+  tracking                 DeliveryTracking[]
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
   @@map("delivery_zones")
 }
 
 model DeliveryProof {
-  id            String           @id @default(uuid())
-  trackingId    String           @unique
-  tracking      DeliveryTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  signatureUrl  String?
-  photoUrl      String?
-  otpVerified   Boolean          @default(false)
-  qrVerified    Boolean          @default(false)
-  verifiedAt    DateTime?
-  createdAt     DateTime         @default(now())
+  id           String           @id @default(uuid())
+  trackingId   String           @unique
+  tracking     DeliveryTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  signatureUrl String?
+  photoUrl     String?
+  otpVerified  Boolean          @default(false)
+  qrVerified   Boolean          @default(false)
+  verifiedAt   DateTime?
+  createdAt    DateTime         @default(now())
 
   @@map("delivery_proofs")
 }
@@ -1059,13 +1065,13 @@ model DeliveryLog {
 }
 
 model DeliveryLocationPoint {
-  id              String           @id @default(uuid())
-  trackingId      String
-  tracking        DeliveryTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
-  latitude        Float
-  longitude       Float
-  accuracyMeters  Float?
-  recordedAt      DateTime         @default(now())
+  id             String           @id @default(uuid())
+  trackingId     String
+  tracking       DeliveryTracking @relation(fields: [trackingId], references: [id], onDelete: Cascade)
+  latitude       Float
+  longitude      Float
+  accuracyMeters Float?
+  recordedAt     DateTime         @default(now())
 
   @@index([trackingId, recordedAt])
   @@map("delivery_location_points")
@@ -1086,62 +1092,62 @@ model DeliveryRating {
 }
 
 model BusinessSettings {
-  id                      String   @id @default(uuid())
-  businessName            String   @default("Mercy Dosa House")
-  tagline                 String   @default("Freshly Made. Delivered with Love.")
-  phone                   String?
-  whatsapp                String?
-  email                   String?
-  address                 String?
-  deliveryCharge          Decimal  @default(30) @db.Decimal(10, 2)
-  packingCharge           Decimal  @default(10) @db.Decimal(10, 2)
-  minOrderAmount          Decimal  @default(100) @db.Decimal(10, 2)
-  freeDeliveryLimit       Decimal  @default(299) @db.Decimal(10, 2)
-  deliveryRadiusKm        Decimal  @default(10) @db.Decimal(10, 2)
-  estimatedDeliveryMinutes Int     @default(30)
-  openingHours            String?
-  deliveryHours           String?
-  upiId                   String?
-  upiQrUrl                String?
-  googleMapsEmbed         String?
-  socialLinks             Json?
-  footerCopyright         String?
-  announcementBar         String?
-  orderSequence           Int      @default(0)
-  orderYear               Int      @default(2026)
-  gstNumber               String?
-  websiteUrl              String?
-  receiptShowLogo         Boolean  @default(true)
-  receiptShowQr           Boolean  @default(true)
-  receiptShowGst          Boolean  @default(true)
-  receiptShowAddress      Boolean  @default(true)
-  receiptShowCustomer     Boolean  @default(true)
-  receiptShowCashier      Boolean  @default(true)
-  receiptShowPayment      Boolean  @default(true)
-  receiptFooterMessage    String?
-  receiptFontSize         String   @default("normal")
-  receiptPaperWidth       String   @default("80mm")
-  receiptCopies           Int      @default(1)
-  receiptAutoPrintPayment Boolean  @default(false)
-  receiptAutoPrintKot     Boolean  @default(false)
-  preOrderDiscountPct     Int      @default(10)
-  preOrderMinDaysAhead    Int      @default(1)
-  preOrderStackWithCoupons Boolean @default(false)
-  storeOpen               Boolean  @default(true)
-  storeClosedMessage      String?
-  storeReopenMessage      String?
-  storeClosedReason       String?
-  storeStatusChangedAt    DateTime?
-  storeStatusChangedById  String?
-  operatingSchedule       Json?
+  id                       String    @id @default(uuid())
+  businessName             String    @default("Mercy Dosa House")
+  tagline                  String    @default("Freshly Made. Delivered with Love.")
+  phone                    String?
+  whatsapp                 String?
+  email                    String?
+  address                  String?
+  deliveryCharge           Decimal   @default(30) @db.Decimal(10, 2)
+  packingCharge            Decimal   @default(10) @db.Decimal(10, 2)
+  minOrderAmount           Decimal   @default(100) @db.Decimal(10, 2)
+  freeDeliveryLimit        Decimal   @default(299) @db.Decimal(10, 2)
+  deliveryRadiusKm         Decimal   @default(10) @db.Decimal(10, 2)
+  estimatedDeliveryMinutes Int       @default(30)
+  openingHours             String?
+  deliveryHours            String?
+  upiId                    String?
+  upiQrUrl                 String?
+  googleMapsEmbed          String?
+  socialLinks              Json?
+  footerCopyright          String?
+  announcementBar          String?
+  orderSequence            Int       @default(0)
+  orderYear                Int       @default(2026)
+  gstNumber                String?
+  websiteUrl               String?
+  receiptShowLogo          Boolean   @default(true)
+  receiptShowQr            Boolean   @default(true)
+  receiptShowGst           Boolean   @default(true)
+  receiptShowAddress       Boolean   @default(true)
+  receiptShowCustomer      Boolean   @default(true)
+  receiptShowCashier       Boolean   @default(true)
+  receiptShowPayment       Boolean   @default(true)
+  receiptFooterMessage     String?
+  receiptFontSize          String    @default("normal")
+  receiptPaperWidth        String    @default("80mm")
+  receiptCopies            Int       @default(1)
+  receiptAutoPrintPayment  Boolean   @default(false)
+  receiptAutoPrintKot      Boolean   @default(false)
+  preOrderDiscountPct      Int       @default(10)
+  preOrderMinDaysAhead     Int       @default(1)
+  preOrderStackWithCoupons Boolean   @default(false)
+  storeOpen                Boolean   @default(true)
+  storeClosedMessage       String?
+  storeReopenMessage       String?
+  storeClosedReason        String?
+  storeStatusChangedAt     DateTime?
+  storeStatusChangedById   String?
+  operatingSchedule        Json?
   /// Remote defaults for admin Android new-order push (roles, master enable, sound)
-  staffPushConfig         Json?
+  staffPushConfig          Json?
   /// Customer auth toggles: email OTP, Google, mobile OTP, guest, OTP timings
-  authConfig              Json?
+  authConfig               Json?
   /// Customer/admin push templates and per-status toggles
-  notificationConfig      Json?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  notificationConfig       Json?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   @@map("business_settings")
 }
@@ -1156,19 +1162,33 @@ model DeviceToken {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, token])
+  @@unique([token])
   @@map("device_tokens")
 }
 
 model PushDispatch {
-  id        String   @id @default(uuid())
-  dedupeKey String   @unique
-  createdAt DateTime @default(now())
+  id               String    @id @default(uuid())
+  dedupeKey        String    @unique
+  orderId          String?
+  previousStatus   String?
+  newStatus        String?
+  notificationType String?
+  notificationId   String?
+  deliveryStatus   String    @default("PENDING")
+  lastError        String?
+  attempts         Int       @default(0)
+  sentAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([deliveryStatus, createdAt])
 
   @@map("push_dispatches")
 }
 
 model AuditLog {
-  id          String            @id @default(uuid())
+  id          String             @id @default(uuid())
   userId      String?
   userName    String?
   userRole    String?
@@ -1176,8 +1196,8 @@ model AuditLog {
   entity      String
   entityId    String?
   description String?
-  severity    ActivitySeverity  @default(INFO)
-  status      String            @default("SUCCESS")
+  severity    ActivitySeverity   @default(INFO)
+  status      String             @default("SUCCESS")
   oldValue    Json?
   newValue    Json?
   metadata    Json?
@@ -1188,7 +1208,7 @@ model AuditLog {
   location    String?
   sessionId   String?
   durationMs  Int?
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime           @default(now())
   detail      ActivityLogDetail?
 
   @@index([createdAt])
@@ -1232,17 +1252,17 @@ model LoginHistory {
 }
 
 model UserSession {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  sessionId    String   @unique
+  sessionId    String    @unique
   ipAddress    String?
   device       String?
   browser      String?
   location     String?
-  lastActiveAt DateTime @default(now())
+  lastActiveAt DateTime  @default(now())
   expiresAt    DateTime?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
 
   @@index([userId])
   @@map("user_sessions")
@@ -1365,68 +1385,77 @@ model Faq {
 }
 
 model Announcement {
-  id                 String                    @id @default(uuid())
-  title              String
-  message            String
-  shortMessage       String?
-  type               AnnouncementType          @default(BAR)
-  linkUrl            String?
-  icon               String?
-  bannerImageUrl     String?
-  heroBannerImageUrl String?
-  ctaText            String?
-  ctaUrl             String?
-  dailyStartTime     String?
-  dailyEndTime       String?
-  status             ContentStatus             @default(DRAFT)
-  priorityLevel      AnnouncementPriorityLevel @default(GENERAL)
-  priority           Int                       @default(0)
-  sortOrder          Int                       @default(0)
-  dismissible        Boolean                   @default(true)
-  mandatory          Boolean                   @default(false)
-  platform           AnnouncementPlatform      @default(BOTH)
-  placements         String[]                  @default([])
-  orderTypes         String[]                  @default(["ALL"])
-  popupFrequency     PopupFrequency?
-  startsAt           DateTime?
-  endsAt             DateTime?
-  publishedAt        DateTime?
-  isActive           Boolean                   @default(true)
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-  analytics          AnnouncementAnalytics?
-  dismissals         AnnouncementDismissal[]
+  id                         String                    @id @default(uuid())
+  title                      String
+  message                    String
+  shortMessage               String?
+  type                       AnnouncementType          @default(BAR)
+  linkUrl                    String?
+  icon                       String?
+  bannerImageUrl             String?
+  heroBannerImageUrl         String?
+  ctaText                    String?
+  ctaUrl                     String?
+  dailyStartTime             String?
+  dailyEndTime               String?
+  status                     ContentStatus             @default(DRAFT)
+  priorityLevel              AnnouncementPriorityLevel @default(GENERAL)
+  priority                   Int                       @default(0)
+  sortOrder                  Int                       @default(0)
+  dismissible                Boolean                   @default(true)
+  mandatory                  Boolean                   @default(false)
+  platform                   AnnouncementPlatform      @default(BOTH)
+  placements                 String[]                  @default([])
+  orderTypes                 String[]                  @default(["ALL"])
+  popupFrequency             PopupFrequency?
+  startsAt                   DateTime?
+  endsAt                     DateTime?
+  publishedAt                DateTime?
+  promotionProductId         String?
+  promotionProduct           Product?                  @relation("AnnouncementPromotionProduct", fields: [promotionProductId], references: [id], onDelete: SetNull)
+  promotionDayOfWeek         Int?
+  promotionReadyTime         String?
+  promotionPreOrderRequired  Boolean                   @default(false)
+  promotionPreOrderCutoffDay Int?
+  promotionQuantityLimit     Int?
+  promotionWebsiteEnabled    Boolean                   @default(true)
+  promotionAndroidEnabled    Boolean                   @default(true)
+  isActive                   Boolean                   @default(true)
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  analytics                  AnnouncementAnalytics?
+  dismissals                 AnnouncementDismissal[]
 
   @@map("announcements")
 }
 
 model DeliveryConfig {
-  id                    String                     @id @default(uuid())
-  status                DeliveryAvailabilityStatus @default(LIMITED_AREA)
-  areas                 String[]                   @default([])
-  pincodes              String[]                   @default([])
-  orderStartTime        String?
-  orderEndTime          String?
-  deliveryStartTime     String?
-  deliveryEndTime       String?
-  deliveryCharge        Decimal?                   @db.Decimal(10, 2)
-  freeDeliveryThreshold Decimal?                   @db.Decimal(10, 2)
-  minOrderAmount        Decimal?                   @db.Decimal(10, 2)
-  message               String?
-  expansionMessage      String?
-  trackingEnabled       Boolean                    @default(true)
-  customerTrackingEnabled Boolean                  @default(true)
-  deliveryRadiusKm      Decimal?                   @db.Decimal(6, 2)
-  locationUpdateIntervalSeconds Int                 @default(10)
-  locationMinDistanceMeters Int                    @default(25)
-  locationHistoryRetentionDays Int                 @default(30)
-  mapProvider           String                     @default("google")
-  etaEnabled            Boolean                    @default(true)
-  nearCustomerEnabled   Boolean                    @default(false)
-  nearCustomerThresholdMeters Int                  @default(500)
-  isActive              Boolean                    @default(true)
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
+  id                            String                     @id @default(uuid())
+  status                        DeliveryAvailabilityStatus @default(LIMITED_AREA)
+  areas                         String[]                   @default([])
+  pincodes                      String[]                   @default([])
+  orderStartTime                String?
+  orderEndTime                  String?
+  deliveryStartTime             String?
+  deliveryEndTime               String?
+  deliveryCharge                Decimal?                   @db.Decimal(10, 2)
+  freeDeliveryThreshold         Decimal?                   @db.Decimal(10, 2)
+  minOrderAmount                Decimal?                   @db.Decimal(10, 2)
+  message                       String?
+  expansionMessage              String?
+  trackingEnabled               Boolean                    @default(true)
+  customerTrackingEnabled       Boolean                    @default(true)
+  deliveryRadiusKm              Decimal?                   @db.Decimal(6, 2)
+  locationUpdateIntervalSeconds Int                        @default(10)
+  locationMinDistanceMeters     Int                        @default(25)
+  locationHistoryRetentionDays  Int                        @default(30)
+  mapProvider                   String                     @default("google")
+  etaEnabled                    Boolean                    @default(true)
+  nearCustomerEnabled           Boolean                    @default(false)
+  nearCustomerThresholdMeters   Int                        @default(500)
+  isActive                      Boolean                    @default(true)
+  createdAt                     DateTime                   @default(now())
+  updatedAt                     DateTime                   @updatedAt
 
   @@map("delivery_config")
 }
@@ -1646,24 +1675,24 @@ model InventoryCategory {
 }
 
 model InventoryLocation {
-  id             String          @id @default(uuid())
-  name           String
-  slug           String          @unique
-  branchId       String?
-  branch         Branch?         @relation(fields: [branchId], references: [id])
-  isActive       Boolean         @default(true)
-  items          InventoryItem[]
-  batches        InventoryBatch[]
-  transfersFrom  StockTransfer[] @relation("TransferFrom")
-  transfersTo    StockTransfer[] @relation("TransferTo")
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id            String           @id @default(uuid())
+  name          String
+  slug          String           @unique
+  branchId      String?
+  branch        Branch?          @relation(fields: [branchId], references: [id])
+  isActive      Boolean          @default(true)
+  items         InventoryItem[]
+  batches       InventoryBatch[]
+  transfersFrom StockTransfer[]  @relation("TransferFrom")
+  transfersTo   StockTransfer[]  @relation("TransferTo")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@map("inventory_locations")
 }
 
 model Supplier {
-  id                 String          @id @default(uuid())
+  id                 String           @id @default(uuid())
   name               String
   contactPerson      String?
   phone              String?
@@ -1671,69 +1700,69 @@ model Supplier {
   gstNumber          String?
   address            String?
   paymentTerms       String?
-  outstandingBalance Decimal         @default(0) @db.Decimal(12, 2)
-  isActive           Boolean         @default(true)
+  outstandingBalance Decimal          @default(0) @db.Decimal(12, 2)
+  isActive           Boolean          @default(true)
   items              InventoryItem[]
   purchaseOrders     PurchaseOrder[]
   batches            InventoryBatch[]
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@map("suppliers")
 }
 
 model InventoryItem {
-  id              String              @id @default(uuid())
-  name            String
-  sku             String              @unique
-  barcode         String?
-  categoryId      String
-  category        InventoryCategory   @relation(fields: [categoryId], references: [id])
-  unit            InventoryUnit
-  currentStock    Decimal             @default(0) @db.Decimal(12, 3)
-  reservedStock   Decimal             @default(0) @db.Decimal(12, 3)
-  minStock        Decimal             @default(0) @db.Decimal(12, 3)
-  maxStock        Decimal             @default(0) @db.Decimal(12, 3)
-  costPrice       Decimal             @default(0) @db.Decimal(10, 2)
-  averageCost     Decimal             @default(0) @db.Decimal(10, 2)
-  supplierId      String?
-  supplier        Supplier?           @relation(fields: [supplierId], references: [id])
-  locationId      String?
-  location        InventoryLocation?    @relation(fields: [locationId], references: [id])
-  expiryTracking  Boolean             @default(false)
-  status          InventoryItemStatus @default(IN_STOCK)
-  isActive        Boolean             @default(true)
-  batches         InventoryBatch[]
-  movements       StockMovement[]
-  adjustments     StockAdjustment[]
-  recipeItems     RecipeItem[]
-  consumptions    InventoryConsumption[]
-  wastes          InventoryWaste[]
-  purchaseItems   PurchaseOrderItem[]
-  grnItems        GrnItem[]
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id             String                 @id @default(uuid())
+  name           String
+  sku            String                 @unique
+  barcode        String?
+  categoryId     String
+  category       InventoryCategory      @relation(fields: [categoryId], references: [id])
+  unit           InventoryUnit
+  currentStock   Decimal                @default(0) @db.Decimal(12, 3)
+  reservedStock  Decimal                @default(0) @db.Decimal(12, 3)
+  minStock       Decimal                @default(0) @db.Decimal(12, 3)
+  maxStock       Decimal                @default(0) @db.Decimal(12, 3)
+  costPrice      Decimal                @default(0) @db.Decimal(10, 2)
+  averageCost    Decimal                @default(0) @db.Decimal(10, 2)
+  supplierId     String?
+  supplier       Supplier?              @relation(fields: [supplierId], references: [id])
+  locationId     String?
+  location       InventoryLocation?     @relation(fields: [locationId], references: [id])
+  expiryTracking Boolean                @default(false)
+  status         InventoryItemStatus    @default(IN_STOCK)
+  isActive       Boolean                @default(true)
+  batches        InventoryBatch[]
+  movements      StockMovement[]
+  adjustments    StockAdjustment[]
+  recipeItems    RecipeItem[]
+  consumptions   InventoryConsumption[]
+  wastes         InventoryWaste[]
+  purchaseItems  PurchaseOrderItem[]
+  grnItems       GrnItem[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   @@map("inventory_items")
 }
 
 model InventoryBatch {
-  id             String            @id @default(uuid())
-  itemId         String
-  item           InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  batchNumber    String
-  purchaseDate   DateTime          @default(now())
-  expiryDate     DateTime?
-  mfgDate        DateTime?
-  quantity       Decimal           @db.Decimal(12, 3)
-  remainingQty   Decimal           @db.Decimal(12, 3)
-  costPrice      Decimal           @default(0) @db.Decimal(10, 2)
-  supplierId     String?
-  supplier       Supplier?         @relation(fields: [supplierId], references: [id])
-  locationId     String?
-  location       InventoryLocation? @relation(fields: [locationId], references: [id])
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id           String             @id @default(uuid())
+  itemId       String
+  item         InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  batchNumber  String
+  purchaseDate DateTime           @default(now())
+  expiryDate   DateTime?
+  mfgDate      DateTime?
+  quantity     Decimal            @db.Decimal(12, 3)
+  remainingQty Decimal            @db.Decimal(12, 3)
+  costPrice    Decimal            @default(0) @db.Decimal(10, 2)
+  supplierId   String?
+  supplier     Supplier?          @relation(fields: [supplierId], references: [id])
+  locationId   String?
+  location     InventoryLocation? @relation(fields: [locationId], references: [id])
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@map("inventory_batches")
 }
@@ -1988,17 +2017,17 @@ model PosSession {
 }
 
 model PosHoldBill {
-  id          String      @id @default(uuid())
+  id          String     @id @default(uuid())
   sessionId   String
-  session     PosSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session     PosSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   tableId     String?
-  table       PosTable?   @relation(fields: [tableId], references: [id])
+  table       PosTable?  @relation(fields: [tableId], references: [id])
   orderId     String?
   payloadJson Json
   label       String?
   expiresAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@map("pos_hold_bills")
 }
@@ -2042,12 +2071,12 @@ model PosCashTransaction {
 }
 
 model PosOfflineQueue {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   terminalId  String
   payloadJson Json
-  status      String   @default("PENDING")
+  status      String    @default("PENDING")
   syncedAt    DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@map("pos_offline_queue")
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ComponentType } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import {
@@ -13,9 +14,10 @@ import {
   View,
 } from 'react-native';
 import * as Location from 'expo-location';
-import MapView, { Marker } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { PaymentMethod } from '@mdh/types';
 import type { AddressDto, CheckoutProfileDto, OrderDto } from '@mdh/types';
+import { buildOsmMapHtml } from '@mdh/mobile-shared';
 import { STORE_CLOSED_ORDER_MESSAGE } from '@/lib/mobile-messages';
 import { DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
 import { formatCurrency, getScheduleDateOptions, firstPreOrderDate } from '@mdh/utils';
@@ -25,6 +27,8 @@ import { useCartStore } from '@/stores/cart-store';
 import { useCheckoutStore } from '@/stores/checkout-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
 import { useAppConfig, useFeatureFlag, useThemeColors } from '@/providers/config-context';
+
+const OSMWebView = WebView as unknown as ComponentType<any>;
 
 type AvailableCoupon = {
   code: string;
@@ -577,25 +581,43 @@ function GuestAddressForm() {
         </Text>
       </Pressable>
       {draft.latitude != null && draft.longitude != null ? (
-        <MapView
-          style={styles.checkoutMap}
-          initialRegion={{
-            latitude: draft.latitude,
-            longitude: draft.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+        <OSMWebView
+          originWhitelist={['*']}
+          source={{
+            html: buildOsmMapHtml({
+              points: [
+                {
+                  id: 'delivery',
+                  latitude: draft.latitude,
+                  longitude: draft.longitude,
+                  label: 'Delivery location',
+                  type: 'customer',
+                },
+              ],
+              interactive: true,
+            }),
           }}
-        >
-          <Marker
-            coordinate={{ latitude: draft.latitude, longitude: draft.longitude }}
-            draggable
-            onDragEnd={(event) => {
-              const { latitude, longitude } = event.nativeEvent.coordinate;
-              update({ latitude, longitude });
-            }}
-            title="Delivery location"
-          />
-        </MapView>
+          javaScriptEnabled
+          onMessage={(event: { nativeEvent: { data: string } }) => {
+            try {
+              const message = JSON.parse(event.nativeEvent.data) as {
+                type?: string;
+                latitude?: number;
+                longitude?: number;
+              };
+              if (
+                message.type === 'location' &&
+                Number.isFinite(message.latitude) &&
+                Number.isFinite(message.longitude)
+              ) {
+                update({ latitude: message.latitude, longitude: message.longitude });
+              }
+            } catch {
+              // Ignore malformed WebView messages.
+            }
+          }}
+          style={styles.checkoutMap}
+        />
       ) : null}
       <TextInput
         style={styles.input}

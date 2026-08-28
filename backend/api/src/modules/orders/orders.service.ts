@@ -6,13 +6,21 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
+  ContentStatus,
   DeliveryAssignmentStatus,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
   TrackingStatus,
 } from '@prisma/client';
-import { calculatePreOrderDiscount, calculateDeliveryCharge, isPreOrderEligible } from '@mdh/utils';
+import {
+  calculatePreOrderDiscount,
+  calculateDeliveryCharge,
+  isPreOrderEligible,
+  isPromotionScheduleMatch,
+  formatPromotionTime,
+  toCalendarDayKey,
+} from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from './orders.gateway';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
@@ -293,6 +301,89 @@ export class OrdersService implements OnModuleInit {
       throw new BadRequestException('Some products are unavailable');
     }
 
+    const preOrderProducts = products.filter((product) => product.isPreOrder);
+    const now = new Date();
+    if (
+      preOrderProducts.some(
+        () =>
+          !data.scheduledDeliveryAt ||
+          !isPreOrderEligible(data.scheduledDeliveryAt, now, {
+            minDaysAhead: 1,
+          }),
+      )
+    ) {
+      throw new BadRequestException(
+        'This pre-order item requires a scheduled delivery at least one day in advance.',
+      );
+    }
+
+    const promotion = preOrderProducts.length
+      ? await this.prisma.announcement.findFirst({
+          where: {
+            promotionProductId: { in: preOrderProducts.map((product) => product.id) },
+            promotionPreOrderRequired: true,
+            isActive: true,
+            status: ContentStatus.PUBLISHED,
+            OR: [{ startsAt: null }, { startsAt: { lte: now } }],
+            AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+          },
+          orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+        })
+      : null;
+
+    if (promotion) {
+      if (!data.scheduledDeliveryAt) {
+        throw new BadRequestException(
+          `Select the next available promotion day at ${formatPromotionTime(promotion.promotionReadyTime)}.`,
+        );
+      }
+      if (
+        promotion.promotionDayOfWeek == null ||
+        !promotion.promotionReadyTime ||
+        !isPromotionScheduleMatch(
+          data.scheduledDeliveryAt,
+          {
+            dayOfWeek: promotion.promotionDayOfWeek,
+            readyTime: promotion.promotionReadyTime,
+            preOrderRequired: promotion.promotionPreOrderRequired,
+            preOrderCutoffDay: promotion.promotionPreOrderCutoffDay,
+          },
+          now,
+        )
+      ) {
+        throw new BadRequestException(
+          `This promotion is available only on its configured day at ${promotion.promotionReadyTime ?? 'the configured time'}.`,
+        );
+      }
+      if (promotion.promotionQuantityLimit != null) {
+        const dateKey = toCalendarDayKey(data.scheduledDeliveryAt);
+        const start = new Date(`${dateKey}T00:00:00+05:30`);
+        const end = new Date(`${dateKey}T00:00:00+05:30`);
+        end.setUTCDate(end.getUTCDate() + 1);
+        const booked = await this.prisma.orderItem.aggregate({
+          where: {
+            productId: promotion.promotionProductId!,
+            order: {
+              status: { not: OrderStatus.CANCELLED },
+              scheduledDeliveryAt: { gte: start, lt: end },
+            },
+          },
+          _sum: { quantity: true },
+        });
+        const requested = data.items
+          .filter((item) => item.productId === promotion.promotionProductId)
+          .reduce((total, item) => total + item.quantity, 0);
+        const remaining = promotion.promotionQuantityLimit - (booked._sum.quantity ?? 0);
+        if (requested > remaining) {
+          throw new BadRequestException(
+            remaining > 0
+              ? `Only ${remaining} promotion portions remain for this Sunday.`
+              : 'This Sunday promotion is sold out. Please choose the next available Sunday.',
+          );
+        }
+      }
+    }
+
     let subtotal = 0;
     let packingCharge = 0;
     let packedItemCount = 0;
@@ -570,11 +661,18 @@ export class OrdersService implements OnModuleInit {
       trackingStatus: options?.trackingStatus,
       message: this.statusMessage(status),
     });
-    void this.notificationsService.notifyCustomerStatus(id, status);
+    void this.notificationsService.notifyCustomerStatus(id, status, {
+      previousStatus: existing.status,
+      reason: options?.remarks,
+    });
     return this.findOne(order.id);
   }
 
   async rejectOrder(id: string, reason: string, updatedById?: string) {
+    const previousOrder = await this.prisma.order.findUnique({
+      where: { id },
+      select: { status: true },
+    });
     const order = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException('Order not found');
@@ -609,7 +707,10 @@ export class OrdersService implements OnModuleInit {
       status: OrderStatus.CANCELLED,
       message: `Unfortunately your order was cancelled. Reason: ${reason}`,
     });
-    void this.notificationsService.notifyCustomerStatus(id, OrderStatus.CANCELLED);
+    void this.notificationsService.notifyCustomerStatus(id, OrderStatus.CANCELLED, {
+      previousStatus: previousOrder?.status,
+      reason,
+    });
     return this.findOne(order.id);
   }
 

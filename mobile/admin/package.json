@@ -10,13 +10,14 @@
     "build:android": "eas build --platform android --profile testing",
     "build:android:production": "eas build --platform android --profile production --non-interactive",
     "submit:android": "eas submit --platform android --profile production --latest",
-    "eas-build-post-install": "cd ../.. && pnpm --filter @mdh/types build && pnpm --filter @mdh/utils build",
+    "eas-build-post-install": "cd ../.. && pnpm --filter @mdh/types build && pnpm --filter @mdh/utils build && pnpm --filter @mdh/mobile-shared build",
     "typecheck": "tsc -p tsconfig.json --noEmit --skipLibCheck 2>nul || exit 0",
     "lint": "echo ok"
   },
   "dependencies": {
     "@babel/runtime": "^7.26.0",
     "@expo/metro-runtime": "~5.0.5",
+    "@mdh/mobile-shared": "workspace:*",
     "@mdh/types": "workspace:*",
     "@mdh/utils": "workspace:*",
     "@react-native-async-storage/async-storage": "2.1.2",
@@ -41,9 +42,9 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.6",
     "react-native-gesture-handler": "~2.24.0",
-    "react-native-maps": "^1.20.1",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
+    "react-native-webview": "^14.0.1",
     "socket.io-client": "^4.8.1",
     "zustand": "^5.0.5"
   },

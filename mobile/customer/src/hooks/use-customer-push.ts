@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth-storage';
+import { getAccessToken, storePushToken } from '@/lib/auth-storage';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -25,7 +25,8 @@ type OrderPushData = {
 async function ensureCustomerChannel() {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('order_updates', {
-    name: 'Order updates',
+    name: 'Mercy Dosa House — Order Updates',
+    description: 'Live updates about your Mercy Dosa House orders.',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 150, 250],
     sound: 'default',
@@ -42,6 +43,7 @@ function getProjectId(): string | undefined {
 export function useCustomerPush() {
   const router = useRouter();
   const handledLaunch = useRef(false);
+  const registeredAuthToken = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,9 +56,9 @@ export function useCustomerPush() {
       }
     };
 
-    (async () => {
+    const registerDevice = async () => {
       const token = await getAccessToken();
-      if (!token || cancelled) return;
+      if (!token || cancelled || registeredAuthToken.current === token) return;
       try {
         await ensureCustomerChannel();
         const { status: existing } = await Notifications.getPermissionsAsync();
@@ -67,18 +69,40 @@ export function useCustomerPush() {
         }
         if (status !== 'granted' || cancelled) return;
         const projectId = getProjectId();
-        const tokenData = projectId
-          ? await Notifications.getExpoPushTokenAsync({ projectId })
-          : await Notifications.getExpoPushTokenAsync();
+        const tokenData =
+          Platform.OS === 'android'
+            ? await Notifications.getDevicePushTokenAsync()
+            : projectId
+              ? await Notifications.getExpoPushTokenAsync({ projectId })
+              : await Notifications.getExpoPushTokenAsync();
         if (!tokenData.data || cancelled) return;
         await api.post('/notifications/device-token', {
           token: tokenData.data,
           platform: Platform.OS,
         });
+        registeredAuthToken.current = token;
+        await storePushToken(tokenData.data);
       } catch {
         /* emulator / permission */
       }
-    })();
+    };
+
+    void registerDevice();
+    const authPoll = setInterval(() => void registerDevice(), 5000);
+    const tokenSubscription = Notifications.addPushTokenListener((tokenData) => {
+      if (cancelled || Platform.OS !== 'android' || !tokenData.data) return;
+      void getAccessToken()
+        .then(async (accessToken) => {
+          if (!accessToken) return;
+          await api.post('/notifications/device-token', {
+            token: tokenData.data,
+            platform: Platform.OS,
+          });
+          registeredAuthToken.current = accessToken;
+          await storePushToken(tokenData.data);
+        })
+        .catch(() => undefined);
+    });
 
     subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
       openOrder((response.notification.request.content.data ?? {}) as OrderPushData);
@@ -96,6 +120,8 @@ export function useCustomerPush() {
 
     return () => {
       cancelled = true;
+      clearInterval(authPoll);
+      tokenSubscription.remove();
       subResponse?.remove();
       subReceived?.remove();
     };

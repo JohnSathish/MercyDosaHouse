@@ -20,6 +20,8 @@ const STATUS_ROWS = [
   { key: 'ACCEPTED', label: 'Order Confirmed' },
   { key: 'PREPARING', label: 'Preparing' },
   { key: 'READY', label: 'Ready' },
+  { key: 'ASSIGNED', label: 'Delivery Partner Assigned' },
+  { key: 'PICKED_UP', label: 'Order Picked Up' },
   { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery' },
   { key: 'DELIVERED', label: 'Delivered' },
   { key: 'CANCELLED', label: 'Cancelled' },
@@ -94,7 +96,7 @@ export function PushTemplatesPanel() {
           }}
         />
         <p className="text-xs text-muted-foreground">
-          Placeholders: {'{{ORDER_NUMBER}}'} {'{{AMOUNT}}'}
+          Placeholders: {'{{ORDER_NUMBER}}'} {'{{AMOUNT}}'} {'{{REASON}}'}
         </p>
       </div>
 

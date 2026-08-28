@@ -11,7 +11,13 @@ import type {
   OtpVerifyRequest,
 } from '@mdh/types';
 import { API_URL } from './constants';
-import { clearAuth, getRefreshToken, storeAuth } from './auth-storage';
+import {
+  clearAuth,
+  getAccessToken,
+  getRefreshToken,
+  getStoredPushToken,
+  storeAuth,
+} from './auth-storage';
 
 async function readError(res: Response, fallback: string): Promise<string> {
   const data = await res.json().catch(() => ({}));
@@ -122,6 +128,14 @@ export async function refreshTokens(): Promise<AuthTokens | null> {
 
 export async function logout(): Promise<void> {
   const refreshToken = await getRefreshToken();
+  const pushToken = await getStoredPushToken();
+  if (pushToken) {
+    await fetch(`${API_URL}/notifications/device-token/remove`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      body: JSON.stringify({ token: pushToken }),
+    }).catch(() => undefined);
+  }
   if (refreshToken) {
     await fetch(`${API_URL}/auth/logout`, {
       method: 'POST',
@@ -130,4 +144,9 @@ export async function logout(): Promise<void> {
     }).catch(() => undefined);
   }
   await clearAuth();
+}
+
+async function authHeader(): Promise<Record<string, string>> {
+  const accessToken = await getAccessToken();
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }

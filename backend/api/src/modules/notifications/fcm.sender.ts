@@ -22,16 +22,18 @@ export class FcmSender {
       sound?: string | null;
       collapseId?: string;
     },
-  ): Promise<string[]> {
+  ): Promise<{ invalid: string[]; sent: number; failed: number }> {
     const unique = [...new Set(tokens.filter(Boolean))];
-    if (!unique.length) return [];
+    if (!unique.length) return { invalid: [], sent: 0, failed: 0 };
     const account = this.readServiceAccount();
-    if (!account) return [];
+    if (!account) return { invalid: [], sent: 0, failed: unique.length };
 
     const accessToken = await this.accessToken(account);
-    if (!accessToken) return [];
+    if (!accessToken) return { invalid: [], sent: 0, failed: unique.length };
 
     const invalid: string[] = [];
+    let sent = 0;
+    let failed = 0;
     const data = Object.fromEntries(
       Object.entries(message.data ?? {}).map(([k, v]) => [k, String(v ?? '')]),
     );
@@ -65,18 +67,22 @@ export class FcmSender {
           },
         );
         if (!res.ok) {
+          failed += 1;
           const text = await res.text().catch(() => '');
           if (res.status === 404 || text.includes('UNREGISTERED') || text.includes('NOT_FOUND')) {
             invalid.push(token);
           } else {
             this.logger.warn(`FCM HTTP ${res.status}`);
           }
+        } else {
+          sent += 1;
         }
       } catch (err) {
+        failed += 1;
         this.logger.warn(`FCM send failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    return invalid;
+    return { invalid, sent, failed };
   }
 
   private readServiceAccount(): {

@@ -6,6 +6,8 @@ export type StorageAdapter = {
   removeItem(key: string): Promise<void> | void;
 };
 
+export { buildOsmMapHtml, type OsmMapHtmlOptions, type OsmMapPoint } from './osm-map';
+
 export interface MobileConfigStoreOptions {
   apiBaseUrl: string;
   storage: StorageAdapter;

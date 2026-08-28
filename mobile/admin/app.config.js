@@ -25,9 +25,7 @@ module.exports = ({ config }) => ({
       backgroundColor: '#14532D',
     },
     package: 'com.mercydosahouse.admin',
-    ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-      ? { config: { googleMaps: { apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY } } }
-      : {}),
+    googleServicesFile: './google-services.json',
     versionCode: 5,
     permissions: [
       'INTERNET',

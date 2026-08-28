@@ -46,7 +46,7 @@ export default function DeliveryPage() {
 
   const openMaps = (address: string) => {
     window.open(
-      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+      `https://www.openstreetmap.org/search?query=${encodeURIComponent(address)}`,
       '_blank',
     );
   };

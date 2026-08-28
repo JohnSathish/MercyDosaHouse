@@ -16,6 +16,7 @@ import { OrdersGateway } from '../orders/orders.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RoutingService } from './routing.service';
 import { isValidOrderStatusTransition } from '../orders/order-status-transitions';
+import { toCalendarDayKey } from '@mdh/utils';
 
 const orderInclude = {
   items: true,
@@ -136,8 +137,9 @@ export class DeliveryService {
   }
 
   async getDashboard(userId?: string, roles: string[] = []) {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(`${toCalendarDayKey(new Date())}T00:00:00+05:30`);
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
     if (userId && roles.includes('DELIVERY_STAFF')) {
       return this.getAgentDashboard(userId, todayStart);
     }
@@ -159,10 +161,18 @@ export class DeliveryService {
         where: { status: DeliveryAssignmentStatus.OUT_FOR_DELIVERY },
       }),
       this.prisma.order.count({
-        where: { status: OrderStatus.DELIVERED, updatedAt: { gte: todayStart } },
+        where: {
+          status: OrderStatus.DELIVERED,
+          deliveryTracking: { deliveredAt: { gte: todayStart } },
+        },
       }),
       this.prisma.order.count({
-        where: { status: OrderStatus.CANCELLED, updatedAt: { gte: todayStart } },
+        where: {
+          status: OrderStatus.CANCELLED,
+          statusHistory: {
+            some: { newStatus: OrderStatus.CANCELLED, createdAt: { gte: todayStart } },
+          },
+        },
       }),
       this.prisma.deliveryStaff.findMany({
         where: { isActive: true },
@@ -170,26 +180,64 @@ export class DeliveryService {
         orderBy: { totalDeliveries: 'desc' },
       }),
       this.prisma.order.findMany({
-        where: { status: OrderStatus.DELIVERED, updatedAt: { gte: todayStart } },
+        where: {
+          status: OrderStatus.DELIVERED,
+          deliveryTracking: { deliveredAt: { gte: todayStart } },
+        },
         include: orderInclude,
         orderBy: { updatedAt: 'desc' },
         take: 5,
       }),
     ]);
 
-    const deliveredOrders = await this.prisma.deliveryTracking.findMany({
-      where: { deliveredAt: { gte: todayStart } },
-      select: { assignedAt: true, deliveredAt: true },
-    });
+    const [deliveredOrders, yesterdayDeliveredOrders, deliveredRevenueOrders, cancelledYesterday] =
+      await Promise.all([
+        this.prisma.deliveryTracking.findMany({
+          where: { deliveredAt: { gte: todayStart } },
+          select: { assignedAt: true, deliveredAt: true },
+        }),
+        this.prisma.deliveryTracking.findMany({
+          where: { deliveredAt: { gte: yesterdayStart, lt: todayStart } },
+          select: { assignedAt: true, deliveredAt: true },
+        }),
+        this.prisma.order.findMany({
+          where: {
+            status: OrderStatus.DELIVERED,
+            deliveryTracking: { deliveredAt: { gte: todayStart } },
+          },
+          select: {
+            grandTotal: true,
+            deliveryTracking: { select: { deliveredAt: true, assignedAt: true } },
+          },
+        }),
+        this.prisma.order.count({
+          where: {
+            status: OrderStatus.CANCELLED,
+            statusHistory: {
+              some: {
+                newStatus: OrderStatus.CANCELLED,
+                createdAt: { gte: yesterdayStart, lt: todayStart },
+              },
+            },
+          },
+        }),
+      ]);
 
-    let avgMinutes = 27;
     const times = deliveredOrders
       .filter((t) => t.assignedAt && t.deliveredAt)
       .map((t) => (t.deliveredAt!.getTime() - t.assignedAt!.getTime()) / 60000);
-    if (times.length) avgMinutes = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+    const avgMinutes = times.length
+      ? Math.round(times.reduce((a, b) => a + b, 0) / times.length)
+      : null;
+    const yesterdayTimes = yesterdayDeliveredOrders
+      .filter((t) => t.assignedAt && t.deliveredAt)
+      .map((t) => (t.deliveredAt!.getTime() - t.assignedAt!.getTime()) / 60000);
 
     const revenueResult = await this.prisma.order.aggregate({
-      where: { status: OrderStatus.DELIVERED, updatedAt: { gte: todayStart } },
+      where: {
+        status: OrderStatus.DELIVERED,
+        deliveryTracking: { deliveredAt: { gte: todayStart } },
+      },
       _sum: { grandTotal: true },
     });
 
@@ -218,6 +266,8 @@ export class DeliveryService {
         avgDeliveryMinutes: avgMinutes,
         deliveryRevenue: Math.round(this.num(revenueResult._sum.grandTotal)),
         onlineRiders: onlineRiders.length,
+        deliveredYesterday: yesterdayDeliveredOrders.length,
+        cancelledYesterday,
       },
       executives: executives.slice(0, 5).map((e) => ({
         id: e.id,
@@ -242,6 +292,82 @@ export class DeliveryService {
         lng: e.currentLng,
         status: e.status,
       })),
+      performance: {
+        averageDeliveryMinutesYesterday: yesterdayTimes.length
+          ? Math.round(yesterdayTimes.reduce((a, b) => a + b, 0) / yesterdayTimes.length)
+          : null,
+        onTimeDeliveryPercent: null,
+        hourly: Array.from({ length: 24 }, (_, hour) => {
+          const orders = deliveredRevenueOrders.filter((order) => {
+            const deliveredAt = order.deliveryTracking?.deliveredAt;
+            return (
+              deliveredAt != null &&
+              Number(
+                new Intl.DateTimeFormat('en-US', {
+                  timeZone: 'Asia/Kolkata',
+                  hour: '2-digit',
+                  hourCycle: 'h23',
+                }).format(deliveredAt),
+              ) === hour
+            );
+          });
+          const durations = orders
+            .map((order) => {
+              const assignedAt = order.deliveryTracking?.assignedAt;
+              const deliveredAt = order.deliveryTracking?.deliveredAt;
+              return assignedAt && deliveredAt
+                ? (deliveredAt.getTime() - assignedAt.getTime()) / 60000
+                : null;
+            })
+            .filter((duration): duration is number => duration != null);
+          return {
+            hour,
+            revenue: Math.round(
+              orders.reduce((total, order) => total + this.num(order.grandTotal), 0),
+            ),
+            deliveries: orders.length,
+            averageMinutes: durations.length
+              ? Math.round(
+                  durations.reduce((total, duration) => total + duration, 0) / durations.length,
+                )
+              : null,
+          };
+        }),
+      },
+      alerts: [
+        ...pendingOrders
+          .filter((order) => {
+            const waitedMinutes = (Date.now() - order.createdAt.getTime()) / 60000;
+            return (
+              waitedMinutes >= 15 &&
+              (!order.deliveryTracking || !order.deliveryTracking.deliveryStaff)
+            );
+          })
+          .map((order) => ({
+            type: 'ASSIGNMENT_DELAY',
+            severity: 'WARNING' as const,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            message: `${order.orderNumber} has been waiting for assignment for ${Math.floor(
+              (Date.now() - order.createdAt.getTime()) / 60000,
+            )} minutes.`,
+            createdAt: order.createdAt.toISOString(),
+          })),
+        ...pendingOrders
+          .filter(
+            (order) =>
+              order.deliveryTracking?.status === DeliveryAssignmentStatus.OUT_FOR_DELIVERY &&
+              (order.deliveryTracking.latitude == null || order.deliveryTracking.longitude == null),
+          )
+          .map((order) => ({
+            type: 'GPS_UNAVAILABLE',
+            severity: 'CRITICAL' as const,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            message: `GPS location is unavailable for ${order.orderNumber}.`,
+            createdAt: order.createdAt.toISOString(),
+          })),
+      ],
     };
   }
 
@@ -269,7 +395,7 @@ export class DeliveryService {
         onTheWay: active.length,
         deliveredToday,
         cancelledToday: 0,
-        avgDeliveryMinutes: 0,
+        avgDeliveryMinutes: null,
         deliveryRevenue: 0,
         onlineRiders:
           staff?.status === DeliveryExecutiveStatus.ONLINE ||
@@ -501,7 +627,7 @@ export class DeliveryService {
 
     const previousTracking = await this.prisma.deliveryTracking.findUnique({
       where: { orderId },
-      select: { deliveryStaffId: true },
+      select: { deliveryStaffId: true, status: true },
     });
     const route =
       staff.currentLat != null &&
@@ -564,6 +690,11 @@ export class DeliveryService {
       status: OrderStatus.READY,
       message: 'Delivery assigned',
     });
+    if (!previousTracking || previousTracking.deliveryStaffId !== staff.id) {
+      void this.notifications.notifyCustomerStatus(orderId, 'ASSIGNED', {
+        previousStatus: previousTracking?.status ?? DeliveryAssignmentStatus.WAITING,
+      });
+    }
 
     return this.getOrder(orderId);
   }
@@ -586,6 +717,7 @@ export class DeliveryService {
     status: DeliveryAssignmentStatus,
     userId?: string,
     roles: string[] = [],
+    reason?: string,
   ) {
     const tracking = await this.prisma.deliveryTracking.findUnique({
       where: { orderId },
@@ -632,6 +764,12 @@ export class DeliveryService {
 
     await this.prisma.deliveryTracking.update({ where: { orderId }, data: updates });
 
+    if (status === DeliveryAssignmentStatus.PICKED_UP) {
+      void this.notifications.notifyCustomerStatus(orderId, 'PICKED_UP', {
+        previousStatus: tracking.status,
+      });
+    }
+
     if (orderStatus) {
       await this.prisma.order.update({
         where: { id: orderId },
@@ -653,7 +791,39 @@ export class DeliveryService {
         status: orderStatus,
         trackingStatus: TrackingStatus.OUT_FOR_DELIVERY,
       });
-      void this.notifications.notifyCustomerStatus(orderId, orderStatus);
+      void this.notifications.notifyCustomerStatus(orderId, orderStatus, {
+        previousStatus: previousOrderStatus,
+      });
+    } else if (status === DeliveryAssignmentStatus.CANCELLED) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      });
+      if (order && order.status !== OrderStatus.CANCELLED) {
+        if (!isValidOrderStatusTransition(order.status, OrderStatus.CANCELLED)) {
+          throw new BadRequestException(`Cannot cancel order from ${order.status}`);
+        }
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.CANCELLED },
+        });
+        await this.prisma.orderStatusHistory.create({
+          data: {
+            orderId,
+            previousStatus: order.status,
+            newStatus: OrderStatus.CANCELLED,
+            updatedById: userId,
+            remarks: reason ?? 'Delivery assignment cancelled',
+          },
+        });
+        this.gateway.emitOrderUpdate(orderId, {
+          status: OrderStatus.CANCELLED,
+        });
+        void this.notifications.notifyCustomerStatus(orderId, OrderStatus.CANCELLED, {
+          previousStatus: order.status,
+          reason: reason ?? 'Delivery assignment cancelled',
+        });
+      }
     }
 
     await this.logDelivery(
@@ -723,6 +893,16 @@ export class DeliveryService {
       }
     }
 
+    await this.prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        previousStatus: OrderStatus.OUT_FOR_DELIVERY,
+        newStatus: OrderStatus.DELIVERED,
+        updatedById: userId,
+        remarks: 'Delivered with OTP verification',
+      },
+    });
+
     await this.logDelivery(
       orderId,
       'DELIVERED',
@@ -736,7 +916,9 @@ export class DeliveryService {
       status: OrderStatus.DELIVERED,
       trackingStatus: TrackingStatus.DELIVERED,
     });
-    void this.notifications.notifyCustomerStatus(orderId, OrderStatus.DELIVERED);
+    void this.notifications.notifyCustomerStatus(orderId, OrderStatus.DELIVERED, {
+      previousStatus: OrderStatus.OUT_FOR_DELIVERY,
+    });
 
     return this.getOrder(orderId);
   }
@@ -850,6 +1032,13 @@ export class DeliveryService {
         description: l.description,
         createdAt: l.createdAt.toISOString(),
       })),
+      ...(order?.statusHistory ?? [])
+        .filter((history) => history.newStatus !== OrderStatus.PENDING)
+        .map((history) => ({
+          type: history.newStatus,
+          description: history.remarks ?? `Order status changed to ${history.newStatus}`,
+          createdAt: history.createdAt.toISOString(),
+        })),
     ];
 
     return events.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());

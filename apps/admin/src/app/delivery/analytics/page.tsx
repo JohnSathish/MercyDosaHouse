@@ -17,13 +17,12 @@ export default function DeliveryAnalyticsPage() {
     return <div className="h-64 rounded-xl bg-muted animate-pulse" />;
   }
 
-  const peakHours = [
-    { hour: '12 PM', orders: 18 },
-    { hour: '1 PM', orders: 24 },
-    { hour: '7 PM', orders: 32 },
-    { hour: '8 PM', orders: 28 },
-    { hour: '9 PM', orders: 15 },
-  ];
+  const peakHours = (data.performance?.hourly ?? [])
+    .filter((point) => point.deliveries > 0)
+    .map((point) => ({
+      hour: `${point.hour.toString().padStart(2, '0')}:00`,
+      orders: point.deliveries,
+    }));
   const maxPeak = Math.max(...peakHours.map((p) => p.orders));
 
   const successRate =
@@ -32,7 +31,7 @@ export default function DeliveryAnalyticsPage() {
           (data.stats.deliveredToday / (data.stats.deliveredToday + data.stats.cancelledToday)) *
             100,
         )
-      : 100;
+      : null;
 
   return (
     <div className="space-y-6">
@@ -50,13 +49,14 @@ export default function DeliveryAnalyticsPage() {
         {[
           {
             label: 'Success Rate',
-            value: `${successRate}%`,
+            value: successRate == null ? '—' : `${successRate}%`,
             icon: TrendingUp,
             color: 'text-emerald-600',
           },
           {
             label: 'Avg Delivery Time',
-            value: `${data.stats.avgDeliveryMinutes} min`,
+            value:
+              data.stats.avgDeliveryMinutes == null ? '—' : `${data.stats.avgDeliveryMinutes} min`,
             icon: Clock,
             color: 'text-blue-600',
           },
@@ -92,17 +92,23 @@ export default function DeliveryAnalyticsPage() {
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border bg-white dark:bg-gray-900 p-5 shadow-sm">
           <h3 className="font-semibold mb-4">Peak Delivery Hours</h3>
-          <div className="flex items-end gap-3 h-40">
-            {peakHours.map((p) => (
-              <div key={p.hour} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[10px] font-semibold">{p.orders}</span>
-                <div
-                  className="w-full rounded-t bg-[#14532D]/80"
-                  style={{ height: `${(p.orders / maxPeak) * 100}%`, minHeight: 4 }}
-                />
-                <span className="text-[9px] text-muted-foreground">{p.hour}</span>
-              </div>
-            ))}
+          <div className="flex min-h-40 items-end gap-3">
+            {peakHours.length ? (
+              peakHours.map((p) => (
+                <div key={p.hour} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-[10px] font-semibold">{p.orders}</span>
+                  <div
+                    className="w-full rounded-t bg-[#14532D]/80"
+                    style={{ height: `${(p.orders / maxPeak) * 100}%`, minHeight: 4 }}
+                  />
+                  <span className="text-[9px] text-muted-foreground">{p.hour}</span>
+                </div>
+              ))
+            ) : (
+              <p className="w-full self-center text-center text-sm text-muted-foreground">
+                No completed delivery trend data.
+              </p>
+            )}
           </div>
         </div>
 

@@ -282,7 +282,9 @@ export class KitchenService {
       status: OrderStatus.ACCEPTED,
       trackingStatus: TrackingStatus.ACCEPTED,
     });
-    void this.notifications.notifyCustomerStatus(id, OrderStatus.ACCEPTED);
+    void this.notifications.notifyCustomerStatus(id, OrderStatus.ACCEPTED, {
+      previousStatus: existing.status,
+    });
 
     return this.mapOrder(order);
   }
@@ -302,7 +304,10 @@ export class KitchenService {
 
     this.gateway.emitOrderUpdate(id, { status: OrderStatus.CANCELLED });
     if (existing.status !== OrderStatus.CANCELLED) {
-      void this.notifications.notifyCustomerStatus(id, OrderStatus.CANCELLED);
+      void this.notifications.notifyCustomerStatus(id, OrderStatus.CANCELLED, {
+        previousStatus: existing.status,
+        reason: reason ?? 'Rejected by kitchen',
+      });
     }
     return this.mapOrder(order);
   }
@@ -336,7 +341,9 @@ export class KitchenService {
       trackingStatus,
     });
     if (existing.status !== OrderStatus.PREPARING) {
-      void this.notifications.notifyCustomerStatus(id, OrderStatus.PREPARING);
+      void this.notifications.notifyCustomerStatus(id, OrderStatus.PREPARING, {
+        previousStatus: existing.status,
+      });
     }
 
     return this.mapOrder(order);
@@ -368,7 +375,9 @@ export class KitchenService {
       trackingStatus: TrackingStatus.PACKING,
     });
     if (existing.status !== OrderStatus.READY) {
-      void this.notifications.notifyCustomerStatus(id, OrderStatus.READY);
+      void this.notifications.notifyCustomerStatus(id, OrderStatus.READY, {
+        previousStatus: existing.status,
+      });
     }
 
     return this.mapOrder(order);

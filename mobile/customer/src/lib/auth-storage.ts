@@ -10,6 +10,7 @@ export const asyncStorageAdapter: StorageAdapter = {
 const ACCESS_KEY = 'mdh_access_token';
 const REFRESH_KEY = 'mdh_refresh_token';
 const USER_KEY = 'mdh_user';
+const PUSH_TOKEN_KEY = 'mdh_push_token';
 
 export async function getAccessToken(): Promise<string | null> {
   return AsyncStorage.getItem(ACCESS_KEY);
@@ -41,7 +42,15 @@ export async function storeAuth(
 }
 
 export async function clearAuth(): Promise<void> {
-  await AsyncStorage.multiRemove([ACCESS_KEY, REFRESH_KEY, USER_KEY]);
+  await AsyncStorage.multiRemove([ACCESS_KEY, REFRESH_KEY, USER_KEY, PUSH_TOKEN_KEY]);
+}
+
+export async function getStoredPushToken(): Promise<string | null> {
+  return AsyncStorage.getItem(PUSH_TOKEN_KEY);
+}
+
+export async function storePushToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
 }
 
 export async function isAuthenticated(): Promise<boolean> {

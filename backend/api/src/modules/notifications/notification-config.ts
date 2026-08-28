@@ -1,5 +1,13 @@
 export type CustomerStatusKey =
-  'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'PREPARING'
+  | 'READY'
+  | 'ASSIGNED'
+  | 'PICKED_UP'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'CANCELLED';
 
 export type NotificationTemplate = { title: string; body: string };
 
@@ -23,6 +31,8 @@ export const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
     ACCEPTED: true,
     PREPARING: true,
     READY: true,
+    ASSIGNED: true,
+    PICKED_UP: true,
     OUT_FOR_DELIVERY: true,
     DELIVERED: true,
     CANCELLED: true,
@@ -33,43 +43,52 @@ export const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
   },
   statusTemplates: {
     PENDING: {
-      title: '🛎️ Order Received',
-      body: "We've received your order #{{ORDER_NUMBER}}. Thank you for ordering from Mercy Dosa House!",
+      title: '🔔 Order Received',
+      body: "We received your Mercy Dosa House order #{{ORDER_NUMBER}}. We're reviewing it now.",
     },
     ACCEPTED: {
       title: '✅ Order Confirmed',
-      body: 'Your order #{{ORDER_NUMBER}} has been confirmed and will be prepared shortly.',
+      body: "Your order has been confirmed! We'll start preparing your food shortly.",
     },
     PREPARING: {
       title: '👨‍🍳 Your Order Is Being Prepared',
-      body: 'Our kitchen has started preparing your order. Fresh and delicious!',
+      body: 'Our kitchen has started preparing your order. Fresh and hot, just for you!',
     },
     READY: {
       title: '🍽️ Your Order Is Ready',
       body: 'Your order #{{ORDER_NUMBER}} is ready for pickup/delivery.',
     },
+    ASSIGNED: {
+      title: '🛵 Delivery Partner Assigned',
+      body: 'Your order has been assigned for delivery.',
+    },
+    PICKED_UP: {
+      title: '🛵 Order Picked Up',
+      body: 'Your delivery partner has picked up your order.',
+    },
     OUT_FOR_DELIVERY: {
-      title: '🛵 On the Way!',
-      body: 'Your order #{{ORDER_NUMBER}} is on its way to you.',
+      title: '📍 Your Order Is On The Way',
+      body: 'Your Mercy Dosa House order is on the way!',
     },
     DELIVERED: {
       title: '❤️ Order Delivered',
-      body: 'Your order has been delivered. Thank you for choosing Mercy Dosa House!',
+      body: 'Your order has been delivered. Enjoy your meal from Mercy Dosa House!',
     },
     CANCELLED: {
       title: '❌ Order Cancelled',
-      body: 'Your order #{{ORDER_NUMBER}} has been cancelled. Please contact us if you need assistance.',
+      body: 'Your order #{{ORDER_NUMBER}} has been cancelled. {{REASON}}',
     },
   },
 };
 
 export function applyNotificationTemplate(
   template: string,
-  vars: { ORDER_NUMBER?: string; AMOUNT?: string },
+  vars: { ORDER_NUMBER?: string; AMOUNT?: string; REASON?: string },
 ): string {
   return template
     .replaceAll('{{ORDER_NUMBER}}', vars.ORDER_NUMBER ?? '')
-    .replaceAll('{{AMOUNT}}', vars.AMOUNT ?? '');
+    .replaceAll('{{AMOUNT}}', vars.AMOUNT ?? '')
+    .replaceAll('{{REASON}}', vars.REASON ?? '');
 }
 
 function asTemplate(raw: unknown, fallback: NotificationTemplate): NotificationTemplate {
@@ -93,6 +112,8 @@ export function parseNotificationConfig(raw: unknown): NotificationConfig {
     'ACCEPTED',
     'PREPARING',
     'READY',
+    'ASSIGNED',
+    'PICKED_UP',
     'OUT_FOR_DELIVERY',
     'DELIVERED',
     'CANCELLED',

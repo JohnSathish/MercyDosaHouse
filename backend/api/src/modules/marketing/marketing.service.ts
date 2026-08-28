@@ -3,8 +3,10 @@ import {
   AnnouncementPlatform,
   ContentStatus,
   DeliveryAvailabilityStatus,
+  OrderStatus,
   Prisma,
 } from '@prisma/client';
+import { nextPromotionDate } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const PRIORITY_WEIGHT: Record<string, number> = {
@@ -39,7 +41,26 @@ export class MarketingService {
       this.getDeliveryConfig(),
     ]);
 
-    const mapped = announcements.map((a) => this.mapAnnouncement(a));
+    const mapped = await Promise.all(
+      announcements.map(async (announcement) => {
+        const item = this.mapAnnouncement(announcement);
+        if (
+          item.promotionProductId &&
+          item.promotionQuantityLimit != null &&
+          item.promotionNextAvailableDate
+        ) {
+          return {
+            ...item,
+            promotionRemainingQuantity: await this.getPromotionRemainingQuantity(
+              item.promotionProductId,
+              item.promotionNextAvailableDate,
+              item.promotionQuantityLimit,
+            ),
+          };
+        }
+        return item;
+      }),
+    );
     const byPlacement: Record<string, typeof mapped> = {};
 
     for (const item of mapped) {
@@ -105,7 +126,7 @@ export class MarketingService {
     return this.prisma.announcement
       .findMany({
         where: all ? undefined : { isActive: true },
-        include: { analytics: true },
+        include: { analytics: true, promotionProduct: true },
         orderBy: [{ sortOrder: 'asc' }, { priority: 'desc' }, { createdAt: 'desc' }],
       })
       .then((items) => items.map((a) => this.mapAnnouncement(a)));
@@ -114,7 +135,7 @@ export class MarketingService {
   async getAnnouncement(id: string) {
     const item = await this.prisma.announcement.findUnique({
       where: { id },
-      include: { analytics: true },
+      include: { analytics: true, promotionProduct: true },
     });
     if (!item) throw new NotFoundException('Announcement not found');
     return this.mapAnnouncement(item);
@@ -127,7 +148,7 @@ export class MarketingService {
         ...(normalized as Prisma.AnnouncementCreateInput),
         analytics: { create: {} },
       },
-      include: { analytics: true },
+      include: { analytics: true, promotionProduct: true },
     });
     this.bumpVersion();
     return this.mapAnnouncement(created);
@@ -141,7 +162,7 @@ export class MarketingService {
     const updated = await this.prisma.announcement.update({
       where: { id },
       data: normalized as Prisma.AnnouncementUpdateInput,
-      include: { analytics: true },
+      include: { analytics: true, promotionProduct: true },
     });
     this.bumpVersion();
     return this.mapAnnouncement(updated);
@@ -166,7 +187,7 @@ export class MarketingService {
         publishedAt: null,
         analytics: { create: {} },
       },
-      include: { analytics: true },
+      include: { analytics: true, promotionProduct: true },
     });
     return this.mapAnnouncement(created);
   }
@@ -179,7 +200,7 @@ export class MarketingService {
         isActive: true,
         publishedAt: new Date(),
       },
-      include: { analytics: true },
+      include: { analytics: true, promotionProduct: true },
     });
     this.bumpVersion();
     return this.mapAnnouncement(updated);
@@ -542,9 +563,19 @@ export class MarketingService {
         status: ContentStatus.PUBLISHED,
         ...platformFilter,
         OR: [{ startsAt: null }, { startsAt: { lte: now } }],
-        AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+        AND: [
+          { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+          {
+            OR: [
+              { promotionProductId: null },
+              platform === 'WEBSITE'
+                ? { promotionWebsiteEnabled: true }
+                : { promotionAndroidEnabled: true },
+            ],
+          },
+        ],
       },
-      include: { analytics: true },
+      include: { analytics: true, promotionProduct: true },
       orderBy: [{ sortOrder: 'asc' }, { priority: 'desc' }, { createdAt: 'desc' }],
     });
 
@@ -594,6 +625,27 @@ export class MarketingService {
     return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
   }
 
+  private async getPromotionRemainingQuantity(
+    productId: string,
+    dateKey: string,
+    quantityLimit: number,
+  ) {
+    const start = new Date(`${dateKey}T00:00:00+05:30`);
+    const end = new Date(`${dateKey}T00:00:00+05:30`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    const booked = await this.prisma.orderItem.aggregate({
+      where: {
+        productId,
+        order: {
+          status: { not: OrderStatus.CANCELLED },
+          scheduledDeliveryAt: { gte: start, lt: end },
+        },
+      },
+      _sum: { quantity: true },
+    });
+    return Math.max(0, quantityLimit - (booked._sum.quantity ?? 0));
+  }
+
   private normalizeInput(data: Prisma.AnnouncementCreateInput | Record<string, unknown>) {
     const result = { ...(data as Record<string, unknown>) };
     if (typeof result.startsAt === 'string') result.startsAt = new Date(result.startsAt);
@@ -641,6 +693,25 @@ export class MarketingService {
     startsAt?: Date | null;
     endsAt?: Date | null;
     publishedAt?: Date | null;
+    promotionProductId?: string | null;
+    promotionProduct?: {
+      id: string;
+      name: string;
+      slug: string;
+      price: Prisma.Decimal;
+      imageUrl: string | null;
+      description: string | null;
+      ingredients: string | null;
+      isAvailable: boolean;
+      isPreOrder: boolean;
+    } | null;
+    promotionDayOfWeek?: number | null;
+    promotionReadyTime?: string | null;
+    promotionPreOrderRequired: boolean;
+    promotionPreOrderCutoffDay?: number | null;
+    promotionQuantityLimit?: number | null;
+    promotionWebsiteEnabled: boolean;
+    promotionAndroidEnabled: boolean;
     isActive: boolean;
     analytics?: {
       impressions: number;
@@ -654,6 +725,14 @@ export class MarketingService {
     } | null;
   }) {
     const now = new Date();
+    const promotionSchedule =
+      a.promotionDayOfWeek != null && a.promotionReadyTime
+        ? nextPromotionDate({
+            dayOfWeek: a.promotionDayOfWeek,
+            preOrderRequired: a.promotionPreOrderRequired,
+            preOrderCutoffDay: a.promotionPreOrderCutoffDay,
+          })
+        : null;
     return {
       id: a.id,
       title: a.title,
@@ -681,6 +760,29 @@ export class MarketingService {
       startsAt: a.startsAt?.toISOString() ?? null,
       endsAt: a.endsAt?.toISOString() ?? null,
       publishedAt: a.publishedAt?.toISOString() ?? null,
+      promotionProductId: a.promotionProductId ?? null,
+      promotionProduct: a.promotionProduct
+        ? {
+            id: a.promotionProduct.id,
+            name: a.promotionProduct.name,
+            slug: a.promotionProduct.slug,
+            price: Number(a.promotionProduct.price),
+            imageUrl: a.promotionProduct.imageUrl,
+            description: a.promotionProduct.description,
+            ingredients: a.promotionProduct.ingredients,
+            isAvailable: a.promotionProduct.isAvailable,
+            isPreOrder: a.promotionProduct.isPreOrder,
+          }
+        : null,
+      promotionDayOfWeek: a.promotionDayOfWeek ?? null,
+      promotionReadyTime: a.promotionReadyTime ?? null,
+      promotionPreOrderRequired: a.promotionPreOrderRequired,
+      promotionPreOrderCutoffDay: a.promotionPreOrderCutoffDay ?? null,
+      promotionQuantityLimit: a.promotionQuantityLimit ?? null,
+      promotionWebsiteEnabled: a.promotionWebsiteEnabled,
+      promotionAndroidEnabled: a.promotionAndroidEnabled,
+      promotionNextAvailableDate: promotionSchedule?.date ?? null,
+      promotionNextAvailableLabel: promotionSchedule?.label ?? null,
       isActive: a.isActive,
       lifecycle: this.computeLifecycle(
         {

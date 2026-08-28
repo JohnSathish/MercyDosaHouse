@@ -1,19 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Label, Card, CardContent, Badge, Textarea } from '@mdh/ui';
 import { Copy, Megaphone, Trash2, Truck, Eye } from 'lucide-react';
-import { api } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { useToastStore } from '@/lib/toast-store';
 import type {
   DeliveryConfigDto,
   MarketingAnnouncementDto,
   MarketingDashboardDto,
+  ProductDto,
 } from '@mdh/types';
 import { normalizeDeliveryConfigInput } from '@mdh/types';
+import { formatCurrency } from '@mdh/utils';
+import { API_URL, api } from '@/lib/api';
+import { getAccessToken } from '@mdh/auth-client';
 
 const PLACEMENTS = [
   'TOP_BAR',
@@ -48,6 +51,12 @@ const emptyAnnouncement = (): Partial<MarketingAnnouncementDto> => ({
   mandatory: false,
   isActive: false,
   icon: '🚚',
+  promotionDayOfWeek: 0,
+  promotionReadyTime: '13:00',
+  promotionPreOrderRequired: true,
+  promotionPreOrderCutoffDay: 6,
+  promotionWebsiteEnabled: true,
+  promotionAndroidEnabled: true,
 });
 
 export default function MarketingHubPage() {
@@ -56,6 +65,8 @@ export default function MarketingHubPage() {
   const [tab, setTab] = useState<'dashboard' | 'announcements' | 'delivery'>('dashboard');
   const [form, setForm] = useState<Partial<MarketingAnnouncementDto> | null>(null);
   const [deliveryForm, setDeliveryForm] = useState<Partial<DeliveryConfigDto> | null>(null);
+  const promotionImageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPromotionImage, setUploadingPromotionImage] = useState(false);
 
   const { data: dashboard } = useQuery({
     queryKey: ['marketing-dashboard'],
@@ -67,16 +78,45 @@ export default function MarketingHubPage() {
     queryFn: () => api.get<MarketingAnnouncementDto[]>('/marketing/announcements?all=true'),
   });
 
+  const { data: productResult } = useQuery({
+    queryKey: ['marketing-products'],
+    queryFn: () => api.get<{ data: ProductDto[] }>('/products?available=true&limit=200'),
+  });
+  const products = productResult?.data ?? [];
+
   const { data: deliveryConfig } = useQuery({
     queryKey: ['marketing-delivery'],
     queryFn: () => api.get<DeliveryConfigDto | null>('/marketing/delivery-config'),
   });
 
   const saveAnnouncement = useMutation({
-    mutationFn: (data: Partial<MarketingAnnouncementDto>) =>
-      data.id
-        ? api.patch(`/marketing/announcements/${data.id}`, data)
-        : api.post('/marketing/announcements', data),
+    mutationFn: (data: Partial<MarketingAnnouncementDto>) => {
+      const website = data.promotionWebsiteEnabled !== false;
+      const android = data.promotionAndroidEnabled !== false;
+      const platform =
+        website && android ? 'BOTH' : website ? 'WEBSITE' : android ? 'ANDROID' : 'WEBSITE';
+      const payload = { ...data };
+      delete payload.id;
+      delete payload.analytics;
+      delete payload.lifecycle;
+      delete payload.promotionProduct;
+      delete payload.promotionNextAvailableDate;
+      delete payload.promotionNextAvailableLabel;
+      const normalized = {
+        ...payload,
+        ...(data.promotionProductId
+          ? {
+              platform,
+              priorityLevel: 'PROMOTION',
+              priority: data.priority ?? 100,
+              placements: ['HERO_SECTION'],
+            }
+          : {}),
+      };
+      return data.id
+        ? api.patch(`/marketing/announcements/${data.id}`, normalized)
+        : api.post('/marketing/announcements', normalized);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing-announcements'] });
       queryClient.invalidateQueries({ queryKey: ['marketing-dashboard'] });
@@ -84,6 +124,32 @@ export default function MarketingHubPage() {
       toast('Announcement saved.');
     },
   });
+
+  async function uploadPromotionImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !form) return;
+    setUploadingPromotionImage(true);
+    try {
+      const token = getAccessToken();
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch(`${API_URL}/media/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      });
+      if (!response.ok) throw new Error('Image upload failed');
+      const result = (await response.json()) as { url?: string };
+      if (!result.url) throw new Error('Image URL missing');
+      setForm({ ...form, bannerImageUrl: result.url, heroBannerImageUrl: result.url });
+      toast('Promotion image uploaded.');
+    } catch {
+      toast('Promotion image upload failed.');
+    } finally {
+      setUploadingPromotionImage(false);
+      if (promotionImageInputRef.current) promotionImageInputRef.current.value = '';
+    }
+  }
 
   const publishAnnouncement = useMutation({
     mutationFn: (id: string) => api.post(`/marketing/announcements/${id}/publish`),
@@ -454,6 +520,194 @@ export default function MarketingHubPage() {
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2 rounded-xl border border-[#14532D]/20 bg-[#F0FDF4] p-4 space-y-4">
+                    <div>
+                      <p className="font-bold text-[#14532D]">Homepage product promotion</p>
+                      <p className="text-xs text-gray-600">
+                        Link this promotion to a live product. Its catalog price and image are used
+                        automatically.
+                      </p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Product</Label>
+                        <select
+                          className="w-full h-10 rounded-md border px-3 text-sm bg-white"
+                          value={form.promotionProductId ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              promotionProductId: e.target.value || null,
+                            })
+                          }
+                        >
+                          <option value="">No linked product</option>
+                          {products.map((product) => (
+                            <option key={product.id} value={product.id}>
+                              {product.name} · {formatCurrency(product.price)}
+                              {!product.isAvailable ? ' · unavailable' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {form.promotionProductId ? (
+                          <p className="text-xs text-[#14532D] mt-1">
+                            Catalog price:{' '}
+                            {formatCurrency(
+                              products.find((product) => product.id === form.promotionProductId)
+                                ?.price ??
+                                form.promotionProduct?.price ??
+                                0,
+                            )}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div>
+                        <Label>Promotion Image</Label>
+                        <input
+                          ref={promotionImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => void uploadPromotionImage(event)}
+                        />
+                        <div className="flex gap-2">
+                          <Input
+                            value={form.heroBannerImageUrl ?? form.bannerImageUrl ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                heroBannerImageUrl: e.target.value,
+                                bannerImageUrl: e.target.value,
+                              })
+                            }
+                            placeholder="/uploads/chicken-biryani.jpg"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={uploadingPromotionImage}
+                            onClick={() => promotionImageInputRef.current?.click()}
+                          >
+                            {uploadingPromotionImage ? 'Uploading…' : 'Upload'}
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Promotion Status</Label>
+                        <label className="flex items-center gap-2 h-10 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={form.isActive ?? false}
+                            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                          />
+                          Show this promotion when published
+                        </label>
+                      </div>
+                      <div>
+                        <Label>Promotion Day</Label>
+                        <select
+                          className="w-full h-10 rounded-md border px-3 text-sm bg-white"
+                          value={form.promotionDayOfWeek ?? 0}
+                          onChange={(e) =>
+                            setForm({ ...form, promotionDayOfWeek: Number(e.target.value) })
+                          }
+                        >
+                          {[
+                            'Sunday',
+                            'Monday',
+                            'Tuesday',
+                            'Wednesday',
+                            'Thursday',
+                            'Friday',
+                            'Saturday',
+                          ].map((day, index) => (
+                            <option key={day} value={index}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label>Ready Time</Label>
+                        <Input
+                          type="time"
+                          value={form.promotionReadyTime ?? '13:00'}
+                          onChange={(e) => setForm({ ...form, promotionReadyTime: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Pre-order Cutoff Day</Label>
+                        <select
+                          className="w-full h-10 rounded-md border px-3 text-sm bg-white"
+                          value={form.promotionPreOrderCutoffDay ?? 6}
+                          onChange={(e) =>
+                            setForm({ ...form, promotionPreOrderCutoffDay: Number(e.target.value) })
+                          }
+                        >
+                          {[
+                            'Sunday',
+                            'Monday',
+                            'Tuesday',
+                            'Wednesday',
+                            'Thursday',
+                            'Friday',
+                            'Saturday',
+                          ].map((day, index) => (
+                            <option key={day} value={index}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={form.promotionPreOrderRequired ?? true}
+                          onChange={(e) =>
+                            setForm({ ...form, promotionPreOrderRequired: e.target.checked })
+                          }
+                        />
+                        Pre-order required
+                      </label>
+                      <div>
+                        <Label>Quantity Limit (optional)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={form.promotionQuantityLimit ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              promotionQuantityLimit: e.target.value
+                                ? Number(e.target.value)
+                                : null,
+                            })
+                          }
+                          placeholder="Unlimited"
+                        />
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={form.promotionWebsiteEnabled ?? true}
+                          onChange={(e) =>
+                            setForm({ ...form, promotionWebsiteEnabled: e.target.checked })
+                          }
+                        />
+                        Website enabled
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={form.promotionAndroidEnabled ?? true}
+                          onChange={(e) =>
+                            setForm({ ...form, promotionAndroidEnabled: e.target.checked })
+                          }
+                        />
+                        Android app enabled
+                      </label>
                     </div>
                   </div>
                   <div>

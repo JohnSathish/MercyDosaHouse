@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +23,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+
+const LocationPickerMap = dynamic(
+  () => import('@/components/maps/location-picker-map').then((module) => module.LocationPickerMap),
+  { ssr: false },
+);
 
 const formSchema = addressSchema;
 type AddressFormValues = z.infer<typeof formSchema>;
@@ -189,11 +195,6 @@ export function AddressFormDialog({
   const fieldClass = (hasError: boolean) =>
     hasError ? 'border-destructive focus-visible:ring-destructive' : '';
 
-  const mapUrl =
-    latitude && longitude
-      ? `https://maps.google.com/maps?q=${latitude},${longitude}&z=17&output=embed`
-      : null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
@@ -290,15 +291,15 @@ export function AddressFormDialog({
             Use Current Location
           </Button>
 
-          {mapUrl && (
-            <div className="rounded-xl overflow-hidden border border-gray-200 h-36">
-              <iframe
-                title="Delivery location map"
-                src={mapUrl}
-                className="w-full h-full border-0"
-                loading="lazy"
-              />
-            </div>
+          {latitude != null && longitude != null && (
+            <LocationPickerMap
+              latitude={latitude}
+              longitude={longitude}
+              onChange={(lat, lng) => {
+                setValue('latitude', lat);
+                setValue('longitude', lng);
+              }}
+            />
           )}
 
           <div>

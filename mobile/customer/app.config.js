@@ -7,7 +7,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'Mercy Dosa House',
   slug: 'mercy-dosa-house',
-  version: '1.0.8',
+  version: '1.0.9',
   orientation: 'portrait',
   scheme: 'mercydosa',
   userInterfaceStyle: 'automatic',
@@ -24,19 +24,30 @@ module.exports = ({ config }) => ({
       backgroundColor: '#123D28',
     },
     package: 'com.mercydosahouse.customer',
-    ...(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-      ? { config: { googleMaps: { apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY } } }
-      : {}),
-    versionCode: 9,
-    permissions: ['INTERNET', 'ACCESS_NETWORK_STATE'],
+    googleServicesFile: './google-services.json',
+    versionCode: 10,
+    permissions: ['INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
     allowBackup: true,
+  },
+  notification: {
+    icon: './assets/icon.png',
+    color: '#123D28',
+    androidMode: 'default',
+    androidCollapsedTitle: 'Mercy Dosa House',
   },
   plugins: [
     'expo-router',
     'expo-asset',
     'expo-font',
     'expo-web-browser',
-    'expo-notifications',
+    [
+      'expo-notifications',
+      {
+        icon: './assets/icon.png',
+        color: '#123D28',
+        defaultChannel: 'order_updates',
+      },
+    ],
     [
       'expo-location',
       {

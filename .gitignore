@@ -17,4 +17,5 @@ Thumbs.db
 **/.gradle/
 mobile/**/android/app/build
 mobile/**/ios/Pods
+mobile/**/google-services.json
 e2e/reports/*.json

@@ -17,6 +17,7 @@ import {
   DeliveryStepsSection,
 } from './sections';
 import { HomeDeliverySection } from '@/components/marketing/home-sections';
+import { SundayBiryaniPromotion } from './sunday-biryani-promotion';
 
 interface HomePageClientProps {
   products: ProductDto[];
@@ -34,6 +35,7 @@ export function HomePageClient({ products }: HomePageClientProps) {
   return (
     <>
       <HeroSection />
+      <SundayBiryaniPromotion />
       <HomeDeliverySection />
       <CategoriesSection />
       <HomeSearchStrip />

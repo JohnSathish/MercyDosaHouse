@@ -24,6 +24,7 @@ import { OrdersGateway } from '../orders/orders.gateway';
 import { AuditService } from '../audit/audit.service';
 import { PosGateway } from './pos.gateway';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const billInclude = {
   items: true,
@@ -43,6 +44,7 @@ export class PosService {
     private posGateway: PosGateway,
     private audit: AuditService,
     private orderEmailNotification: OrderEmailNotificationService,
+    private notifications: NotificationsService,
   ) {}
 
   private toNum(v: Prisma.Decimal | number | null | undefined) {
@@ -754,6 +756,20 @@ export class PosService {
       entityId: billId,
       description: 'Kitchen order ticket fired from POS',
     });
+    if (order.status !== OrderStatus.ACCEPTED) {
+      await this.prisma.orderStatusHistory.create({
+        data: {
+          orderId: billId,
+          previousStatus: order.status,
+          newStatus: OrderStatus.ACCEPTED,
+          updatedById: userId,
+          remarks: 'POS sent order to kitchen',
+        },
+      });
+      void this.notifications.notifyCustomerStatus(billId, OrderStatus.ACCEPTED, {
+        previousStatus: order.status,
+      });
+    }
 
     this.ordersGateway.emitNewOrder({
       id: updated.id,
@@ -976,14 +992,17 @@ export class PosService {
         });
       }
 
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: billId,
-          newStatus: OrderStatus.ACCEPTED,
-          updatedById: cashierId,
-          remarks: 'POS settlement',
-        },
-      });
+      if (order.status !== OrderStatus.ACCEPTED) {
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: billId,
+            previousStatus: order.status,
+            newStatus: OrderStatus.ACCEPTED,
+            updatedById: cashierId,
+            remarks: 'POS settlement',
+          },
+        });
+      }
 
       return updated;
     });
@@ -1003,6 +1022,11 @@ export class PosService {
     this.posGateway.emitAnalytics(await this.getLiveAnalytics());
 
     void this.orderEmailNotification.notifyOrderConfirmed(billId);
+    if (order.status !== OrderStatus.ACCEPTED) {
+      void this.notifications.notifyCustomerStatus(billId, OrderStatus.ACCEPTED, {
+        previousStatus: order.status,
+      });
+    }
 
     return mapped;
   }
@@ -1188,6 +1212,21 @@ export class PosService {
       entityId: billId,
       description: reason,
     });
+    if (existing.status !== OrderStatus.CANCELLED) {
+      await this.prisma.orderStatusHistory.create({
+        data: {
+          orderId: billId,
+          previousStatus: existing.status,
+          newStatus: OrderStatus.CANCELLED,
+          updatedById: userId,
+          remarks: reason,
+        },
+      });
+      void this.notifications.notifyCustomerStatus(billId, OrderStatus.CANCELLED, {
+        previousStatus: existing.status,
+        reason,
+      });
+    }
 
     return this.mapBill(updated);
   }

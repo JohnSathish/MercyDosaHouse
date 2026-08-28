@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +29,7 @@ import {
   buildScheduledDeliveryIso,
   getScheduleDateOptions,
   firstPreOrderDate,
+  formatPromotionTime,
   formatPackingLabel,
   PAYMENT_METHOD_LABELS,
 } from '@mdh/utils';
@@ -57,6 +59,7 @@ import { useCartStore } from '@/lib/cart-store';
 import { useCheckoutStore } from '@/lib/checkout-store';
 import { api } from '@/lib/api';
 import { userQueryKey, clearUserSessionQueries } from '@/lib/auth-queries';
+import { useMarketing } from '@/components/marketing/marketing-provider';
 import { useToastStore } from '@/lib/toast-store';
 import { useRestaurantStatus } from '@/lib/restaurant-status-context';
 import { saveLastOrder } from '@/lib/last-order';
@@ -72,6 +75,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+
+const LocationPickerMap = dynamic(
+  () => import('@/components/maps/location-picker-map').then((module) => module.LocationPickerMap),
+  { ssr: false },
+);
 
 function CheckoutSection({
   title,
@@ -132,12 +140,17 @@ export function CheckoutPageClient() {
   const { isOpen: storeOpen, orderBlockedMessage } = useRestaurantStatus();
 
   const items = useCartStore((s) => s.items);
+  const addItem = useCartStore((s) => s.addItem);
   const getSubtotal = useCartStore((s) => s.subtotal);
   const packingTotalFn = useCartStore((s) => s.packingTotal);
   const packedItemCountFn = useCartStore((s) => s.packedItemCount);
   const clearCart = useCartStore((s) => s.clearCart);
 
   const session = useCheckoutStore();
+  const marketing = useMarketing();
+  const promotionSlug = searchParams.get('product');
+  const promotionId = searchParams.get('promotion');
+  const promotionProductAdded = useRef<string | null>(null);
   const [authed, setAuthed] = useState(false);
   const checkoutUserId = authed ? getStoredUser()?.id : undefined;
   const [loginOpen, setLoginOpen] = useState(false);
@@ -159,6 +172,23 @@ export function CheckoutPageClient() {
     queryKey: ['settings'],
     queryFn: () => api.get<BusinessSettingsDto>('/settings/business'),
   });
+
+  const { data: promotionProduct } = useQuery({
+    queryKey: ['checkout-promotion-product', promotionSlug],
+    queryFn: () => api.get<import('@mdh/types').ProductDto>(`/products/slug/${promotionSlug}`),
+    enabled: Boolean(promotionSlug),
+    staleTime: 60_000,
+  });
+
+  const linkedPromotion = useMemo(
+    () =>
+      marketing?.announcements?.find(
+        (item) =>
+          (promotionId ? item.id === promotionId : false) ||
+          (promotionProduct?.id != null && item.promotionProductId === promotionProduct.id),
+      ) ?? null,
+    [marketing?.announcements, promotionId, promotionProduct?.id],
+  );
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: userQueryKey('checkout-profile', checkoutUserId),
@@ -195,6 +225,28 @@ export function CheckoutPageClient() {
     () => getScheduleDateOptions(7, new Date(), preOrderConfig),
     [preOrderConfig],
   );
+
+  const promotionScheduleDates = useMemo(() => {
+    if (!linkedPromotion?.promotionNextAvailableDate) return scheduleDates;
+    const existing = scheduleDates.find(
+      (option) => option.value === linkedPromotion.promotionNextAvailableDate,
+    );
+    return [
+      existing ?? {
+        value: linkedPromotion.promotionNextAvailableDate,
+        label:
+          linkedPromotion.promotionNextAvailableLabel ?? linkedPromotion.promotionNextAvailableDate,
+        qualifiesForPreOrder: true,
+      },
+    ];
+  }, [linkedPromotion, scheduleDates]);
+
+  const hasPromotionItem = items.some(
+    (item) =>
+      item.product.isPreOrder &&
+      (!linkedPromotion || item.productId === linkedPromotion.promotionProductId),
+  );
+  const mustSchedule = items.some((item) => item.product.isPreOrder);
 
   const scheduledIso = useMemo(() => {
     if (
@@ -321,13 +373,38 @@ export function CheckoutPageClient() {
   }, [profile?.id]);
 
   useEffect(() => {
-    if (searchParams.get('preorder') === '1' && session.deliveryTiming === 'now') {
+    if (
+      (searchParams.get('preorder') === '1' || mustSchedule) &&
+      session.deliveryTiming === 'now'
+    ) {
       session.setDeliveryTiming('scheduled');
-      const first = firstPreOrderDate(scheduleDates);
+      const first = firstPreOrderDate(hasPromotionItem ? promotionScheduleDates : scheduleDates);
       if (first) session.setScheduledDate(first);
-      if (!session.scheduledSlot) session.setScheduledSlot('8:00 AM - 9:00 AM');
+      if (!session.scheduledSlot) {
+        const readyTime = linkedPromotion?.promotionReadyTime
+          ? formatPromotionTime(linkedPromotion.promotionReadyTime)
+          : '8:00 AM';
+        session.setScheduledSlot(
+          DELIVERY_TIME_SLOTS.find((slot) => slot.startsWith(readyTime)) ?? '8:00 AM - 9:00 AM',
+        );
+      }
     }
-  }, [searchParams, scheduleDates]);
+  }, [
+    searchParams,
+    scheduleDates,
+    hasPromotionItem,
+    promotionScheduleDates,
+    linkedPromotion,
+    mustSchedule,
+  ]);
+
+  useEffect(() => {
+    if (!promotionProduct || promotionProductAdded.current === promotionProduct.id) return;
+    if (!items.some((item) => item.productId === promotionProduct.id)) {
+      addItem(promotionProduct);
+    }
+    promotionProductAdded.current = promotionProduct.id;
+  }, [addItem, items, promotionProduct]);
 
   useEffect(() => {
     if (couponsBlocked && session.couponCode) {
@@ -762,15 +839,20 @@ export function CheckoutPageClient() {
               <button
                 key={t}
                 type="button"
+                disabled={t === 'now' && mustSchedule}
                 onClick={() => {
+                  if (t === 'now' && mustSchedule) return;
                   session.setDeliveryTiming(t);
                   if (t === 'scheduled' && !session.scheduledDate) {
-                    const first = firstPreOrderDate(scheduleDates);
+                    const first = firstPreOrderDate(
+                      hasPromotionItem ? promotionScheduleDates : scheduleDates,
+                    );
                     if (first) session.setScheduledDate(first);
                   }
                 }}
                 className={cn(
                   'flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all',
+                  t === 'now' && mustSchedule && 'cursor-not-allowed opacity-40',
                   session.deliveryTiming === t
                     ? 'border-[#14532D] bg-[#14532D]/5 text-[#14532D]'
                     : 'border-gray-100 text-gray-500',
@@ -782,6 +864,11 @@ export function CheckoutPageClient() {
           </div>
           {session.deliveryTiming === 'now' ? (
             <div className="space-y-2">
+              {mustSchedule ? (
+                <p className="text-sm font-semibold text-amber-800">
+                  This cart contains a pre-order item. Choose its available scheduled date below.
+                </p>
+              ) : null}
               <p className="text-sm text-muted-foreground">
                 Estimated delivery in <strong>25–35 min</strong>
               </p>
@@ -811,8 +898,14 @@ export function CheckoutPageClient() {
                   {preOrderConfig.discountPct}% off food items.
                 </p>
               )}
+              {hasPromotionItem && linkedPromotion ? (
+                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+                  {linkedPromotion.promotionNextAvailableLabel || 'Upcoming promotion date'} at{' '}
+                  {formatPromotionTime(linkedPromotion.promotionReadyTime)} · Pre-order required
+                </p>
+              ) : null}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {scheduleDates.map((d) => (
+                {(hasPromotionItem ? promotionScheduleDates : scheduleDates).map((d) => (
                   <button
                     key={d.value}
                     type="button"
@@ -1188,11 +1281,10 @@ function GuestAddressForm({
       </button>
       {d.latitude != null && d.longitude != null ? (
         <>
-          <iframe
-            title="Selected delivery location"
-            className="h-40 w-full rounded-xl border"
-            loading="lazy"
-            src={`https://www.google.com/maps?q=${d.latitude},${d.longitude}&z=16&output=embed`}
+          <LocationPickerMap
+            latitude={d.latitude}
+            longitude={d.longitude}
+            onChange={(latitude, longitude) => onChange({ ...d, latitude, longitude })}
           />
           <div className="grid grid-cols-2 gap-2">
             <input

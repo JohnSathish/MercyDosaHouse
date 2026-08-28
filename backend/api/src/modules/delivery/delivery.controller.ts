@@ -123,7 +123,7 @@ export class DeliveryController {
   @RequirePermissions('delivery.manage')
   updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: DeliveryAssignmentStatus },
+    @Body() body: { status: DeliveryAssignmentStatus; reason?: string },
     @Req() req: { user: RequestUser },
   ) {
     return this.deliveryService.updateAssignmentStatus(
@@ -131,6 +131,7 @@ export class DeliveryController {
       body.status,
       req.user.id,
       req.user.roles,
+      body.reason,
     );
   }
 

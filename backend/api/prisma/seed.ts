@@ -1171,13 +1171,14 @@ async function main() {
       publishedAt: new Date(),
     },
     {
-      title: 'Mercy Special Chicken Dum Biryani ₹350',
+      title: 'CHICKEN DUM BIRYANI',
       message:
-        '🍛 Mercy Special Chicken Dum Biryani at ₹350 — Fragrant basmati rice, tender chicken, traditional dum-cooked. Includes egg, chicken gravy, onion curd raitha & rava kesari. Pre-order one day prior via WhatsApp. Ready everyday at 1PM.',
-      shortMessage: '₹350 · Pre-order 1 day ahead · Ready 1PM daily',
-      icon: '🍛',
+        'Freshly prepared Chicken Dum Biryani with egg, chicken pieces, onion raita, chicken gravy and a sweet.',
+      shortMessage: 'Every Sunday • 1:00 PM',
+      icon: '🔥',
       type: 'BAR' as const,
       priorityLevel: 'PROMOTION' as const,
+      priority: 100,
       platform: 'BOTH' as const,
       placements: ['TOP_BAR', 'HERO_SECTION', 'APP_HOME'],
       bannerImageUrl: '/images/chicken-biryani.png',
@@ -1185,8 +1186,14 @@ async function main() {
       status: 'PUBLISHED' as const,
       isActive: true,
       dismissible: true,
-      ctaText: 'Pre-Order',
-      ctaUrl: '/menu/chicken-biryani',
+      ctaText: 'PRE-ORDER NOW',
+      ctaUrl: '/checkout?product=chicken-biryani&preorder=1',
+      promotionDayOfWeek: 0,
+      promotionReadyTime: '13:00',
+      promotionPreOrderRequired: true,
+      promotionPreOrderCutoffDay: 6,
+      promotionWebsiteEnabled: true,
+      promotionAndroidEnabled: true,
       publishedAt: new Date(),
     },
   ];
@@ -1205,6 +1212,16 @@ async function main() {
     } else {
       await prisma.announcement.create({ data });
     }
+  }
+  const chickenPromotionProduct = await prisma.product.findUnique({
+    where: { slug: 'chicken-biryani' },
+    select: { id: true },
+  });
+  if (chickenPromotionProduct) {
+    await prisma.announcement.updateMany({
+      where: { title: 'CHICKEN DUM BIRYANI' },
+      data: { promotionProductId: chickenPromotionProduct.id },
+    });
   }
 
   // Delivery zones

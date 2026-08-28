@@ -123,6 +123,7 @@ export function formatDate(date: string | Date): string {
 
 export * from './billing';
 export * from './pre-order';
+export * from './promotion-schedule';
 export * from './upi-qr';
 
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {

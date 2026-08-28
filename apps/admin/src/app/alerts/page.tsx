@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { Button, Card, CardContent } from '@mdh/ui';
 import { api } from '@/lib/api';
+import { OrderNotificationLogsPanel } from '@/components/settings/order-notification-logs-panel';
 
 type AlertItem = {
   id: string;
@@ -80,6 +81,12 @@ export default function OrderAlertsPage() {
           {!isLoading && !data.length ? (
             <p className="text-sm text-muted-foreground">No alerts yet.</p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 sm:p-6">
+          <OrderNotificationLogsPanel />
         </CardContent>
       </Card>
     </div>

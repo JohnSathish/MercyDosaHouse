@@ -20,6 +20,18 @@ export class NotificationsController {
   }
 
   @RequirePermissions('settings.read')
+  @Get('order-dispatches')
+  getOrderDispatches() {
+    return this.notificationsService.getOrderNotificationLogs();
+  }
+
+  @RequirePermissions('settings.write')
+  @Post('order-dispatches/:id/retry')
+  retryOrderDispatch(@Param('id') id: string) {
+    return this.notificationsService.retryOrderNotification(id);
+  }
+
+  @RequirePermissions('settings.read')
   @Get('config')
   getNotificationConfig() {
     return this.notificationsService.getNotificationConfig();

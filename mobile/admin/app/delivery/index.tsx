@@ -127,7 +127,7 @@ export default function DeliveryScreen() {
                 variant="ghost"
                 onPress={() =>
                   void Linking.openURL(
-                    `https://www.google.com/maps/dir/?api=1&destination=${o.deliveryLatitude},${o.deliveryLongitude}`,
+                    `geo:${o.deliveryLatitude},${o.deliveryLongitude}?q=${o.deliveryLatitude},${o.deliveryLongitude}`,
                   )
                 }
               />

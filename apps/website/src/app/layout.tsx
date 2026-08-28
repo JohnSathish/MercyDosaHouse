@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Poppins, Inter } from 'next/font/google';
 import '@mdh/ui/globals.css';
+import 'leaflet/dist/leaflet.css';
 import { Providers } from '@/components/providers';
 import { SiteShell } from '@/components/site-shell';
 import { CmsContentProvider } from '@/components/cms/cms-content-provider';

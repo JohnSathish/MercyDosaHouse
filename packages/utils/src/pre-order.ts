@@ -70,10 +70,10 @@ export function buildScheduledDeliveryIso(
   let [h, m] = time.split(':').map(Number);
   if (meridiem === 'PM' && h < 12) h += 12;
   if (meridiem === 'AM' && h === 12) h = 0;
-  const d = new Date(`${scheduledDate}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return undefined;
-  d.setHours(h, m ?? 0, 0, 0);
-  return d.toISOString();
+  const d = new Date(
+    `${scheduledDate}T${String(h).padStart(2, '0')}:${String(m ?? 0).padStart(2, '0')}:00+05:30`,
+  );
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
 export interface ScheduleDateOption {

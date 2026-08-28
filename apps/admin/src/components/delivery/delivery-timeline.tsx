@@ -21,12 +21,12 @@ export function DeliveryTimeline({
   events?: { type: string; description: string; createdAt: string }[];
   compact?: boolean;
 }) {
-  const completed = new Set(events?.map((e) => e.type) ?? ['ORDER_CREATED', 'PREPARING']);
+  const completed = new Set(events?.map((e) => e.type) ?? []);
 
   return (
     <div className={cn('space-y-0', compact && 'space-y-1')}>
       {STEPS.map((step, i) => {
-        const done = completed.has(step.key) || i < 3;
+        const done = completed.has(step.key);
         const event = events?.find((e) => e.type === step.key);
         return (
           <motion.div

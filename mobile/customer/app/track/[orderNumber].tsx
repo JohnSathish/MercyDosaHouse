@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
 import { Linking } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -11,16 +12,19 @@ import {
   Text,
   View,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 import { io, Socket } from 'socket.io-client';
 import type { LiveDeliveryLocationDto, OrderDto } from '@mdh/types';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
+import { buildOsmMapHtml } from '@mdh/mobile-shared';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth-storage';
 import { SOCKET_URL } from '@/lib/constants';
 import { OrderTimeline } from '@/components/order-timeline';
 import { SupportLinks } from '@/components/support-links';
 import { useThemeColors } from '@/providers/config-context';
+
+const OSMWebView = WebView as unknown as ComponentType<any>;
 
 export default function TrackOrderScreen() {
   const { orderNumber } = useLocalSearchParams<{ orderNumber: string }>();
@@ -187,15 +191,45 @@ function LiveDeliveryCard({
     data.customer.latitude != null && data.customer.longitude != null
       ? { latitude: data.customer.latitude, longitude: data.customer.longitude }
       : null;
-  const region = useMemo(() => {
-    const point = agent ?? customer;
-    return point
-      ? { ...point, latitudeDelta: 0.02, longitudeDelta: 0.02 }
-      : { latitude: 25.5133, longitude: 90.2036, latitudeDelta: 0.04, longitudeDelta: 0.04 };
-  }, [agent?.latitude, agent?.longitude, customer?.latitude, customer?.longitude]);
   const route = useMemo(
     () => (data.routePolyline ? decodePolyline(data.routePolyline) : []),
     [data.routePolyline],
+  );
+  const mapHtml = useMemo(
+    () =>
+      buildOsmMapHtml({
+        points: [
+          ...(agent
+            ? [
+                {
+                  id: 'agent',
+                  ...agent,
+                  label: data.agent?.name ?? 'Delivery partner',
+                  type: 'agent' as const,
+                },
+              ]
+            : []),
+          ...(customer
+            ? [
+                {
+                  id: 'customer',
+                  ...customer,
+                  label: 'Your delivery location',
+                  type: 'customer' as const,
+                },
+              ]
+            : []),
+        ],
+        route,
+      }),
+    [
+      agent?.latitude,
+      agent?.longitude,
+      customer?.latitude,
+      customer?.longitude,
+      data.agent?.name,
+      route,
+    ],
   );
 
   return (
@@ -205,21 +239,12 @@ function LiveDeliveryCard({
         <Text style={{ color: colors.primary, fontWeight: '700' }}>Live</Text>
       </View>
       <Text style={styles.message}>Your delivery partner is heading to you.</Text>
-      <MapView style={styles.map} initialRegion={region} region={region}>
-        {agent ? (
-          <Marker coordinate={agent} title={data.agent?.name ?? 'Delivery partner'}>
-            <Text style={styles.marker}>🛵</Text>
-          </Marker>
-        ) : null}
-        {customer ? (
-          <Marker coordinate={customer} title="Your delivery location">
-            <Text style={styles.marker}>📍</Text>
-          </Marker>
-        ) : null}
-        {route.length > 1 ? (
-          <Polyline coordinates={route} strokeColor={colors.primary} strokeWidth={4} />
-        ) : null}
-      </MapView>
+      <OSMWebView
+        originWhitelist={['*']}
+        source={{ html: mapHtml }}
+        javaScriptEnabled
+        style={styles.map}
+      />
       <View style={styles.liveMeta}>
         <Text style={styles.name}>
           {data.distanceKm != null ? `${data.distanceKm.toFixed(1)} km away` : 'Route updating'}

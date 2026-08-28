@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { NotificationType, OrderSource, OrderStatus, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FcmSender } from './fcm.sender';
@@ -35,6 +35,8 @@ const STATUS_TO_TYPE: Record<CustomerStatusKey, NotificationType> = {
   ACCEPTED: NotificationType.ORDER_CONFIRMED,
   PREPARING: NotificationType.PREPARING,
   READY: NotificationType.READY,
+  ASSIGNED: NotificationType.ASSIGNED,
+  PICKED_UP: NotificationType.PICKED_UP,
   OUT_FOR_DELIVERY: NotificationType.OUT_FOR_DELIVERY,
   DELIVERED: NotificationType.DELIVERED,
   CANCELLED: NotificationType.CANCELLED,
@@ -221,11 +223,14 @@ export class NotificationsService {
     await this.notifyCustomerStatus(orderId, OrderStatus.PENDING);
   }
 
-  async notifyCustomerStatus(orderId: string, status: OrderStatus): Promise<void> {
+  async notifyCustomerStatus(
+    orderId: string,
+    status: OrderStatus | 'ASSIGNED' | 'PICKED_UP',
+    options?: { previousStatus?: string | null; reason?: string },
+  ): Promise<void> {
     try {
-      const key = this.statusKey(status);
+      const key = status === 'ASSIGNED' || status === 'PICKED_UP' ? status : this.statusKey(status);
       if (!key) return;
-      if (!(await this.claimDispatch(`customer:status:${orderId}:${key}`))) return;
 
       const cfg = await this.getNotificationConfig();
       if (!cfg.customerStatusEnabled || !cfg.statusEnabled[key]) return;
@@ -239,6 +244,7 @@ export class NotificationsService {
       const vars = {
         ORDER_NUMBER: order.orderNumber,
         AMOUNT: String(Math.round(Number(order.grandTotal))),
+        REASON: options?.reason ? `Reason: ${options.reason}` : '',
       };
       const tpl = cfg.statusTemplates[key];
       const title = applyNotificationTemplate(tpl.title, vars);
@@ -252,21 +258,58 @@ export class NotificationsService {
         channelId: 'order_updates',
       };
 
-      await this.prisma.notification.create({
-        data: {
-          userId: order.userId,
-          type: STATUS_TO_TYPE[key],
-          title,
-          body,
-          data,
-        },
-      });
+      const dedupeKey = `customer:status:${orderId}:${options?.previousStatus ?? 'NONE'}:${key}`;
+      const event = await this.prisma
+        .$transaction(async (tx) => {
+          const dispatch = await tx.pushDispatch.create({
+            data: {
+              dedupeKey,
+              orderId,
+              previousStatus: options?.previousStatus ?? null,
+              newStatus: key,
+              notificationType: STATUS_TO_TYPE[key],
+              deliveryStatus: 'PENDING',
+            },
+          });
+          const notification = await tx.notification.create({
+            data: {
+              userId: order.userId,
+              type: STATUS_TO_TYPE[key],
+              title,
+              body,
+              data,
+            },
+          });
+          await tx.pushDispatch.update({
+            where: { id: dispatch.id },
+            data: { notificationId: notification.id },
+          });
+          return { dispatchId: dispatch.id, notificationId: notification.id };
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            return null;
+          }
+          throw error;
+        });
+      if (!event) return;
 
       const tokens = await this.prisma.deviceToken.findMany({
         where: { userId: order.userId },
         select: { token: true },
       });
-      await this.dispatchPush(
+      if (!tokens.length) {
+        await this.prisma.pushDispatch.update({
+          where: { id: event.dispatchId },
+          data: {
+            deliveryStatus: 'NO_TOKEN',
+            lastError: 'Customer device token unavailable',
+            attempts: { increment: 1 },
+          },
+        });
+        return;
+      }
+      const result = await this.dispatchPush(
         tokens.map((t) => t.token),
         {
           title,
@@ -277,6 +320,15 @@ export class NotificationsService {
           collapseId: `order-status-${order.id}-${key}`,
         },
       );
+      await this.prisma.pushDispatch.update({
+        where: { id: event.dispatchId },
+        data: {
+          deliveryStatus: result.status,
+          lastError: result.error,
+          attempts: { increment: 1 },
+          sentAt: result.status === 'SENT' ? new Date() : null,
+        },
+      });
     } catch (err) {
       this.logger.error(
         `Failed customer push for order ${orderId}`,
@@ -327,6 +379,85 @@ export class NotificationsService {
     }
   }
 
+  async getOrderNotificationLogs() {
+    const dispatches = await this.prisma.pushDispatch.findMany({
+      where: { orderId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    const orderIds = dispatches
+      .map((dispatch) => dispatch.orderId)
+      .filter((id): id is string => Boolean(id));
+    const orders = await this.prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: { id: true, orderNumber: true, customerName: true },
+    });
+    const byId = new Map(orders.map((order) => [order.id, order]));
+    return dispatches.map((dispatch) => ({
+      id: dispatch.id,
+      orderNumber: dispatch.orderId
+        ? (byId.get(dispatch.orderId)?.orderNumber ?? dispatch.orderId)
+        : null,
+      customerName: dispatch.orderId ? (byId.get(dispatch.orderId)?.customerName ?? null) : null,
+      event: dispatch.newStatus,
+      previousStatus: dispatch.previousStatus,
+      notificationType: dispatch.notificationType,
+      status: dispatch.deliveryStatus,
+      error: dispatch.lastError,
+      attempts: dispatch.attempts,
+      createdAt: dispatch.createdAt.toISOString(),
+      sentAt: dispatch.sentAt?.toISOString() ?? null,
+    }));
+  }
+
+  async retryOrderNotification(dispatchId: string) {
+    const dispatch = await this.prisma.pushDispatch.findUnique({
+      where: { id: dispatchId },
+    });
+    if (!dispatch?.notificationId) return { ok: false, reason: 'Notification event not found' };
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: dispatch.notificationId },
+    });
+    if (!notification?.userId)
+      return { ok: false, reason: 'Customer notification recipient not found' };
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId: notification.userId },
+      select: { token: true },
+    });
+    if (!tokens.length) {
+      await this.prisma.pushDispatch.update({
+        where: { id: dispatch.id },
+        data: {
+          deliveryStatus: 'NO_TOKEN',
+          lastError: 'Customer device token unavailable',
+          attempts: { increment: 1 },
+        },
+      });
+      return { ok: false, reason: 'Customer device token unavailable' };
+    }
+    const result = await this.dispatchPush(
+      tokens.map((token) => token.token),
+      {
+        title: notification.title,
+        body: notification.body,
+        data: (notification.data as Record<string, unknown> | null) ?? undefined,
+        channelId: 'order_updates',
+        sound: 'default',
+        collapseId: `retry-${dispatch.id}`,
+      },
+    );
+    await this.prisma.pushDispatch.update({
+      where: { id: dispatch.id },
+      data: {
+        deliveryStatus: result.status,
+        lastError: result.error,
+        attempts: { increment: 1 },
+        sentAt: result.status === 'SENT' ? new Date() : dispatch.sentAt,
+      },
+    });
+    return { ok: result.status === 'SENT', status: result.status };
+  }
+
   getUserNotifications(userId: string) {
     return this.prisma.notification.findMany({
       where: { userId },
@@ -368,10 +499,21 @@ export class NotificationsService {
   }
 
   registerDevice(userId: string, token: string, platform: string) {
-    return this.prisma.deviceToken.upsert({
-      where: { userId_token: { userId, token } },
-      update: { platform },
-      create: { userId, token, platform },
+    if (!token?.trim() || !platform?.trim()) {
+      throw new BadRequestException('A device token and platform are required');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      if (platform.toLowerCase() === 'android' && !token.startsWith('ExponentPushToken')) {
+        await tx.deviceToken.deleteMany({
+          where: { userId, token: { startsWith: 'ExponentPushToken' } },
+        });
+      }
+      await tx.deviceToken.deleteMany({ where: { token, userId: { not: userId } } });
+      return tx.deviceToken.upsert({
+        where: { userId_token: { userId, token } },
+        update: { platform },
+        create: { userId, token, platform },
+      });
     });
   }
 
@@ -427,6 +569,8 @@ export class NotificationsService {
       'OUT_FOR_DELIVERY',
       'DELIVERED',
       'CANCELLED',
+      'ASSIGNED',
+      'PICKED_UP',
     ];
     return keys.includes(status as CustomerStatusKey) ? (status as CustomerStatusKey) : null;
   }
@@ -482,20 +626,46 @@ export class NotificationsService {
       collapseId?: string;
       subtitle?: string;
     },
-  ) {
+  ): Promise<{ status: 'SENT' | 'PARTIAL' | 'FAILED' | 'NO_TOKEN'; error?: string }> {
     const unique = [...new Set(tokens.filter(Boolean))];
     const expoTokens = unique.filter((t) => t.startsWith('ExponentPushToken'));
     const fcmTokens = unique.filter((t) => !t.startsWith('ExponentPushToken'));
+    if (!unique.length) return { status: 'NO_TOKEN', error: 'No registered device token' };
+    let sent = false;
+    let failed = false;
 
     if (expoTokens.length) {
-      await this.sendExpoPush(expoTokens, message);
+      const result = await this.sendExpoPush(expoTokens, message);
+      sent = sent || result.ok;
+      failed = failed || !result.ok;
     }
     if (fcmTokens.length) {
-      const invalid = await this.fcm.send(fcmTokens, message);
-      if (invalid.length) {
-        await this.prisma.deviceToken.deleteMany({ where: { token: { in: invalid } } });
+      if (!this.fcm.isConfigured()) {
+        failed = true;
+      } else {
+        try {
+          const result = await this.fcm.send(fcmTokens, message);
+          sent = sent || result.sent > 0;
+          failed = failed || result.failed > 0;
+          if (result.invalid.length) {
+            await this.prisma.deviceToken.deleteMany({
+              where: { token: { in: result.invalid } },
+            });
+          }
+        } catch (error) {
+          failed = true;
+          return {
+            status: 'FAILED',
+            error: error instanceof Error ? error.message : 'FCM send failed',
+          };
+        }
       }
     }
+    return sent && !failed
+      ? { status: 'SENT' }
+      : sent
+        ? { status: 'PARTIAL', error: 'At least one device delivery failed' }
+        : { status: 'FAILED', error: 'Push provider is not configured or unavailable' };
   }
 
   private async sendExpoPush(
@@ -509,7 +679,8 @@ export class NotificationsService {
       collapseId?: string;
       subtitle?: string;
     },
-  ) {
+  ): Promise<{ ok: boolean }> {
+    let ok = true;
     const messages = expoTokens.map((to) => ({
       to,
       title: message.title,
@@ -537,13 +708,16 @@ export class NotificationsService {
         });
         if (!res.ok) {
           this.logger.warn(`Expo push HTTP ${res.status}`);
+          ok = false;
           continue;
         }
         const json = (await res.json()) as {
           data?: { status?: string; message?: string; details?: { error?: string } }[];
         };
+        if (!json.data || json.data.length !== chunk.length) ok = false;
         const stale: string[] = [];
         (json.data ?? []).forEach((d, idx) => {
+          if (d.status === 'error') ok = false;
           if (d.status === 'error' && d.details?.error === 'DeviceNotRegistered') {
             stale.push(chunk[idx].to);
           }
@@ -552,10 +726,12 @@ export class NotificationsService {
           await this.prisma.deviceToken.deleteMany({ where: { token: { in: stale } } });
         }
       } catch (err) {
+        ok = false;
         this.logger.warn(
           `Expo push request failed: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
+    return { ok };
   }
 }
