@@ -13,7 +13,7 @@ import { Badge, Button, cn } from '@mdh/ui';
 import { formatCurrency } from '@mdh/utils';
 import type { DeliveryOrderDto, DeliveryExecutiveDetailDto } from '@mdh/types';
 import { DeliveryStatusBadge } from './delivery-status-badge';
-import { UserPlus, Zap, Eye, Navigation } from 'lucide-react';
+import { UserPlus, Zap, Eye, Navigation, Phone } from 'lucide-react';
 
 interface DeliveryOrdersTableProps {
   orders: DeliveryOrderDto[];
@@ -48,7 +48,19 @@ export function DeliveryOrdersTable({
       {
         accessorKey: 'customerPhone',
         header: 'Phone',
-        cell: ({ row }) => <span className="text-xs">{row.original.customerPhone}</span>,
+        cell: ({ row }) =>
+          row.original.customerPhone ? (
+            <a
+              href={`tel:${row.original.customerPhone}`}
+              className="inline-flex items-center gap-1 text-xs text-[#14532D] hover:underline"
+              title="Call customer"
+            >
+              <Phone className="h-3 w-3" />
+              {row.original.customerPhone}
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          ),
       },
       {
         id: 'items',
@@ -148,7 +160,14 @@ export function DeliveryOrdersTable({
                 </>
               )}
               {order.assignment?.status === 'OUT_FOR_DELIVERY' && (
-                <Button size="sm" variant="ghost" title="Track">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  title="Track delivery on live map"
+                  onClick={() => {
+                    window.location.assign(`/delivery/map?orderId=${encodeURIComponent(order.id)}`);
+                  }}
+                >
                   <Navigation className="h-3.5 w-3.5 text-purple-500" />
                 </Button>
               )}

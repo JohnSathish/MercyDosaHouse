@@ -1,9 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, Map, MapPin, Navigation, Radio } from 'lucide-react';
+import { ExternalLink, Map, MapPin, Navigation, Phone, Radio } from 'lucide-react';
 import { Badge, Button } from '@mdh/ui';
 import { api } from '@/lib/api';
 import type { DeliveryOrderDto } from '@mdh/types';
@@ -21,7 +22,23 @@ function isStale(lastLocationAt?: string | null) {
   return !lastLocationAt || Date.now() - new Date(lastLocationAt).getTime() > 120_000;
 }
 
+function openCustomerDirections(order: DeliveryOrderDto) {
+  if (order.deliveryLatitude == null || order.deliveryLongitude == null) return;
+
+  const destination = `${order.deliveryLatitude},${order.deliveryLongitude}`;
+  const agent =
+    order.assignment?.latitude != null && order.assignment.longitude != null
+      ? `${order.assignment.latitude},${order.assignment.longitude}`
+      : null;
+  const url = agent
+    ? `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${encodeURIComponent(`${agent};${destination}`)}`
+    : `https://www.openstreetmap.org/?mlat=${order.deliveryLatitude}&mlon=${order.deliveryLongitude}#map=16/${destination}`;
+
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 export default function DeliveryMapPage() {
+  const searchParams = useSearchParams();
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const { data: orders = [], isLoading } = useQuery({
@@ -30,6 +47,14 @@ export default function DeliveryMapPage() {
     refetchInterval: 10_000,
   });
   const { connected, error } = useDeliveryLiveUpdates(orders.map((order) => order.id));
+  const requestedOrderId = searchParams.get('orderId');
+
+  useEffect(() => {
+    if (requestedOrderId && orders.some((order) => order.id === requestedOrderId)) {
+      setSelectedOrderId(requestedOrderId);
+    }
+  }, [orders, requestedOrderId]);
+
   const hasMapData = orders.some(
     (order) =>
       (order.deliveryLatitude != null && order.deliveryLongitude != null) ||
@@ -144,16 +169,19 @@ export default function DeliveryMapPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        void window.open(
-                          `https://www.openstreetmap.org/?mlat=${order.deliveryLatitude}&mlon=${order.deliveryLongitude}#map=16/${order.deliveryLatitude}/${order.deliveryLongitude}`,
-                          '_blank',
-                        )
-                      }
+                      onClick={() => openCustomerDirections(order)}
                     >
                       <Navigation className="mr-1 h-3 w-3" /> Navigate
                     </Button>
                   ) : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!order.customerPhone}
+                    onClick={() => window.open(`tel:${order.customerPhone}`, '_self')}
+                  >
+                    <Phone className="mr-1 h-3 w-3" /> Call
+                  </Button>
                   <Button
                     size="sm"
                     variant={selectedOrderId === order.id ? 'default' : 'outline'}
