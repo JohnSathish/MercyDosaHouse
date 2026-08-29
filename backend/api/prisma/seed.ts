@@ -185,7 +185,8 @@ async function main() {
       name: 'Biryani',
       slug: 'biryani',
       sortOrder: 4,
-      description: 'Premium dum-cooked biryani — pre-order one day prior. Ready everyday at 1PM.',
+      description:
+        'Premium dum-cooked biryani — Chicken Dum Biryani is available every Sunday from 1PM to 2PM.',
       icon: '🍛',
       badge: 'HOT' as const,
       isPopular: true,
@@ -416,7 +417,7 @@ async function main() {
       description:
         'Fragrant basmati rice • Tender chicken • Traditional dum-cooked. Premium dum-cooked quality.',
       ingredients:
-        'Includes boiled egg, chicken gravy, onion curd raitha & rava kesari with every biryani. Pre-order one day prior — ready everyday at 1PM.',
+        'Includes boiled egg, chicken gravy, onion curd raitha & rava kesari. Chicken Dum Biryani is available every Sunday from 1PM to 2PM. Pre-order by Saturday.',
       price: 350,
       categoryId: biryaniCat!.id,
       foodType: FoodType.NON_VEG,
@@ -488,20 +489,6 @@ async function main() {
       imageUrl: '/images/banner-special.jpg',
       sortOrder: 1,
       isActive: true,
-    },
-  });
-
-  await prisma.coupon.upsert({
-    where: { code: 'WELCOME10' },
-    update: {},
-    create: {
-      code: 'WELCOME10',
-      type: 'PERCENTAGE',
-      value: 10,
-      minOrderAmount: 150,
-      maxDiscount: 50,
-      isActive: true,
-      usageLimit: 1000,
     },
   });
 
@@ -593,15 +580,6 @@ async function main() {
       buttonLabel: 'Pre-Order',
       buttonUrl: '/menu/chicken-biryani',
       sortOrder: 3,
-      type: 'BANNER' as const,
-    },
-    {
-      title: '10% OFF',
-      description: 'Pre-order before one day',
-      buttonLabel: 'Order Now',
-      buttonUrl: '/menu',
-      discountPct: 10,
-      sortOrder: 4,
       type: 'BANNER' as const,
     },
   ];

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FiPhone, FiShoppingCart } from 'react-icons/fi';
+import { ShieldCheck } from 'lucide-react';
 import { Button } from '@mdh/ui';
 import { SiteLogo } from '@/components/site-logo';
 import { UserMenu } from '@/components/dashboard/user-menu';
@@ -73,13 +74,15 @@ export function SiteHeader({
           <Link
             href="/fssai"
             title={`FSSAI Registration No. ${fssaiRegistrationNumber}`}
-            className={`hidden xl:inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+            aria-label="View FSSAI registration details"
+            className={`hidden lg:inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
               transparent
-                ? 'bg-white/15 text-white hover:bg-white/25'
-                : 'bg-[#14532D]/10 text-[#14532D] hover:bg-[#14532D]/15'
+                ? 'border-white/35 bg-white/15 text-white hover:bg-white/25'
+                : 'border-emerald-200 bg-emerald-50 text-[#14532D] hover:border-emerald-300 hover:bg-emerald-100'
             }`}
           >
-            ✓ FSSAI Registered
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>FSSAI Registered</span>
           </Link>
         ) : null}
 

@@ -104,18 +104,10 @@ export default function OrderSuccessScreen() {
               valueColor={order.deliveryCharge === 0 ? COLORS.success : undefined}
             />
             <BillRow label="Packing" value={formatCurrency(order.packingCharge)} muted />
-            {(order.preOrderDiscount ?? 0) > 0 ? (
+            {(order.discountAmount ?? 0) > 0 ? (
               <BillRow
-                label="Pre-order discount"
-                value={`-${formatCurrency(order.preOrderDiscount ?? 0)}`}
-                muted
-                valueColor={COLORS.success}
-              />
-            ) : null}
-            {(order.discount ?? 0) > 0 ? (
-              <BillRow
-                label="Coupon"
-                value={`-${formatCurrency(order.discount)}`}
+                label={order.discountName ?? 'Discount'}
+                value={`-${formatCurrency(order.discountAmount ?? 0)}`}
                 muted
                 valueColor={COLORS.success}
               />

@@ -267,8 +267,9 @@ export class OrderEmailNotificationService {
     subtotal: { toNumber?: () => number } | number;
     deliveryCharge: { toNumber?: () => number } | number;
     packingCharge: { toNumber?: () => number } | number;
-    preOrderDiscount: { toNumber?: () => number } | number;
     discount: { toNumber?: () => number } | number;
+    discountName: string | null;
+    discountAmount: { toNumber?: () => number } | number | null;
     taxAmount: { toNumber?: () => number } | number;
     grandTotal: { toNumber?: () => number } | number;
     paymentMethod: PaymentMethod;
@@ -317,8 +318,9 @@ export class OrderEmailNotificationService {
       subtotal: toNum(order.subtotal),
       deliveryCharge: toNum(order.deliveryCharge),
       packingCharge: toNum(order.packingCharge),
-      preOrderDiscount: toNum(order.preOrderDiscount),
       discount: toNum(order.discount),
+      discountName: order.discountName,
+      discountAmount: order.discountAmount == null ? null : toNum(order.discountAmount),
       taxAmount: toNum(order.taxAmount),
       grandTotal: toNum(order.grandTotal),
       paymentMethod: order.paymentMethod,

@@ -81,9 +81,7 @@ export interface MobileDeliverySettingsDto {
   freeDeliveryLimit: number;
   deliveryRadiusKm: number;
   estimatedDeliveryMinutes: number;
-  preOrderDiscountPct: number;
   preOrderMinDaysAhead: number;
-  preOrderStackWithCoupons: boolean;
 }
 
 export interface MobilePaymentMethodDto {
@@ -186,12 +184,6 @@ export const DEFAULT_MOBILE_FEATURE_FLAGS: {
     label: 'Scheduled Orders',
     description: 'Schedule delivery date/time',
     sortOrder: 7,
-  },
-  {
-    key: 'pre_order_discount',
-    label: 'Pre-Order Discount',
-    description: '10% off advance orders',
-    sortOrder: 8,
   },
   {
     key: 'live_tracking',

@@ -33,8 +33,10 @@ export default function SettingsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Pre-Order</Text>
-          <Row label="Discount" value={`${config.delivery.preOrderDiscountPct}%`} />
-          <Row label="Min Days Ahead" value={`${config.delivery.preOrderMinDaysAhead} day(s)`} />
+          <Row
+            label="Scheduling"
+            value={`Available ${config.delivery.preOrderMinDaysAhead} day(s) ahead`}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

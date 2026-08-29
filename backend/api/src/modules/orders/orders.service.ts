@@ -15,8 +15,10 @@ import {
   TrackingStatus,
 } from '@prisma/client';
 import {
-  calculatePreOrderDiscount,
   calculateDeliveryCharge,
+  isChickenBiryaniScheduleMatch,
+  isChickenDumBiryaniProduct,
+  CHICKEN_BIRYANI_VALIDATION_MESSAGE,
   isPreOrderEligible,
   isPromotionScheduleMatch,
   formatPromotionTime,
@@ -29,6 +31,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
 import { isValidOrderStatusTransition } from './order-status-transitions';
 import { MarketingService } from '../marketing/marketing.service';
+import { CouponsService } from '../coupons/coupons.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -41,6 +44,7 @@ export class OrdersService implements OnModuleInit {
     private notificationsService: NotificationsService,
     private settingsService: SettingsService,
     private marketingService: MarketingService,
+    private couponsService: CouponsService,
   ) {}
 
   async onModuleInit() {
@@ -108,8 +112,11 @@ export class OrdersService implements OnModuleInit {
       deliveryCharge: pricing.deliveryCharge,
       packingCharge: pricing.packingCharge,
       packedItemCount: pricing.packedItemCount,
-      preOrderDiscount: pricing.preOrderDiscount,
       couponDiscount: pricing.couponDiscount,
+      discountAmount: pricing.couponDiscount,
+      discountName: pricing.discountName,
+      discountType: pricing.discountType,
+      discountValue: pricing.discountValue,
       rewardDiscount: pricing.rewardDiscount,
       totalDiscount: pricing.totalDiscount,
       grandTotal: pricing.grandTotal,
@@ -202,12 +209,16 @@ export class OrdersService implements OnModuleInit {
           deliveryCharge: pricing.deliveryCharge,
           packingCharge: pricing.packingCharge,
           packedItemCount: pricing.packedItemCount,
-          preOrderDiscount: pricing.preOrderDiscount,
           discount: pricing.totalDiscount,
+          discountName: pricing.discountName,
+          discountType: pricing.discountType,
+          discountValue: pricing.discountValue,
+          discountAmount: pricing.couponDiscount,
           grandTotal: pricing.grandTotal,
           paymentMethod: data.paymentMethod,
           paymentStatus: PaymentStatus.PENDING,
           couponId: pricing.couponId,
+          discountId: pricing.couponId,
           deliveryOtp: String(Math.floor(1000 + Math.random() * 9000)),
           items: { create: pricing.orderItems },
         },
@@ -224,10 +235,18 @@ export class OrdersService implements OnModuleInit {
       });
 
       if (pricing.couponId) {
-        await tx.coupon.update({
-          where: { id: pricing.couponId },
+        const usageUpdate = await tx.coupon.updateMany({
+          where: {
+            id: pricing.couponId,
+            ...(pricing.discountUsageLimit != null
+              ? { usageCount: { lt: pricing.discountUsageLimit } }
+              : {}),
+          },
           data: { usageCount: { increment: 1 } },
         });
+        if (usageUpdate.count !== 1) {
+          throw new BadRequestException('This discount is no longer available');
+        }
       }
 
       if (pricing.rewardPointsUsed > 0 && data.userId) {
@@ -304,6 +323,15 @@ export class OrdersService implements OnModuleInit {
 
     const preOrderProducts = products.filter((product) => product.isPreOrder);
     const now = new Date();
+    const chickenBiryaniProducts = products.filter((product) =>
+      isChickenDumBiryaniProduct(product),
+    );
+    if (
+      chickenBiryaniProducts.length > 0 &&
+      !isChickenBiryaniScheduleMatch(data.scheduledDeliveryAt)
+    ) {
+      throw new BadRequestException(CHICKEN_BIRYANI_VALIDATION_MESSAGE);
+    }
     if (
       preOrderProducts.some(
         () =>
@@ -318,10 +346,13 @@ export class OrdersService implements OnModuleInit {
       );
     }
 
-    const promotion = preOrderProducts.length
+    const promotionProducts = preOrderProducts.filter(
+      (product) => !isChickenDumBiryaniProduct(product),
+    );
+    const promotion = promotionProducts.length
       ? await this.prisma.announcement.findFirst({
           where: {
-            promotionProductId: { in: preOrderProducts.map((product) => product.id) },
+            promotionProductId: { in: promotionProducts.map((product) => product.id) },
             promotionPreOrderRequired: true,
             isActive: true,
             status: ContentStatus.PUBLISHED,
@@ -432,46 +463,29 @@ export class OrdersService implements OnModuleInit {
       orderType,
     });
 
-    const preOrderConfig = {
-      discountPct: Number(settings?.preOrderDiscountPct ?? 10),
-      minDaysAhead: Number(settings?.preOrderMinDaysAhead ?? 1),
-      stackWithCoupons: settings?.preOrderStackWithCoupons === true,
-    };
-
-    let preOrderDiscount = 0;
-    if (
-      data.scheduledDeliveryAt &&
-      isPreOrderEligible(data.scheduledDeliveryAt, new Date(), preOrderConfig)
-    ) {
-      preOrderDiscount = calculatePreOrderDiscount(
-        subtotal,
-        data.scheduledDeliveryAt,
-        preOrderConfig,
-      );
-    }
-
-    let couponDiscount = 0;
-    let couponId: string | undefined;
-    const allowCoupon = preOrderConfig.stackWithCoupons || preOrderDiscount === 0;
-
-    if (data.couponCode && allowCoupon) {
-      const coupon = await this.prisma.coupon.findUnique({
-        where: { code: data.couponCode, isActive: true },
-      });
-      if (coupon && (!coupon.expiresAt || coupon.expiresAt > new Date())) {
-        if (subtotal >= Number(coupon.minOrderAmount)) {
-          if (coupon.type === 'PERCENTAGE') {
-            couponDiscount = (subtotal * Number(coupon.value)) / 100;
-            if (coupon.maxDiscount)
-              couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount));
-          } else {
-            couponDiscount = Number(coupon.value);
-          }
-          couponDiscount = Math.min(couponDiscount, subtotal);
-          couponId = coupon.id;
-        }
-      }
-    }
+    const discountResult = await this.couponsService.calculate(
+      data.couponCode,
+      subtotal,
+      data.items.map((item) => {
+        const product = products.find((candidate) => candidate.id === item.productId)!;
+        const line = orderItems.find(
+          (candidate) =>
+            candidate.productId === item.productId && candidate.variantId === item.variantId,
+        );
+        return {
+          productId: item.productId,
+          categoryId: product.categoryId,
+          totalPrice: line?.totalPrice ?? 0,
+        };
+      }),
+      data.userId,
+    );
+    const couponDiscount = discountResult?.amount ?? 0;
+    const couponId = discountResult?.discount.id;
+    const discountName = discountResult?.discount.name ?? null;
+    const discountType = discountResult?.discount.type ?? null;
+    const discountValue = discountResult ? Number(discountResult.discount.value) : null;
+    const discountUsageLimit = discountResult?.discount.usageLimit ?? null;
 
     let rewardDiscount = 0;
     const rewardPointsUsed = data.rewardPointsUsed ?? 0;
@@ -483,11 +497,11 @@ export class OrdersService implements OnModuleInit {
       }
       rewardDiscount = Math.min(
         rewardPointsUsed,
-        subtotal + deliveryCharge + packingCharge - preOrderDiscount - couponDiscount,
+        subtotal + deliveryCharge + packingCharge - couponDiscount,
       );
     }
 
-    const totalDiscount = preOrderDiscount + couponDiscount + rewardDiscount;
+    const totalDiscount = couponDiscount + rewardDiscount;
     const grandTotal = Math.max(0, subtotal + deliveryCharge + packingCharge - totalDiscount);
 
     return {
@@ -495,8 +509,11 @@ export class OrdersService implements OnModuleInit {
       deliveryCharge,
       packingCharge,
       packedItemCount,
-      preOrderDiscount,
       couponDiscount,
+      discountName,
+      discountType,
+      discountValue,
+      discountUsageLimit,
       rewardDiscount,
       rewardPointsUsed: rewardDiscount > 0 ? rewardPointsUsed : 0,
       totalDiscount,
@@ -809,12 +826,17 @@ export class OrdersService implements OnModuleInit {
     deliveryCharge: { toNumber?: () => number } | number;
     packingCharge: { toNumber?: () => number } | number;
     packedItemCount?: number;
-    preOrderDiscount?: { toNumber?: () => number } | number;
     discount: { toNumber?: () => number } | number;
+    discountName?: string | null;
+    discountType?: import('@prisma/client').CouponType | null;
+    discountValue?: { toNumber?: () => number } | number | null;
+    discountAmount?: { toNumber?: () => number } | number | null;
     scheduledDeliveryAt?: Date | null;
     grandTotal: { toNumber?: () => number } | number;
     paymentMethod: PaymentMethod;
     paymentStatus: PaymentStatus;
+    couponId?: string | null;
+    discountId?: string | null;
     items: {
       id: string;
       productId: string;
@@ -866,8 +888,12 @@ export class OrdersService implements OnModuleInit {
       deliveryCharge: toNum(order.deliveryCharge),
       packingCharge: toNum(order.packingCharge),
       packedItemCount: order.packedItemCount ?? 0,
-      preOrderDiscount: toNum(order.preOrderDiscount ?? 0),
       discount: toNum(order.discount),
+      discountId: order.discountId ?? order.couponId ?? null,
+      discountName: order.discountName ?? null,
+      discountType: order.discountType ?? null,
+      discountValue: order.discountValue == null ? null : toNum(order.discountValue),
+      discountAmount: order.discountAmount == null ? null : toNum(order.discountAmount),
       scheduledDeliveryAt: order.scheduledDeliveryAt?.toISOString() ?? null,
       grandTotal: toNum(order.grandTotal),
       paymentMethod: order.paymentMethod,

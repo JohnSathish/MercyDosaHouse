@@ -151,3 +151,19 @@ The seeded registration number is `21726006000529`. Review or update the
 details under **Admin → Settings → FSSAI Registration**. Upload the complete
 certificate PDF there; it will be linked from the website `/fssai` page and
 shown in the customer app.
+
+### 13. Offers & Discounts
+
+Discounts are managed under **Admin → Offers & Discounts**. The migration
+retires the legacy automatic pre-order promotion and upgrades the existing
+coupon tables with date/time, product/category/customer targeting, usage
+limits, and immutable order snapshots.
+
+```bash
+cd /opt/mercy-dosa-house
+docker compose -f docker/docker-compose.prod.coexist.yml run --rm api pnpm exec prisma migrate deploy
+docker compose -f docker/docker-compose.prod.coexist.yml up -d --build api admin website
+```
+
+The backend recalculates the discount and final payable amount during both
+quote and order creation. Never trust a discount amount supplied by a client.

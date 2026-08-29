@@ -37,8 +37,8 @@ export default function HelpScreen() {
                 a="Yes! Choose Schedule at checkout and pick a date & time slot."
               />
               <Faq
-                q="What is pre-order discount?"
-                a={`Order ${config.delivery.preOrderMinDaysAhead}+ days ahead for ${config.delivery.preOrderDiscountPct}% off.`}
+                q="Can I schedule an order?"
+                a={`Yes. Schedule at least ${config.delivery.preOrderMinDaysAhead} day(s) ahead and choose an available delivery slot.`}
               />
             </>
           )}

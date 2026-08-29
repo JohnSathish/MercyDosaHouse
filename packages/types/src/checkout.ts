@@ -25,12 +25,16 @@ export interface CheckoutProfileDto {
 }
 
 export interface AvailableCouponDto {
+  id: string;
+  name: string;
   code: string;
   type: string;
   value: number;
   minOrderAmount: number;
   maxDiscount: number | null;
   discount: number;
+  startsAt?: string | null;
+  endsAt?: string | null;
   description?: string | null;
 }
 

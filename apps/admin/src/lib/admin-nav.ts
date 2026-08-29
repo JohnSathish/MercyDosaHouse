@@ -69,7 +69,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/customers', label: 'Customers', icon: Users },
       { href: '/delivery', label: 'Delivery Management', icon: Truck },
       { href: '/categories', label: 'Categories', icon: Layers },
-      { href: '/coupons', label: 'Offers & Coupons', icon: Ticket },
+      { href: '/offers-discounts', label: 'Offers & Discounts', icon: Ticket },
       { href: '/reports', label: 'Reports & Analytics', icon: FileBarChart },
       {
         href: '/marketing',

@@ -25,13 +25,17 @@ import {
 import { Button, cn } from '@mdh/ui';
 import {
   formatCurrency,
-  calculatePreOrderDiscount,
   buildScheduledDeliveryIso,
+  CHICKEN_BIRYANI_TIME_SLOT,
+  CHICKEN_BIRYANI_VALIDATION_MESSAGE,
+  getChickenBiryaniScheduleOptions,
   getScheduleDateOptions,
   firstPreOrderDate,
   formatPromotionTime,
   formatPackingLabel,
   PAYMENT_METHOD_LABELS,
+  isChickenBiryaniScheduleMatch,
+  isChickenDumBiryaniProduct,
 } from '@mdh/utils';
 import { useOrderCharges } from '@/hooks/use-order-charges';
 import { AddressType, DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
@@ -214,9 +218,7 @@ export function CheckoutPageClient() {
 
   const preOrderConfig = useMemo(
     () => ({
-      discountPct: settings?.preOrderDiscountPct ?? 10,
       minDaysAhead: settings?.preOrderMinDaysAhead ?? 1,
-      stackWithCoupons: settings?.preOrderStackWithCoupons ?? false,
     }),
     [settings],
   );
@@ -225,6 +227,7 @@ export function CheckoutPageClient() {
     () => getScheduleDateOptions(7, new Date(), preOrderConfig),
     [preOrderConfig],
   );
+  const chickenScheduleDates = useMemo(() => getChickenBiryaniScheduleOptions(7), []);
 
   const promotionScheduleDates = useMemo(() => {
     if (!linkedPromotion?.promotionNextAvailableDate) return scheduleDates;
@@ -246,7 +249,13 @@ export function CheckoutPageClient() {
       item.product.isPreOrder &&
       (!linkedPromotion || item.productId === linkedPromotion.promotionProductId),
   );
-  const mustSchedule = items.some((item) => item.product.isPreOrder);
+  const hasChickenBiryani = items.some((item) => isChickenDumBiryaniProduct(item.product));
+  const mustSchedule = hasChickenBiryani || items.some((item) => item.product.isPreOrder);
+  const availableScheduleDates = hasChickenBiryani
+    ? chickenScheduleDates
+    : hasPromotionItem
+      ? promotionScheduleDates
+      : scheduleDates;
 
   const scheduledIso = useMemo(() => {
     if (
@@ -259,15 +268,7 @@ export function CheckoutPageClient() {
     return buildScheduledDeliveryIso(session.scheduledDate, session.scheduledSlot) ?? null;
   }, [session.deliveryTiming, session.scheduledDate, session.scheduledSlot]);
 
-  const preOrderDiscount = useMemo(
-    () => calculatePreOrderDiscount(sub, scheduledIso, preOrderConfig),
-    [sub, scheduledIso, preOrderConfig],
-  );
-
-  const preOrderActive = preOrderDiscount > 0;
-  const couponsBlocked = preOrderActive && !preOrderConfig.stackWithCoupons;
-
-  const totalDiscount = preOrderDiscount + couponDiscount + rewardDiscount;
+  const totalDiscount = couponDiscount + rewardDiscount;
   const charges = useOrderCharges(sub, packing, orderType, totalDiscount);
   const { delivery, deliveryIsFree, total: clientTotal } = charges;
 
@@ -280,12 +281,23 @@ export function CheckoutPageClient() {
       })),
     [items],
   );
+  const discountItems = useMemo(
+    () =>
+      items.map((item) => {
+        const price = item.variantId
+          ? (item.product.variants?.find((variant) => variant.id === item.variantId)?.price ??
+            item.product.price)
+          : item.product.price;
+        return { productId: item.productId, totalPrice: price * item.quantity };
+      }),
+    [items],
+  );
 
   const { data: serverQuote } = useQuery({
     queryKey: [
       'order-quote',
       quoteItems,
-      couponsBlocked ? null : session.couponCode,
+      session.couponCode,
       scheduledIso,
       session.rewardPointsToUse,
       orderType,
@@ -296,12 +308,13 @@ export function CheckoutPageClient() {
         subtotal: number;
         deliveryCharge: number;
         packingCharge: number;
-        preOrderDiscount: number;
+        discountAmount: number;
+        discountName: string | null;
         couponDiscount: number;
         rewardDiscount: number;
       }>('/orders/quote', {
         items: quoteItems,
-        couponCode: couponsBlocked ? undefined : session.couponCode,
+        couponCode: session.couponCode ?? undefined,
         scheduledDeliveryAt: scheduledIso ?? undefined,
         rewardPointsUsed: session.rewardPointsToUse || undefined,
         orderType,
@@ -313,8 +326,13 @@ export function CheckoutPageClient() {
   const grandTotal = serverQuote?.grandTotal ?? clientTotal;
 
   const { data: availableCoupons = [] } = useQuery({
-    queryKey: ['coupons-available', sub],
-    queryFn: () => api.get<AvailableCouponDto[]>(`/coupons/available?subtotal=${sub}`),
+    queryKey: ['coupons-available', sub, quoteItems],
+    queryFn: () =>
+      api.get<AvailableCouponDto[]>(
+        `/coupons/available?subtotal=${sub}&productIds=${quoteItems
+          .map((item) => item.productId)
+          .join(',')}&items=${encodeURIComponent(JSON.stringify(quoteItems))}`,
+      ),
     enabled: sub > 0,
   });
 
@@ -378,24 +396,49 @@ export function CheckoutPageClient() {
       session.deliveryTiming === 'now'
     ) {
       session.setDeliveryTiming('scheduled');
-      const first = firstPreOrderDate(hasPromotionItem ? promotionScheduleDates : scheduleDates);
+      const first = firstPreOrderDate(availableScheduleDates);
       if (first) session.setScheduledDate(first);
       if (!session.scheduledSlot) {
-        const readyTime = linkedPromotion?.promotionReadyTime
-          ? formatPromotionTime(linkedPromotion.promotionReadyTime)
-          : '8:00 AM';
+        const readyTime = hasChickenBiryani
+          ? CHICKEN_BIRYANI_TIME_SLOT
+          : linkedPromotion?.promotionReadyTime
+            ? formatPromotionTime(linkedPromotion.promotionReadyTime)
+            : '8:00 AM';
         session.setScheduledSlot(
-          DELIVERY_TIME_SLOTS.find((slot) => slot.startsWith(readyTime)) ?? '8:00 AM - 9:00 AM',
+          hasChickenBiryani
+            ? CHICKEN_BIRYANI_TIME_SLOT
+            : (DELIVERY_TIME_SLOTS.find((slot) => slot.startsWith(readyTime)) ??
+                '8:00 AM - 9:00 AM'),
         );
       }
     }
   }, [
     searchParams,
-    scheduleDates,
-    hasPromotionItem,
+    availableScheduleDates,
+    hasChickenBiryani,
     promotionScheduleDates,
     linkedPromotion,
     mustSchedule,
+  ]);
+
+  useEffect(() => {
+    if (!hasChickenBiryani) return;
+    const firstSunday = firstPreOrderDate(chickenScheduleDates);
+    if (!chickenScheduleDates.some((date) => date.value === session.scheduledDate)) {
+      session.setScheduledDate(firstSunday);
+    }
+    if (session.scheduledSlot !== CHICKEN_BIRYANI_TIME_SLOT) {
+      session.setScheduledSlot(CHICKEN_BIRYANI_TIME_SLOT);
+    }
+    if (session.deliveryTiming !== 'scheduled') {
+      session.setDeliveryTiming('scheduled');
+    }
+  }, [
+    hasChickenBiryani,
+    chickenScheduleDates,
+    session.deliveryTiming,
+    session.scheduledDate,
+    session.scheduledSlot,
   ]);
 
   useEffect(() => {
@@ -407,35 +450,31 @@ export function CheckoutPageClient() {
   }, [addItem, items, promotionProduct]);
 
   useEffect(() => {
-    if (couponsBlocked && session.couponCode) {
+    if (
+      session.couponCode &&
+      !availableCoupons.some((coupon) => coupon.code === session.couponCode)
+    ) {
       session.setCouponCode(null);
       setCouponDiscount(0);
+      return;
     }
-  }, [couponsBlocked, session.couponCode]);
-
-  useEffect(() => {
-    if (couponsBlocked) return;
     if (availableCoupons.length && !session.couponCode) {
       const best = availableCoupons[0];
       session.setCouponCode(best.code);
       setCouponDiscount(best.discount);
     }
-  }, [availableCoupons, couponsBlocked]);
+  }, [availableCoupons, session.couponCode]);
 
   useEffect(() => {
     if (items.length === 0 && !redirecting) router.replace('/cart');
   }, [items.length, redirecting, router]);
 
   async function applyCoupon(code: string) {
-    if (couponsBlocked) {
-      toast('Pre-order discount cannot be combined with coupon codes.');
-      return;
-    }
     setApplyingCoupon(true);
     try {
       const res = await api.post<{ discount: number; coupon: { code: string } }>(
         '/coupons/validate',
-        { code, subtotal: sub },
+        { code, subtotal: sub, items: discountItems },
       );
       session.setCouponCode(res.coupon.code);
       setCouponDiscount(res.discount);
@@ -524,11 +563,15 @@ export function CheckoutPageClient() {
       toast('Please choose a delivery date and time slot');
       return;
     }
+    if (hasChickenBiryani && !isChickenBiryaniScheduleMatch(buildScheduledIso())) {
+      toast(CHICKEN_BIRYANI_VALIDATION_MESSAGE);
+      return;
+    }
 
     const user = getStoredUser();
     let payload: Record<string, unknown>;
     let customerName = 'Guest';
-    const couponCode = couponsBlocked ? undefined : session.couponCode;
+    const couponCode = session.couponCode ?? undefined;
 
     if (authed && selectedAddress?.id) {
       customerName = resolveCheckoutCustomerName(selectedAddress.contactName, profile?.name);
@@ -844,10 +887,11 @@ export function CheckoutPageClient() {
                   if (t === 'now' && mustSchedule) return;
                   session.setDeliveryTiming(t);
                   if (t === 'scheduled' && !session.scheduledDate) {
-                    const first = firstPreOrderDate(
-                      hasPromotionItem ? promotionScheduleDates : scheduleDates,
-                    );
+                    const first = firstPreOrderDate(availableScheduleDates);
                     if (first) session.setScheduledDate(first);
+                    if (hasChickenBiryani) {
+                      session.setScheduledSlot(CHICKEN_BIRYANI_TIME_SLOT);
+                    }
                   }
                 }}
                 className={cn(
@@ -872,40 +916,30 @@ export function CheckoutPageClient() {
               <p className="text-sm text-muted-foreground">
                 Estimated delivery in <strong>25–35 min</strong>
               </p>
-              <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 border border-amber-100">
-                💡 Schedule at least 1 day ahead to get{' '}
-                <strong>{preOrderConfig.discountPct}% OFF</strong> on food items.
-              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {preOrderActive && (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5 flex items-center gap-2">
-                  <span className="text-lg">🎉</span>
-                  <div>
-                    <p className="text-sm font-bold text-emerald-800">
-                      {preOrderConfig.discountPct}% Pre-Order Discount Applied
-                    </p>
-                    <p className="text-xs text-emerald-700">
-                      You save {formatCurrency(preOrderDiscount)} on food items
-                    </p>
-                  </div>
+              {hasChickenBiryani ? (
+                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                  <p className="font-bold">🍗 Chicken Dum Biryani — Sunday Special</p>
+                  <p>
+                    Available only on Sundays. Freshly prepared and ready for delivery between 1:00
+                    PM – 2:00 PM.
+                  </p>
+                  <p className="font-semibold">📅 Pre-order by Saturday</p>
+                  <p className="text-xs">
+                    Please place your order one day in advance so we can prepare your biryani fresh
+                    according to demand.
+                  </p>
                 </div>
-              )}
-              {!preOrderActive && session.scheduledDate && (
-                <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 border border-amber-100">
-                  Select a date at least {preOrderConfig.minDaysAhead} day ahead to unlock{' '}
-                  {preOrderConfig.discountPct}% off food items.
-                </p>
-              )}
-              {hasPromotionItem && linkedPromotion ? (
+              ) : hasPromotionItem && linkedPromotion ? (
                 <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
                   {linkedPromotion.promotionNextAvailableLabel || 'Upcoming promotion date'} at{' '}
                   {formatPromotionTime(linkedPromotion.promotionReadyTime)} · Pre-order required
                 </p>
               ) : null}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {(hasPromotionItem ? promotionScheduleDates : scheduleDates).map((d) => (
+                {availableScheduleDates.map((d) => (
                   <button
                     key={d.value}
                     type="button"
@@ -918,30 +952,27 @@ export function CheckoutPageClient() {
                     )}
                   >
                     {d.label}
-                    {d.qualifiesForPreOrder && (
-                      <span className="block text-[9px] font-bold text-emerald-600 mt-0.5">
-                        {preOrderConfig.discountPct}% OFF
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {DELIVERY_TIME_SLOTS.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => session.setScheduledSlot(slot)}
-                    className={cn(
-                      'py-2 px-2 rounded-xl text-[11px] font-medium border',
-                      session.scheduledSlot === slot
-                        ? 'border-[#14532D] bg-[#14532D]/5 text-[#14532D]'
-                        : 'border-gray-100',
-                    )}
-                  >
-                    {slot}
-                  </button>
-                ))}
+                {(hasChickenBiryani ? [CHICKEN_BIRYANI_TIME_SLOT] : DELIVERY_TIME_SLOTS).map(
+                  (slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => session.setScheduledSlot(slot)}
+                      className={cn(
+                        'py-2 px-2 rounded-xl text-[11px] font-medium border',
+                        session.scheduledSlot === slot
+                          ? 'border-[#14532D] bg-[#14532D]/5 text-[#14532D]'
+                          : 'border-gray-100',
+                      )}
+                    >
+                      {slot}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
           )}
@@ -971,58 +1002,53 @@ export function CheckoutPageClient() {
 
         {/* Coupons */}
         <CheckoutSection
-          title="Coupons & Offers"
+          title="Offers & Discounts"
           icon={Tag}
-          defaultOpen={!!availableCoupons.length && !couponsBlocked}
+          defaultOpen={!!availableCoupons.length}
         >
-          {couponsBlocked ? (
-            <p className="text-sm text-muted-foreground rounded-xl bg-[#FFF8E8] px-3 py-2 border border-[#14532D]/10">
-              Pre-order discount is active. Coupon codes cannot be combined with this offer.
-            </p>
-          ) : (
-            <>
-              {availableCoupons.slice(0, 3).map((c) => (
-                <button
-                  key={c.code}
-                  type="button"
-                  onClick={() => applyCoupon(c.code)}
-                  className={cn(
-                    'w-full text-left rounded-xl border p-3 mb-2 transition-all',
-                    session.couponCode === c.code
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-100 hover:border-[#14532D]/30',
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-[#14532D]">{c.code}</span>
-                    <span className="text-sm font-semibold text-emerald-600">
-                      Save {formatCurrency(c.discount)}
-                    </span>
-                  </div>
-                  {c.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{c.description}</p>
-                  )}
-                </button>
-              ))}
-              <div className="flex gap-2 mt-2">
-                <input
-                  value={manualCoupon}
-                  onChange={(e) => setManualCoupon(e.target.value.toUpperCase())}
-                  placeholder="Enter coupon code"
-                  className="flex-1 rounded-xl border px-3 py-2 text-sm"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={applyingCoupon || !manualCoupon}
-                  onClick={() => applyCoupon(manualCoupon)}
-                  className="rounded-xl"
-                >
-                  Apply
-                </Button>
+          {availableCoupons.slice(0, 3).map((c) => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => applyCoupon(c.code)}
+              className={cn(
+                'w-full text-left rounded-xl border p-3 mb-2 transition-all',
+                session.couponCode === c.code
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : 'border-gray-100 hover:border-[#14532D]/30',
+              )}
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-[#14532D]">{c.name ?? c.code}</span>
+                <span className="text-sm font-semibold text-emerald-600">
+                  Save up to {formatCurrency(c.discount)}
+                </span>
               </div>
-            </>
-          )}
+              {c.code.startsWith('AUTO-') ? null : (
+                <p className="text-xs text-muted-foreground mt-0.5">Code: {c.code}</p>
+              )}
+              {c.description && (
+                <p className="text-xs text-muted-foreground mt-0.5">{c.description}</p>
+              )}
+            </button>
+          ))}
+          <div className="flex gap-2 mt-2">
+            <input
+              value={manualCoupon}
+              onChange={(e) => setManualCoupon(e.target.value.toUpperCase())}
+              placeholder="Enter discount code"
+              className="flex-1 rounded-xl border px-3 py-2 text-sm"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={applyingCoupon || !manualCoupon}
+              onClick={() => applyCoupon(manualCoupon)}
+              className="rounded-xl"
+            >
+              Apply
+            </Button>
+          </div>
         </CheckoutSection>
 
         {/* Rewards */}
@@ -1036,7 +1062,7 @@ export function CheckoutPageClient() {
               min={0}
               max={Math.min(
                 profile.loyaltyPoints,
-                sub + charges.delivery + packing - preOrderDiscount - couponDiscount,
+                sub + charges.delivery + packing - couponDiscount,
               )}
               value={session.rewardPointsToUse}
               onChange={(e) => session.setRewardPointsToUse(Number(e.target.value))}
@@ -1069,27 +1095,25 @@ export function CheckoutPageClient() {
           })}
           <div className="mt-3 space-y-1.5 text-sm">
             <Row label="Subtotal" value={formatCurrency(sub)} />
-            {preOrderDiscount > 0 && (
-              <Row
-                label={`Pre-Order Discount (${preOrderConfig.discountPct}%)`}
-                value={`−${formatCurrency(preOrderDiscount)}`}
-                green
-              />
-            )}
             <Row
               label="Delivery"
               value={deliveryIsFree ? 'Free Delivery' : formatCurrency(delivery)}
             />
             <Row label={formatPackingLabel(packedCount)} value={formatCurrency(packing)} />
-            {couponDiscount > 0 && (
-              <Row label="Coupon" value={`−${formatCurrency(couponDiscount)}`} green />
+            {(serverQuote?.discountAmount ?? 0) > 0 && (
+              <Row
+                label={serverQuote?.discountName ?? 'Discount'}
+                value={`−${formatCurrency(serverQuote?.discountAmount ?? 0)}`}
+                green
+              />
             )}
             {rewardDiscount > 0 && (
               <Row label="Reward Points" value={`−${formatCurrency(rewardDiscount)}`} green />
             )}
-            {preOrderDiscount > 0 && (
+            {serverQuote?.discountName && (serverQuote.discountAmount ?? 0) > 0 && (
               <p className="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-2 py-1.5">
-                🎉 You saved {formatCurrency(preOrderDiscount)} by ordering one day in advance.
+                🎉 {serverQuote.discountName} applied — you saved{' '}
+                {formatCurrency(serverQuote.discountAmount)}
               </p>
             )}
             <div className="flex justify-between font-bold text-lg pt-2 border-t">

@@ -111,9 +111,7 @@ export class MobileService {
         freeDeliveryLimit: business.freeDeliveryLimit ?? 299,
         deliveryRadiusKm: business.deliveryRadiusKm ?? 10,
         estimatedDeliveryMinutes: business.estimatedDeliveryMinutes ?? 30,
-        preOrderDiscountPct: business.preOrderDiscountPct ?? 10,
         preOrderMinDaysAhead: business.preOrderMinDaysAhead ?? 1,
-        preOrderStackWithCoupons: business.preOrderStackWithCoupons ?? false,
       },
       business: {
         businessName: business.businessName,

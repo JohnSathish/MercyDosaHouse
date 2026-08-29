@@ -32,8 +32,9 @@ export interface OrderEmailPayload {
   subtotal: number;
   deliveryCharge: number;
   packingCharge: number;
-  preOrderDiscount: number;
   discount: number;
+  discountName?: string | null;
+  discountAmount?: number | null;
   taxAmount: number;
   grandTotal: number;
   paymentMethod: PaymentMethod;
@@ -135,7 +136,6 @@ export function buildOrderConfirmedSubject(payload: OrderEmailPayload): string {
 
 export function buildOrderConfirmedHtml(payload: OrderEmailPayload): string {
   const { date, time } = formatDateTime(payload.createdAt);
-  const couponDiscount = Math.max(0, payload.discount - payload.preOrderDiscount);
   const itemRows = payload.items
     .map((item) => {
       const name = item.variantName
@@ -216,13 +216,8 @@ export function buildOrderConfirmedHtml(payload: OrderEmailPayload): string {
                 <p style="margin:0 0 6px;display:flex;justify-content:space-between;"><span>Delivery</span><span>${payload.deliveryCharge <= 0 ? 'Free' : formatInr(payload.deliveryCharge)}</span></p>
                 <p style="margin:0 0 6px;display:flex;justify-content:space-between;"><span>Packing</span><span>${formatInr(payload.packingCharge)}</span></p>
                 ${
-                  payload.preOrderDiscount > 0
-                    ? `<p style="margin:0 0 6px;display:flex;justify-content:space-between;color:#059669;"><span>Pre-order Discount</span><span>-${formatInr(payload.preOrderDiscount)}</span></p>`
-                    : ''
-                }
-                ${
-                  couponDiscount > 0
-                    ? `<p style="margin:0 0 6px;display:flex;justify-content:space-between;color:#059669;"><span>Discount</span><span>-${formatInr(couponDiscount)}</span></p>`
+                  (payload.discountAmount ?? 0) > 0
+                    ? `<p style="margin:0 0 6px;display:flex;justify-content:space-between;color:#059669;"><span>${escapeHtml(payload.discountName || 'Discount')}</span><span>-${formatInr(payload.discountAmount ?? 0)}</span></p>`
                     : ''
                 }
                 ${

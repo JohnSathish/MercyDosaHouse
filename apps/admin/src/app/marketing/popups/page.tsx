@@ -78,6 +78,34 @@ function formatFrequency(value?: string | null) {
     .replace(/^\w/, (c) => c.toUpperCase());
 }
 
+function resolveMediaUrl(value?: string | null) {
+  if (!value) return '';
+  const raw = value.trim();
+  const apiOrigin = (() => {
+    try {
+      return new URL(API_URL).origin;
+    } catch {
+      return window.location.origin;
+    }
+  })();
+  const websiteOrigin = process.env.NEXT_PUBLIC_WEBSITE_URL || window.location.origin;
+  const browserIsRemote = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const publicOrigin =
+    browserIsRemote && apiOrigin.includes('localhost') ? websiteOrigin : apiOrigin;
+  if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
+    return `${publicOrigin}/${raw.replace(/^\/+/, '')}`;
+  }
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+      return `${publicOrigin}${parsed.pathname}${parsed.search}`;
+    }
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export default function PopupManagementPage() {
   const queryClient = useQueryClient();
   const toast = useToastStore((s) => s.show);
@@ -179,7 +207,8 @@ export default function PopupManagementPage() {
       if (!response.ok) throw new Error('upload failed');
       const result = (await response.json()) as { url?: string };
       if (!result.url) throw new Error('missing URL');
-      setForm({ ...form, bannerImageUrl: result.url, heroBannerImageUrl: result.url });
+      const mediaUrl = resolveMediaUrl(result.url);
+      setForm({ ...form, bannerImageUrl: mediaUrl, heroBannerImageUrl: mediaUrl });
       toast('Popup image uploaded.');
     } catch {
       toast('Image upload failed.');
@@ -252,7 +281,7 @@ export default function PopupManagementPage() {
                   <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-[#FFF8E8]">
                     {item.bannerImageUrl || item.heroBannerImageUrl ? (
                       <img
-                        src={item.bannerImageUrl ?? item.heroBannerImageUrl ?? ''}
+                        src={resolveMediaUrl(item.bannerImageUrl ?? item.heroBannerImageUrl)}
                         alt=""
                         className="h-full w-full object-contain"
                       />
@@ -569,7 +598,7 @@ export default function PopupManagementPage() {
               </div>
               {(form.bannerImageUrl || form.heroBannerImageUrl) && (
                 <img
-                  src={form.bannerImageUrl ?? form.heroBannerImageUrl ?? ''}
+                  src={resolveMediaUrl(form.bannerImageUrl ?? form.heroBannerImageUrl)}
                   alt="Popup preview"
                   className="max-h-48 w-full rounded-lg bg-[#FFF8E8] object-contain"
                 />
@@ -610,7 +639,7 @@ export default function PopupManagementPage() {
             </button>
             {preview.bannerImageUrl || preview.heroBannerImageUrl ? (
               <img
-                src={preview.bannerImageUrl ?? preview.heroBannerImageUrl ?? ''}
+                src={resolveMediaUrl(preview.bannerImageUrl ?? preview.heroBannerImageUrl)}
                 alt=""
                 className="max-h-[55vh] w-full object-contain"
               />

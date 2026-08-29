@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heart, MapPin, Plus, Trash2, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { Button, Card, CardContent, Badge } from '@mdh/ui';
 import { formatCurrency, formatDate } from '@mdh/utils';
@@ -18,12 +18,6 @@ import { useCartStore } from '@/lib/cart-store';
 import { api } from '@/lib/api';
 import { useToastStore } from '@/lib/toast-store';
 import type { DashboardSection } from './types';
-
-const OFFERS = [
-  { title: '10% OFF Pre-order', desc: 'Order one day ahead', type: 'offer' },
-  { title: 'Buy 2 Masala Dosas', desc: 'Fresh spiced masala filling', type: 'offer' },
-  { title: '5% OFF above ₹299', desc: 'Add a little more & save on food', type: 'offer' },
-];
 
 interface DashboardContentProps {
   section: DashboardSection;
@@ -160,26 +154,6 @@ export function DashboardOverview({
           </CardContent>
         </Card>
       </div>
-
-      <Card className="rounded-2xl shadow-md border-0">
-        <CardContent className="p-6">
-          <h2 className="font-bold text-[#14532D] mb-4">Offers & Announcements</h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {OFFERS.map((o) => (
-              <div
-                key={o.title}
-                className="shrink-0 w-64 p-4 rounded-2xl bg-[#FFF8E8] border border-primary/10"
-              >
-                <Badge variant="secondary" className="mb-2 text-xs">
-                  {o.type === 'offer' ? 'Offer' : 'News'}
-                </Badge>
-                <p className="font-bold text-[#14532D] text-sm">{o.title}</p>
-                <p className="text-xs text-gray-500 mt-1">{o.desc}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -515,17 +489,46 @@ export function AddressesPanel({
 }
 
 export function CouponsPanel() {
+  const { data: discounts = [], isLoading } = useQuery({
+    queryKey: ['customer-discounts'],
+    queryFn: () =>
+      api.get<
+        { id: string; name: string; code: string; type: string; value: number; discount: number }[]
+      >('/coupons/available?subtotal=0'),
+    staleTime: 30_000,
+  });
+
+  if (!isLoading && discounts.length === 0) {
+    return (
+      <EmptyState
+        emoji="🏷️"
+        title="No active discounts"
+        description="Admin-created discounts will appear here when they are valid for your order."
+        actionLabel="Browse Menu"
+        actionHref="/menu"
+      />
+    );
+  }
+
   return (
     <div className="grid sm:grid-cols-2 gap-4">
-      {OFFERS.map((o) => (
-        <Card key={o.title} className="rounded-2xl border-dashed border-secondary/50 bg-[#FFF8E8]">
+      {discounts.map((discount) => (
+        <Card
+          key={discount.id}
+          className="rounded-2xl border-dashed border-secondary/50 bg-[#FFF8E8]"
+        >
           <CardContent className="p-5">
-            <Badge className="mb-2 bg-secondary text-[#1F2937]">Coupon</Badge>
-            <p className="font-bold text-[#14532D]">{o.title}</p>
-            <p className="text-sm text-gray-500 mt-1">{o.desc}</p>
-            <Button size="sm" className="mt-4 bg-primary">
-              Apply at Checkout
-            </Button>
+            <Badge className="mb-2 bg-secondary text-[#1F2937]">Active discount</Badge>
+            <p className="font-bold text-[#14532D]">{discount.name}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {discount.type === 'PERCENTAGE' ? `${discount.value}% off` : `₹${discount.value} off`}
+            </p>
+            <a
+              href="/checkout"
+              className="mt-4 inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white"
+            >
+              View at Checkout
+            </a>
           </CardContent>
         </Card>
       ))}

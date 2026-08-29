@@ -53,9 +53,7 @@ export const DEFAULT_APP_CONFIG: MobileAppConfigDto = {
     freeDeliveryLimit: 299,
     deliveryRadiusKm: 10,
     estimatedDeliveryMinutes: 30,
-    preOrderDiscountPct: 10,
     preOrderMinDaysAhead: 1,
-    preOrderStackWithCoupons: false,
   },
   business: {
     businessName: 'Mercy Dosa House',
@@ -115,7 +113,6 @@ export const DEFAULT_APP_CONFIG: MobileAppConfigDto = {
     referral: false,
     coupons: true,
     scheduled_orders: true,
-    pre_order_discount: true,
     live_tracking: false,
     whatsapp_support: true,
     chat: false,

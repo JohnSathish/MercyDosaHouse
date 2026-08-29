@@ -15,7 +15,10 @@ export class MediaService {
     private prisma: PrismaService,
   ) {
     this.uploadDir = config.get('UPLOAD_DIR') || './uploads';
-    this.publicUrl = config.get('STORAGE_PUBLIC_URL') || 'http://localhost:3001/uploads';
+    const publicSiteUrl =
+      config.get('NEXT_PUBLIC_WEBSITE_URL') || config.get('SITE_URL') || 'http://localhost:3001';
+    this.publicUrl =
+      config.get('STORAGE_PUBLIC_URL') || `${String(publicSiteUrl).replace(/\/$/, '')}/uploads`;
     if (!existsSync(this.uploadDir)) mkdirSync(this.uploadDir, { recursive: true });
   }
 

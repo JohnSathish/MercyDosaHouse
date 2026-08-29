@@ -235,7 +235,7 @@ export default function SettingsPage() {
                 onChange={(event) =>
                   setForm({ ...form, fssaiRegistrationNumber: event.target.value })
                 }
-                placeholder="21726006000529"
+                placeholder="Enter registration number"
               />
             </div>
             <div>
@@ -307,26 +307,47 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <MediaUploader
-              label="Upload certificate PDF"
-              accept="application/pdf"
-              onUploaded={(url) => setForm({ ...form, fssaiCertificateUrl: url })}
-            />
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <MediaUploader
+                label="Upload certificate PDF"
+                accept="application/pdf"
+                onUploaded={(url) => setForm({ ...form, fssaiCertificateUrl: url })}
+              />
+              {form.fssaiCertificateUrl ? (
+                <>
+                  <a
+                    href={resolveAssetUrl(form.fssaiCertificateUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-[#14532D] underline"
+                  >
+                    View current certificate
+                  </a>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, fssaiCertificateUrl: null })}
+                  >
+                    Remove certificate
+                  </Button>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Upload the complete 5-page certificate to enable public viewing.
+                </span>
+              )}
+            </div>
             {form.fssaiCertificateUrl ? (
-              <a
-                href={form.fssaiCertificateUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium text-[#14532D] underline"
-              >
-                View current certificate
-              </a>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                Upload the complete 5-page certificate to enable public viewing.
-              </span>
-            )}
+              <div className="overflow-hidden rounded-xl border border-emerald-100 bg-muted">
+                <iframe
+                  title="Current FSSAI certificate preview"
+                  src={resolveAssetUrl(form.fssaiCertificateUrl)}
+                  className="h-64 w-full"
+                />
+              </div>
+            ) : null}
           </div>
 
           <Button onClick={() => saveBusiness.mutate(form)} disabled={saveBusiness.isPending}>

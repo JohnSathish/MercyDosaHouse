@@ -12,12 +12,6 @@ export const DEFAULT_BAR_ANNOUNCEMENTS: {
   message: string;
   linkUrl?: string;
 }[] = [
-  { id: 'bar-5pct-299', message: '🎉 5% OFF on Orders Above ₹299', linkUrl: '/menu' },
-  {
-    id: 'bar-preorder-10',
-    message: '📅 Pre-Order 1 Day Earlier & Get 10% OFF',
-    linkUrl: '/checkout?preorder=1',
-  },
   { id: 'bar-fresh', message: '🥳 Freshly Made. Hot Delivered.' },
   { id: 'bar-rewards', message: '⭐ Earn Reward Points on Every Order', linkUrl: '/dashboard' },
   { id: 'bar-delivery', message: '🚀 Fast Delivery Across Tura' },

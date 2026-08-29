@@ -117,10 +117,10 @@ export function OrderDrawer({
                 <span>Delivery</span>
                 <span>{formatCurrency(order.deliveryCharge)}</span>
               </div>
-              {order.discount > 0 && (
+              {(order.discountAmount ?? 0) > 0 && (
                 <div className="flex justify-between text-emerald-600">
-                  <span>Discount</span>
-                  <span>-{formatCurrency(order.discount)}</span>
+                  <span>{order.discountName ?? 'Discount'}</span>
+                  <span>-{formatCurrency(order.discountAmount ?? 0)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-base pt-1">

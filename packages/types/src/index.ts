@@ -155,7 +155,11 @@ export interface OrderDto {
   packingCharge: number;
   packedItemCount?: number;
   discount: number;
-  preOrderDiscount?: number;
+  discountId?: string | null;
+  discountName?: string | null;
+  discountType?: CouponType | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
   scheduledDeliveryAt?: string | null;
   grandTotal: number;
   paymentMethod: PaymentMethod;
@@ -216,9 +220,7 @@ export interface BusinessSettingsDto {
   receiptCopies?: number;
   receiptAutoPrintPayment?: boolean;
   receiptAutoPrintKot?: boolean;
-  preOrderDiscountPct?: number;
   preOrderMinDaysAhead?: number;
-  preOrderStackWithCoupons?: boolean;
   storeOpen?: boolean;
   storeClosedMessage?: string | null;
   storeReopenMessage?: string | null;

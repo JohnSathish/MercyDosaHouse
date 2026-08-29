@@ -1,16 +1,24 @@
 const DEFAULT_TIMEZONE = 'Asia/Kolkata';
+export const CHICKEN_BIRYANI_SLUG = 'chicken-biryani';
+export const CHICKEN_BIRYANI_TIME_SLOT = '1:00 PM - 2:00 PM';
+export const CHICKEN_BIRYANI_VALIDATION_MESSAGE =
+  'Chicken Dum Biryani is available only on Sundays between 1:00 PM and 2:00 PM.';
 
-export interface PreOrderConfig {
-  discountPct?: number;
-  minDaysAhead?: number;
-  stackWithCoupons?: boolean;
+export function isChickenDumBiryaniProduct(product: {
+  slug?: string | null;
+  name?: string | null;
+}): boolean {
+  const slug = product.slug?.trim().toLowerCase();
+  if (slug === CHICKEN_BIRYANI_SLUG) return true;
+  const name = product.name?.trim().toLowerCase() ?? '';
+  return name.includes('chicken') && name.includes('biryani');
 }
 
-export const DEFAULT_PRE_ORDER_CONFIG: Required<PreOrderConfig> = {
-  discountPct: 10,
-  minDaysAhead: 1,
-  stackWithCoupons: false,
-};
+export interface PreOrderConfig {
+  minDaysAhead?: number;
+}
+
+export const DEFAULT_PRE_ORDER_CONFIG: Required<PreOrderConfig> = { minDaysAhead: 1 };
 
 /** YYYY-MM-DD in the given timezone */
 export function toCalendarDayKey(date: Date, timeZone = DEFAULT_TIMEZONE): string {
@@ -45,17 +53,6 @@ export function isPreOrderEligible(
   if (!scheduledDeliveryAt) return false;
   const { minDaysAhead } = { ...DEFAULT_PRE_ORDER_CONFIG, ...config };
   return calendarDaysAhead(scheduledDeliveryAt, now) >= minDaysAhead;
-}
-
-/** 10% (or configured %) off food subtotal only */
-export function calculatePreOrderDiscount(
-  subtotal: number,
-  scheduledDeliveryAt: Date | string | null | undefined,
-  config: PreOrderConfig = {},
-): number {
-  if (!isPreOrderEligible(scheduledDeliveryAt, new Date(), config)) return 0;
-  const { discountPct } = { ...DEFAULT_PRE_ORDER_CONFIG, ...config };
-  return Math.max(0, Math.min(subtotal, Math.round((subtotal * discountPct) / 100)));
 }
 
 export function buildScheduledDeliveryIso(
@@ -114,4 +111,62 @@ export function getScheduleDateOptions(
 
 export function firstPreOrderDate(options: ScheduleDateOption[]): string | null {
   return options.find((o) => o.qualifiesForPreOrder)?.value ?? null;
+}
+
+/** Returns the next seven Sundays, excluding today when today is Sunday. */
+export function getChickenBiryaniScheduleOptions(
+  count = 7,
+  now = new Date(),
+): ScheduleDateOption[] {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TIMEZONE,
+    weekday: 'short',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(values.weekday ?? '');
+  const daysUntilSunday = weekday === 0 ? 7 : 7 - Math.max(0, weekday);
+  const todayKey = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(todayKey + (daysUntilSunday + index * 7) * 86_400_000);
+    const value = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+    const label = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'UTC',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(date);
+    const [weekdayLabel, ...dateParts] = label.replace(',', '').split(' ');
+    return {
+      value,
+      label: `${weekdayLabel} · ${dateParts.join(' ')}`,
+      qualifiesForPreOrder: true,
+    };
+  });
+}
+
+export function isChickenBiryaniScheduleMatch(
+  scheduledDeliveryAt: Date | string | null | undefined,
+): boolean {
+  if (!scheduledDeliveryAt) return false;
+  const date = new Date(scheduledDeliveryAt);
+  if (Number.isNaN(date.getTime())) return false;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TIMEZONE,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return (
+    values.weekday === 'Sun' &&
+    values.hour === '13' &&
+    values.minute === '00' &&
+    values.second === '00'
+  );
 }

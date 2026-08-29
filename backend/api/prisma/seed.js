@@ -503,19 +503,6 @@ async function main() {
       isActive: true,
     },
   });
-  await prisma.coupon.upsert({
-    where: { code: 'WELCOME10' },
-    update: {},
-    create: {
-      code: 'WELCOME10',
-      type: 'PERCENTAGE',
-      value: 10,
-      minOrderAmount: 150,
-      maxDiscount: 50,
-      isActive: true,
-      usageLimit: 1000,
-    },
-  });
   // ─── CMS Seed Data ─────────────────────────────────────────────────────────
   const heroContent = {
     badge: 'Authentic South Indian Flavours',
@@ -600,15 +587,6 @@ async function main() {
       buttonLabel: 'Order Now',
       buttonUrl: '/menu/chicken-biryani',
       sortOrder: 3,
-      type: 'BANNER',
-    },
-    {
-      title: '10% OFF',
-      description: 'Pre-order before one day',
-      buttonLabel: 'Order Now',
-      buttonUrl: '/menu',
-      discountPct: 10,
-      sortOrder: 4,
       type: 'BANNER',
     },
   ];

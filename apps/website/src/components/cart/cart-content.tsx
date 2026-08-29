@@ -10,7 +10,6 @@ import { useCartStore } from '@/lib/cart-store';
 import { useOrderCharges } from '@/hooks/use-order-charges';
 import { getProductImage } from '@/lib/product-images';
 import { getCheckoutEntryHref } from '@/lib/auth-redirect';
-import { PreOrderCartPromo } from '@/components/promo/pre-order-banner';
 import { OrderChargesInfoCard, OrderSummaryLines } from '@/components/order/order-charges';
 import { useRestaurantStatus } from '@/lib/restaurant-status-context';
 
@@ -125,8 +124,6 @@ export function CartContent({ onCheckout, compact }: CartContentProps) {
           freeDeliveryLimit={charges.freeDeliveryLimit}
         />
       </div>
-
-      <PreOrderCartPromo />
 
       <div className="mt-4 rounded-2xl bg-white border border-gray-100 p-4">
         <OrderSummaryLines

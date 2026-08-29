@@ -22,7 +22,7 @@ interface OrderReceiptProps {
   order: OrderDto;
   settings?: Pick<
     BusinessSettingsDto,
-    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl' | 'preOrderDiscountPct'
+    'phone' | 'businessName' | 'tagline' | 'upiId' | 'websiteUrl'
   >;
   id?: string;
 }
@@ -139,21 +139,11 @@ export function OrderReceipt({ order, settings, id = 'order-receipt' }: OrderRec
             value={formatCurrency(order.packingCharge)}
           />
         )}
-        {order.discount > 0 && (
-          <>
-            {(order.preOrderDiscount ?? 0) > 0 && (
-              <ReceiptRow
-                label={`Pre-Order Discount (${settings?.preOrderDiscountPct ?? 10}%)`}
-                value={`-${formatCurrency(order.preOrderDiscount!)}`}
-              />
-            )}
-            {order.discount - (order.preOrderDiscount ?? 0) > 0 && (
-              <ReceiptRow
-                label="Other Discounts"
-                value={`-${formatCurrency(order.discount - (order.preOrderDiscount ?? 0))}`}
-              />
-            )}
-          </>
+        {(order.discountAmount ?? 0) > 0 && (
+          <ReceiptRow
+            label={order.discountName ?? 'Discount'}
+            value={`-${formatCurrency(order.discountAmount ?? order.discount)}`}
+          />
         )}
         <div className="flex justify-between font-bold text-base pt-1 text-[#14532D]">
           <span>TOTAL</span>

@@ -2,7 +2,6 @@ import {
   calculateDeliveryCharge,
   calculateOrderTotal,
   calculatePackingChargeForOrder,
-  calculatePreOrderDiscount,
   buildScheduledDeliveryIso,
 } from '@mdh/utils';
 import { useMemo } from 'react';
@@ -34,24 +33,9 @@ export function useOrderPricing(couponDiscount = 0) {
         ? buildScheduledDeliveryIso(session.scheduledDate, session.scheduledSlot)
         : null;
 
-    const preOrderConfig = {
-      discountPct: config.delivery.preOrderDiscountPct,
-      minDaysAhead: config.delivery.preOrderMinDaysAhead,
-      stackWithCoupons: config.delivery.preOrderStackWithCoupons,
-    };
-
-    const couponsBlocked =
-      !config.delivery.preOrderStackWithCoupons &&
-      scheduledIso &&
-      calculatePreOrderDiscount(subtotal, scheduledIso, preOrderConfig) > 0;
-
-    const preOrderDiscount = couponsBlocked
-      ? 0
-      : calculatePreOrderDiscount(subtotal, scheduledIso, preOrderConfig);
-
-    const effectiveCoupon = couponsBlocked ? 0 : couponDiscount;
+    const effectiveCoupon = couponDiscount;
     const rewardDiscount = session.rewardPointsToUse;
-    const totalDiscount = preOrderDiscount + effectiveCoupon + rewardDiscount;
+    const totalDiscount = effectiveCoupon + rewardDiscount;
 
     const grandTotal = calculateOrderTotal(subtotal, deliveryResult.amount, packing, totalDiscount);
 
@@ -61,7 +45,6 @@ export function useOrderPricing(couponDiscount = 0) {
       delivery: deliveryResult.amount,
       deliveryIsFree: deliveryResult.isFree,
       baseDeliveryCharge,
-      preOrderDiscount,
       couponDiscount: effectiveCoupon,
       rewardDiscount,
       totalDiscount,
@@ -69,7 +52,6 @@ export function useOrderPricing(couponDiscount = 0) {
       discount: totalDiscount,
       grandTotal,
       scheduledIso,
-      couponsBlocked,
       freeDeliveryLimit,
       amountToFreeDelivery:
         freeDeliveryLimit > 0 && subtotal < freeDeliveryLimit ? freeDeliveryLimit - subtotal : 0,

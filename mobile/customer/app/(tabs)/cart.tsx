@@ -4,13 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/stores/cart-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
-import { useAppConfig, useThemeColors } from '@/providers/config-context';
+import { useThemeColors } from '@/providers/config-context';
 import { OrderChargesCard } from '@/components/order-charges-card';
 import { WEBSITE_URL } from '@/lib/constants';
 import { COLORS, RADIUS, SHADOW, resolveAssetUrl } from '@/ui/theme';
 
 export default function CartScreen() {
-  const config = useAppConfig();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const items = useCartStore((s) => s.items);
@@ -23,12 +22,6 @@ export default function CartScreen() {
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.primary }]}>Your Cart</Text>
-        {items.length > 0 && config.delivery.preOrderDiscountPct > 0 ? (
-          <Text style={styles.preHint}>
-            Schedule {config.delivery.preOrderMinDaysAhead}+ days ahead for{' '}
-            {config.delivery.preOrderDiscountPct}% off
-          </Text>
-        ) : null}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -113,12 +106,6 @@ export default function CartScreen() {
             <Text style={styles.lineLabel}>Packing</Text>
             <Text>{formatCurrency(pricing.packingTotal)}</Text>
           </View>
-          {pricing.discount > 0 ? (
-            <View style={styles.line}>
-              <Text style={styles.lineLabel}>Discount</Text>
-              <Text style={styles.discount}>-{formatCurrency(pricing.discount)}</Text>
-            </View>
-          ) : null}
           {pricing.amountToFreeDelivery > 0 ? (
             <Text style={styles.freeHint}>
               Add {formatCurrency(pricing.amountToFreeDelivery)} more for free delivery

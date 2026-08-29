@@ -37,12 +37,6 @@ export const DEFAULT_MOBILE_FEATURE_FLAGS = [
     sortOrder: 7,
   },
   {
-    key: 'pre_order_discount',
-    label: 'Pre-Order Discount',
-    description: '10% off advance orders',
-    sortOrder: 8,
-  },
-  {
     key: 'live_tracking',
     label: 'Live Tracking',
     description: 'Real-time delivery tracking',

@@ -196,15 +196,10 @@ export class SettingsService {
         typeof s.receiptCopies === 'number' ? s.receiptCopies : Number(s.receiptCopies ?? 1),
       receiptAutoPrintPayment: s.receiptAutoPrintPayment === true,
       receiptAutoPrintKot: s.receiptAutoPrintKot === true,
-      preOrderDiscountPct:
-        typeof s.preOrderDiscountPct === 'number'
-          ? s.preOrderDiscountPct
-          : Number(s.preOrderDiscountPct ?? 10),
       preOrderMinDaysAhead:
         typeof s.preOrderMinDaysAhead === 'number'
           ? s.preOrderMinDaysAhead
           : Number(s.preOrderMinDaysAhead ?? 1),
-      preOrderStackWithCoupons: s.preOrderStackWithCoupons === true,
       storeOpen: s.storeOpen !== false,
       storeClosedMessage: (s.storeClosedMessage as string | null) ?? null,
       storeReopenMessage: (s.storeReopenMessage as string | null) ?? null,

@@ -247,9 +247,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
                 notificationId: notification.id,
                 channelId: staffCfg.channelId,
                 sound:
-                  staffCfg.ringtoneEnabled && notifyCfg.newOrderSound
-                    ? `${staffCfg.soundName}.wav`
-                    : null,
+                  staffCfg.ringtoneEnabled && notifyCfg.newOrderSound ? staffCfg.soundName : null,
                 deliveryStatus: 'PENDING',
               },
             });
@@ -666,7 +664,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         body,
         data,
         channelId: config.channelId,
-        sound: config.ringtoneEnabled ? `${config.soundName}.wav` : null,
+        sound: config.ringtoneEnabled ? config.soundName : null,
         collapseId: `test-${Date.now()}`,
         subtitle: 'Test Customer · DELIVERY · ₹199',
       },

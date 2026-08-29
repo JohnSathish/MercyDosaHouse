@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -21,7 +21,16 @@ import type { AddressDto, CheckoutProfileDto, OrderDto } from '@mdh/types';
 import { buildOsmMapHtml } from '@mdh/mobile-shared';
 import { STORE_CLOSED_ORDER_MESSAGE } from '@/lib/mobile-messages';
 import { DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
-import { formatCurrency, getScheduleDateOptions, firstPreOrderDate } from '@mdh/utils';
+import {
+  CHICKEN_BIRYANI_TIME_SLOT,
+  CHICKEN_BIRYANI_VALIDATION_MESSAGE,
+  formatCurrency,
+  getChickenBiryaniScheduleOptions,
+  getScheduleDateOptions,
+  firstPreOrderDate,
+  isChickenBiryaniScheduleMatch,
+  isChickenDumBiryaniProduct,
+} from '@mdh/utils';
 import { api } from '@/lib/api';
 import { getStoredUser, isAuthenticated } from '@/lib/auth-storage';
 import { useCartStore } from '@/stores/cart-store';
@@ -52,6 +61,8 @@ function createCheckoutMapHtml(latitude: number, longitude: number): string | nu
 }
 
 type AvailableCoupon = {
+  id: string;
+  name: string;
   code: string;
   type: string;
   value: number;
@@ -81,9 +92,40 @@ export default function CheckoutScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const pricing = useOrderPricing(couponDiscount);
-  const scheduleOptions = getScheduleDateOptions(7, new Date(), {
-    minDaysAhead: config.delivery.preOrderMinDaysAhead,
-  });
+  const hasChickenBiryani = items.some((item) => isChickenDumBiryaniProduct({ name: item.name }));
+  const scheduleOptions = useMemo(
+    () =>
+      hasChickenBiryani
+        ? getChickenBiryaniScheduleOptions(7)
+        : getScheduleDateOptions(7, new Date(), {
+            minDaysAhead: config.delivery.preOrderMinDaysAhead,
+          }),
+    [config.delivery.preOrderMinDaysAhead, hasChickenBiryani],
+  );
+  const scheduleTimeSlots = useMemo(
+    () => (hasChickenBiryani ? [CHICKEN_BIRYANI_TIME_SLOT] : DELIVERY_TIME_SLOTS),
+    [hasChickenBiryani],
+  );
+
+  useEffect(() => {
+    if (!hasChickenBiryani) return;
+    const firstSunday = firstPreOrderDate(scheduleOptions);
+    if (!scheduleOptions.some((date) => date.value === session.scheduledDate)) {
+      session.setScheduledDate(firstSunday);
+    }
+    if (session.scheduledSlot !== CHICKEN_BIRYANI_TIME_SLOT) {
+      session.setScheduledSlot(CHICKEN_BIRYANI_TIME_SLOT);
+    }
+    if (session.deliveryTiming !== 'scheduled') {
+      session.setDeliveryTiming('scheduled');
+    }
+  }, [
+    hasChickenBiryani,
+    session.deliveryTiming,
+    session.scheduledDate,
+    session.scheduledSlot,
+    scheduleOptions,
+  ]);
 
   useEffect(() => {
     void isAuthenticated().then((ok) => {
@@ -108,9 +150,51 @@ export default function CheckoutScreen() {
   });
 
   const { data: availableCoupons = [] } = useQuery({
-    queryKey: ['coupons-available', pricing.subtotal],
-    queryFn: () => api.get<AvailableCoupon[]>(`/coupons/available?subtotal=${pricing.subtotal}`),
-    enabled: couponsEnabled && !pricing.couponsBlocked && pricing.subtotal > 0,
+    queryKey: ['coupons-available', pricing.subtotal, items],
+    queryFn: () =>
+      api.get<AvailableCoupon[]>(
+        `/coupons/available?subtotal=${pricing.subtotal}&productIds=${items
+          .map((item) => item.productId)
+          .join(',')}&items=${encodeURIComponent(
+          JSON.stringify(
+            items.map(({ productId, variantId, quantity }) => ({ productId, variantId, quantity })),
+          ),
+        )}`,
+      ),
+    enabled: couponsEnabled && pricing.subtotal > 0,
+  });
+
+  const quoteItems = items.map((item) => ({
+    productId: item.productId,
+    variantId: item.variantId,
+    quantity: item.quantity,
+  }));
+  const discountItems = items.map((item) => ({
+    productId: item.productId,
+    totalPrice: item.price * item.quantity,
+  }));
+  const { data: serverQuote } = useQuery({
+    queryKey: [
+      'order-quote',
+      quoteItems,
+      session.couponCode,
+      pricing.scheduledIso,
+      session.rewardPointsToUse,
+    ],
+    queryFn: () =>
+      api.post<{
+        grandTotal: number;
+        discountAmount: number;
+        discountName: string | null;
+      }>('/orders/quote', {
+        items: quoteItems,
+        couponCode: couponsEnabled ? (session.couponCode ?? undefined) : undefined,
+        scheduledDeliveryAt: pricing.scheduledIso ?? undefined,
+        rewardPointsUsed: loyaltyEnabled ? session.rewardPointsToUse : undefined,
+        orderType: 'DELIVERY',
+      }),
+    enabled: quoteItems.length > 0,
+    staleTime: 10_000,
   });
 
   const addresses = Array.isArray(profile?.addresses) ? profile.addresses : [];
@@ -125,19 +209,9 @@ export default function CheckoutScreen() {
     }
   }, [selectedAddress, session.selectedAddressId]);
 
-  // Same as website: clear coupon when pre-order blocks stacking
+  // Automatically select the best active admin discount for this cart.
   useEffect(() => {
-    if (pricing.couponsBlocked && session.couponCode) {
-      session.setCouponCode(null);
-      setCouponDiscount(0);
-      setCouponInput('');
-    }
-  }, [pricing.couponsBlocked, session.couponCode]);
-
-  // Same as website: auto-apply the best available coupon
-  useEffect(() => {
-    if (pricing.couponsBlocked || !couponsEnabled) return;
-    if (!availableCoupons.length) return;
+    if (!couponsEnabled) return;
 
     if (session.couponCode) {
       const stillValid = availableCoupons.find((c) => c.code === session.couponCode);
@@ -150,20 +224,17 @@ export default function CheckoutScreen() {
       setCouponDiscount(0);
     }
 
+    if (!availableCoupons.length) return;
     const best = availableCoupons[0];
     session.setCouponCode(best.code);
     setCouponDiscount(best.discount);
     setCouponInput(best.code);
     setCouponError(null);
-  }, [availableCoupons, pricing.couponsBlocked, couponsEnabled]);
+  }, [availableCoupons, couponsEnabled]);
 
   async function applyCoupon(code?: string) {
     const raw = (code ?? couponInput).trim().toUpperCase();
     if (!raw) return;
-    if (pricing.couponsBlocked) {
-      setCouponError('Pre-order discount cannot be combined with coupon codes.');
-      return;
-    }
     setCouponError(null);
     try {
       const res = await api.post<{ discount: number; coupon?: { code: string } }>(
@@ -171,6 +242,7 @@ export default function CheckoutScreen() {
         {
           code: raw,
           subtotal: pricing.subtotal,
+          items: discountItems,
         },
       );
       const applied = res.coupon?.code ?? raw;
@@ -204,6 +276,10 @@ export default function CheckoutScreen() {
       setError('Choose delivery date and time');
       return;
     }
+    if (hasChickenBiryani && !isChickenBiryaniScheduleMatch(pricing.scheduledIso)) {
+      setError(CHICKEN_BIRYANI_VALIDATION_MESSAGE);
+      return;
+    }
 
     setPlacing(true);
     setError(null);
@@ -211,7 +287,7 @@ export default function CheckoutScreen() {
     try {
       const user = await getStoredUser();
       let payload: Record<string, unknown>;
-      const couponCode = pricing.couponsBlocked ? undefined : (session.couponCode ?? undefined);
+      const couponCode = couponsEnabled ? (session.couponCode ?? undefined) : undefined;
 
       if (authed && selectedAddress) {
         payload = {
@@ -318,18 +394,24 @@ export default function CheckoutScreen() {
         </Section>
 
         {/* Schedule */}
-        {scheduleEnabled ? (
+        {scheduleEnabled || hasChickenBiryani ? (
           <Section title="2. Delivery Time">
             <View style={styles.row}>
               {(['now', 'scheduled'] as const).map((t) => (
                 <Pressable
                   key={t}
-                  style={[styles.chip, session.deliveryTiming === t && styles.chipActive]}
+                  disabled={hasChickenBiryani && t === 'now'}
+                  style={[
+                    styles.chip,
+                    session.deliveryTiming === t && styles.chipActive,
+                    hasChickenBiryani && t === 'now' && styles.chipDisabled,
+                  ]}
                   onPress={() => {
+                    if (hasChickenBiryani && t === 'now') return;
                     session.setDeliveryTiming(t);
                     if (t === 'scheduled' && !session.scheduledDate) {
                       session.setScheduledDate(firstPreOrderDate(scheduleOptions));
-                      session.setScheduledSlot(DELIVERY_TIME_SLOTS[0]);
+                      session.setScheduledSlot(scheduleTimeSlots[0]);
                     }
                   }}
                 >
@@ -343,6 +425,22 @@ export default function CheckoutScreen() {
             </View>
             {session.deliveryTiming === 'scheduled' ? (
               <>
+                {hasChickenBiryani ? (
+                  <View style={styles.biryaniNotice}>
+                    <Text style={styles.biryaniNoticeTitle}>
+                      🍗 Chicken Dum Biryani — Sunday Special
+                    </Text>
+                    <Text style={styles.biryaniNoticeText}>
+                      Available only on Sundays. Freshly prepared and ready for delivery between
+                      1:00 PM – 2:00 PM.
+                    </Text>
+                    <Text style={styles.biryaniNoticeTitle}>📅 Pre-order by Saturday</Text>
+                    <Text style={styles.biryaniNoticeText}>
+                      Please place your order one day in advance so we can prepare your biryani
+                      fresh according to demand.
+                    </Text>
+                  </View>
+                ) : null}
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -355,12 +453,11 @@ export default function CheckoutScreen() {
                       onPress={() => session.setScheduledDate(d.value)}
                     >
                       <Text style={styles.chipText}>{d.label}</Text>
-                      {d.qualifiesForPreOrder ? <Text style={styles.preBadge}>10% OFF</Text> : null}
                     </Pressable>
                   ))}
                 </ScrollView>
                 <View style={styles.rowWrap}>
-                  {DELIVERY_TIME_SLOTS.map((slot) => (
+                  {scheduleTimeSlots.map((slot) => (
                     <Pressable
                       key={slot}
                       style={[styles.chip, session.scheduledSlot === slot && styles.chipActive]}
@@ -395,9 +492,9 @@ export default function CheckoutScreen() {
           ))}
         </Section>
 
-        {/* Coupon — parity with website */}
-        {couponsEnabled && !pricing.couponsBlocked ? (
-          <Section title="Coupons & Offers">
+        {/* Admin-controlled discounts */}
+        {couponsEnabled ? (
+          <Section title="Offers & Discounts">
             {availableCoupons.length ? (
               <View style={styles.availableList}>
                 {availableCoupons.map((c) => {
@@ -409,7 +506,7 @@ export default function CheckoutScreen() {
                       onPress={() => void applyCoupon(c.code)}
                     >
                       <Text style={[styles.couponChipCode, selected && { color: '#fff' }]}>
-                        {c.code}
+                        {c.name ?? c.code}
                       </Text>
                       <Text style={[styles.couponChipSave, selected && { color: '#FDE68A' }]}>
                         Save {formatCurrency(c.discount)}
@@ -420,13 +517,13 @@ export default function CheckoutScreen() {
               </View>
             ) : (
               <Text style={styles.note}>
-                No auto offers for this cart — enter a code if you have one.
+                No active discounts for this cart — enter a code if you have one.
               </Text>
             )}
             <View style={styles.couponRow}>
               <TextInput
                 style={styles.input}
-                placeholder="Enter coupon code"
+                placeholder="Enter discount code"
                 value={couponInput}
                 onChangeText={setCouponInput}
                 autoCapitalize="characters"
@@ -450,8 +547,6 @@ export default function CheckoutScreen() {
               </View>
             ) : null}
           </Section>
-        ) : pricing.couponsBlocked ? (
-          <Text style={styles.note}>Coupons cannot be combined with pre-order discount.</Text>
         ) : null}
 
         {/* Loyalty */}
@@ -499,18 +594,12 @@ export default function CheckoutScreen() {
             </Text>
             <Text>{formatCurrency(pricing.packingTotal)}</Text>
           </View>
-          {pricing.preOrderDiscount > 0 ? (
+          {(serverQuote?.discountAmount ?? 0) > 0 ? (
             <View style={styles.line}>
-              <Text style={styles.discount}>Pre-order discount</Text>
-              <Text style={styles.discount}>−{formatCurrency(pricing.preOrderDiscount)}</Text>
-            </View>
-          ) : null}
-          {pricing.couponDiscount > 0 ? (
-            <View style={styles.line}>
+              <Text style={styles.discount}>{serverQuote?.discountName ?? 'Discount'}</Text>
               <Text style={styles.discount}>
-                Coupon{session.couponCode ? ` (${session.couponCode})` : ''}
+                −{formatCurrency(serverQuote?.discountAmount ?? 0)}
               </Text>
-              <Text style={styles.discount}>−{formatCurrency(pricing.couponDiscount)}</Text>
             </View>
           ) : null}
           {pricing.rewardDiscount > 0 ? (
@@ -519,9 +608,17 @@ export default function CheckoutScreen() {
               <Text style={styles.discount}>−{formatCurrency(pricing.rewardDiscount)}</Text>
             </View>
           ) : null}
+          {serverQuote?.discountName && serverQuote.discountAmount > 0 ? (
+            <Text style={styles.success}>
+              🎉 {serverQuote.discountName} applied — you saved{' '}
+              {formatCurrency(serverQuote.discountAmount)}
+            </Text>
+          ) : null}
           <View style={[styles.line, styles.totalLine]}>
             <Text style={styles.totalLabel}>Grand Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(pricing.grandTotal)}</Text>
+            <Text style={styles.totalValue}>
+              {formatCurrency(serverQuote?.grandTotal ?? pricing.grandTotal)}
+            </Text>
           </View>
         </Section>
 
@@ -539,7 +636,7 @@ export default function CheckoutScreen() {
           ) : (
             <Text style={styles.placeText}>
               {storeOpen
-                ? `Review & Place Order · ${formatCurrency(pricing.grandTotal)}`
+                ? `Review & Place Order · ${formatCurrency(serverQuote?.grandTotal ?? pricing.grandTotal)}`
                 : 'Restaurant Closed'}
             </Text>
           )}
@@ -754,10 +851,22 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   chipActive: { backgroundColor: '#14532D', borderColor: '#14532D' },
+  chipDisabled: { opacity: 0.45 },
   chipText: { fontSize: 12, color: '#374151', fontWeight: '600' },
   chipTextActive: { color: '#fff' },
   preBadge: { fontSize: 9, color: '#F59E0B', fontWeight: '700', marginTop: 2 },
   slotScroll: { marginBottom: 8 },
+  biryaniNotice: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FCD34D',
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+    marginBottom: 10,
+    padding: 12,
+  },
+  biryaniNoticeTitle: { color: '#92400E', fontSize: 13, fontWeight: '700' },
+  biryaniNoticeText: { color: '#78350F', fontSize: 12, lineHeight: 17 },
   couponRow: { flexDirection: 'row', gap: 8 },
   availableList: { gap: 8, marginBottom: 10 },
   couponChip: {
