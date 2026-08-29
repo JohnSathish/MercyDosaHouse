@@ -23,6 +23,74 @@ interface BootstrapContextValue {
 
 const BootstrapContext = createContext<BootstrapContextValue | null>(null);
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * The public config endpoint can briefly return an older/partial shape while
+ * the VPS is being upgraded. Normalize it before any screen renders so one
+ * missing optional field cannot take down the whole application.
+ */
+function normalizeConfig(input: unknown): MobileAppConfigDto {
+  const raw = isRecord(input) ? input : {};
+  function arrayOrDefault<T>(value: unknown, fallback: T[]): T[] {
+    return Array.isArray(value) ? (value.filter(isRecord) as T[]) : fallback;
+  }
+  const remoteFlags = isRecord(raw.featureFlags)
+    ? (Object.fromEntries(
+        Object.entries(raw.featureFlags).filter(([, value]) => typeof value === 'boolean'),
+      ) as Record<string, boolean>)
+    : {};
+
+  return {
+    ...DEFAULT_APP_CONFIG,
+    ...(raw as Partial<MobileAppConfigDto>),
+    branding: {
+      ...DEFAULT_APP_CONFIG.branding,
+      ...(isRecord(raw.branding) ? raw.branding : {}),
+    },
+    theme: {
+      ...DEFAULT_APP_CONFIG.theme,
+      ...(isRecord(raw.theme) ? raw.theme : {}),
+    },
+    maintenance: {
+      ...DEFAULT_APP_CONFIG.maintenance,
+      ...(isRecord(raw.maintenance) ? raw.maintenance : {}),
+    },
+    versionControl: {
+      ...DEFAULT_APP_CONFIG.versionControl,
+      ...(isRecord(raw.versionControl) ? raw.versionControl : {}),
+    },
+    store: {
+      ...DEFAULT_APP_CONFIG.store,
+      ...(isRecord(raw.store) ? raw.store : {}),
+    },
+    delivery: {
+      ...DEFAULT_APP_CONFIG.delivery,
+      ...(isRecord(raw.delivery) ? raw.delivery : {}),
+    },
+    business: {
+      ...DEFAULT_APP_CONFIG.business,
+      ...(isRecord(raw.business) ? raw.business : {}),
+    },
+    homepage: arrayOrDefault(raw.homepage, DEFAULT_APP_CONFIG.homepage),
+    announcements: arrayOrDefault(raw.announcements, DEFAULT_APP_CONFIG.announcements),
+    offers: arrayOrDefault(raw.offers, DEFAULT_APP_CONFIG.offers),
+    banners: arrayOrDefault(raw.banners, DEFAULT_APP_CONFIG.banners),
+    navigation: arrayOrDefault(raw.navigation, DEFAULT_APP_CONFIG.navigation),
+    featureFlags: {
+      ...DEFAULT_APP_CONFIG.featureFlags,
+      ...remoteFlags,
+    },
+    paymentMethods: arrayOrDefault(raw.paymentMethods, DEFAULT_APP_CONFIG.paymentMethods),
+    help: {
+      ...DEFAULT_APP_CONFIG.help,
+      ...(isRecord(raw.help) ? raw.help : {}),
+    },
+  };
+}
+
 /** Guests land on Home; login is only required at checkout. */
 async function resolveInitialHref(config: MobileAppConfigDto): Promise<string> {
   if (config.maintenance.maintenanceMode) return '/maintenance';
@@ -50,16 +118,16 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const store = getConfigStore();
-      nextConfig = await store.bootstrap();
+      nextConfig = normalizeConfig(await store.bootstrap());
       setOffline(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load config';
       const cached = getConfigStore().getConfig();
       if (cached) {
-        nextConfig = cached;
+        nextConfig = normalizeConfig(cached);
         setOffline(true);
       } else {
-        nextConfig = DEFAULT_APP_CONFIG;
+        nextConfig = normalizeConfig(DEFAULT_APP_CONFIG);
         setOffline(true);
         setError(message);
       }

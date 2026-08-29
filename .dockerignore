@@ -10,5 +10,8 @@ dist
 uploads
 **/android.local.bak
 **/.gradle
+**/android/app/build
+**/android/.cxx
+**/.expo
 e2e/reports
 *.log

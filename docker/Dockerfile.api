@@ -6,11 +6,11 @@ FROM base AS builder
 COPY . .
 RUN printf 'node-linker=hoisted\n' > .npmrc
 RUN pnpm install --frozen-lockfile || pnpm install
-RUN pnpm --filter @mdh/types build
-RUN pnpm --filter @mdh/utils build
-RUN cd backend/api && npx prisma generate
-RUN cd backend/api && npx tsc -p prisma/tsconfig.json
-RUN pnpm --filter @mdh/api build
+RUN pnpm exec tsc -p packages/types/tsconfig.json
+RUN pnpm exec tsc -p packages/utils/tsconfig.json
+RUN pnpm exec prisma generate --schema=backend/api/prisma/schema.prisma
+RUN pnpm exec tsc -p backend/api/prisma/tsconfig.json
+RUN cd backend/api && node ../../node_modules/@nestjs/cli/bin/nest.js build
 
 FROM base AS runner
 ENV NODE_ENV=production

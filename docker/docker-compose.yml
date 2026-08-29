@@ -27,8 +27,8 @@ services:
     environment:
       DATABASE_URL: postgresql://mdh:mdhsecret@postgres:5432/mdh?schema=public
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: change-me-access-secret-min-32-chars!!
-      JWT_REFRESH_SECRET: change-me-refresh-secret-min-32-chars!
+      JWT_SECRET: mdh-local-development-access-secret-2026-only
+      JWT_REFRESH_SECRET: mdh-local-development-refresh-secret-2026-only
       API_PORT: 3001
       UPLOAD_DIR: /app/uploads
       STORAGE_PUBLIC_URL: http://localhost/uploads

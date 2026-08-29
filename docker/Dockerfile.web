@@ -20,11 +20,11 @@ ENV NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL
 COPY . .
 RUN printf 'node-linker=hoisted\n' > .npmrc
 RUN pnpm install --frozen-lockfile || pnpm install
-RUN pnpm --filter @mdh/types build
-RUN pnpm --filter @mdh/utils build
-RUN pnpm --filter @mdh/auth-client build
-RUN pnpm --filter @mdh/sdk build
-RUN pnpm --filter @mdh/${APP_NAME} build
+RUN pnpm exec tsc -p packages/types/tsconfig.json
+RUN pnpm exec tsc -p packages/utils/tsconfig.json
+RUN pnpm exec tsc -p packages/auth-client/tsconfig.json
+RUN pnpm exec tsc -p packages/sdk/tsconfig.json
+RUN cd apps/${APP_NAME} && node ../../node_modules/next/dist/bin/next build
 
 FROM base AS runner
 ARG APP_NAME=website
