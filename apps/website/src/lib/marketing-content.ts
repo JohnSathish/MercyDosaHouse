@@ -57,13 +57,27 @@ export function getSessionId(): string {
 
 export async function trackMarketingEvent(
   announcementId: string,
-  event: 'impression' | 'view' | 'dismiss' | 'cta_click' | 'conversion',
+  event:
+    | 'impression'
+    | 'view'
+    | 'dismiss'
+    | 'close'
+    | 'cta_click'
+    | 'whatsapp_click'
+    | 'order_click'
+    | 'prebook_click'
+    | 'conversion',
+  metadata?: Record<string, unknown>,
+  revenue?: number,
 ) {
   try {
     await api.post('/marketing/analytics/track', {
       announcementId,
       event,
       platform: 'WEBSITE',
+      sessionId: getSessionId(),
+      metadata,
+      revenue,
     });
   } catch {
     /* non-blocking */

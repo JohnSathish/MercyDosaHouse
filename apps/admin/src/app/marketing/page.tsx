@@ -215,6 +215,12 @@ export default function MarketingHubPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/marketing/popups">
+            <Button variant="outline" className="gap-2">
+              <Eye className="w-4 h-4" />
+              Popup Management
+            </Button>
+          </Link>
           {(['dashboard', 'announcements', 'delivery'] as const).map((t) => (
             <Button
               key={t}

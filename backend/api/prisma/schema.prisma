@@ -197,6 +197,37 @@ enum PopupFrequency {
   ONCE_SESSION
   ONCE_DAY
   EVERY_VISIT
+  ONCE_CUSTOMER
+  ALWAYS_UNTIL_CLOSED
+}
+
+enum PopupContentType {
+  PROMOTIONAL_POSTER
+  OFFER
+  ANNOUNCEMENT
+  NEW_ITEM
+  FESTIVAL_SPECIAL
+  PRE_ORDER
+  CUSTOM
+}
+
+enum PopupCtaType {
+  ORDER_NOW
+  PREBOOK_NOW
+  WHATSAPP
+  CUSTOM_URL
+  NONE
+}
+
+enum PopupAnalyticsEventType {
+  IMPRESSION
+  VIEW
+  CLOSE
+  CTA_CLICK
+  WHATSAPP_CLICK
+  ORDER_CLICK
+  PREBOOK_CLICK
+  CONVERSION
 }
 
 enum DeliveryAvailabilityStatus {
@@ -1408,6 +1439,15 @@ model Announcement {
   placements                 String[]                  @default([])
   orderTypes                 String[]                  @default(["ALL"])
   popupFrequency             PopupFrequency?
+  popupType                  PopupContentType?
+  headline                   String?
+  subheadline                String?
+  price                      String?
+  availability               String?
+  ctaType                    PopupCtaType?
+  ctaMessage                 String?
+  imageOnly                  Boolean                   @default(false)
+  closeOnOverlay             Boolean                   @default(true)
   startsAt                   DateTime?
   endsAt                     DateTime?
   publishedAt                DateTime?
@@ -1424,6 +1464,7 @@ model Announcement {
   createdAt                  DateTime                  @default(now())
   updatedAt                  DateTime                  @updatedAt
   analytics                  AnnouncementAnalytics?
+  analyticsEvents            AnnouncementAnalyticsEvent[]
   dismissals                 AnnouncementDismissal[]
 
   @@map("announcements")
@@ -1468,6 +1509,9 @@ model AnnouncementAnalytics {
   views          Int          @default(0)
   dismissals     Int          @default(0)
   ctaClicks      Int          @default(0)
+  whatsappClicks Int          @default(0)
+  orderClicks    Int          @default(0)
+  prebookClicks  Int          @default(0)
   conversions    Int          @default(0)
   revenue        Decimal      @default(0) @db.Decimal(12, 2)
   websiteViews   Int          @default(0)
@@ -1475,6 +1519,21 @@ model AnnouncementAnalytics {
   updatedAt      DateTime     @updatedAt
 
   @@map("announcement_analytics")
+}
+
+model AnnouncementAnalyticsEvent {
+  id             String                    @id @default(uuid())
+  announcementId String
+  announcement   Announcement              @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  eventType      PopupAnalyticsEventType
+  sessionId      String?
+  customerId     String?
+  metadata       Json?
+  createdAt      DateTime                  @default(now())
+
+  @@index([announcementId, createdAt])
+  @@index([announcementId, eventType, createdAt])
+  @@map("announcement_analytics_events")
 }
 
 model AnnouncementDismissal {

@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AnnouncementPlatform,
+  AnnouncementType,
   ContentStatus,
   DeliveryAvailabilityStatus,
   OrderStatus,
@@ -71,7 +72,11 @@ export class MarketingService {
     }
 
     for (const key of Object.keys(byPlacement)) {
-      byPlacement[key].sort((a, b) => this.comparePriority(a, b));
+      byPlacement[key].sort((a, b) =>
+        key === 'POPUP'
+          ? b.priority - a.priority || this.comparePriority(a, b)
+          : this.comparePriority(a, b),
+      );
       byPlacement[key] = [byPlacement[key][0]!];
     }
 
@@ -80,6 +85,8 @@ export class MarketingService {
       updatedAt: new Date().toISOString(),
       announcements: mapped,
       byPlacement,
+      promotionalPopup:
+        byPlacement.POPUP?.find((item) => item.type === AnnouncementType.POPUP) ?? null,
       delivery: delivery ? this.mapDeliveryConfig(delivery) : null,
     };
   }
@@ -122,14 +129,21 @@ export class MarketingService {
     };
   }
 
-  listAnnouncements(all = false) {
+  listAnnouncements(all = false, type?: AnnouncementType) {
     return this.prisma.announcement
       .findMany({
-        where: all ? undefined : { isActive: true },
+        where: {
+          ...(all ? {} : { isActive: true }),
+          ...(type ? { type } : {}),
+        },
         include: { analytics: true, promotionProduct: true },
         orderBy: [{ sortOrder: 'asc' }, { priority: 'desc' }, { createdAt: 'desc' }],
       })
       .then((items) => items.map((a) => this.mapAnnouncement(a)));
+  }
+
+  listPopups(all = true) {
+    return this.listAnnouncements(all, AnnouncementType.POPUP);
   }
 
   async getAnnouncement(id: string) {
@@ -190,6 +204,66 @@ export class MarketingService {
       include: { analytics: true, promotionProduct: true },
     });
     return this.mapAnnouncement(created);
+  }
+
+  async togglePopup(id: string, isActive?: boolean) {
+    const popup = await this.prisma.announcement.findUnique({ where: { id } });
+    if (!popup || popup.type !== AnnouncementType.POPUP) {
+      throw new NotFoundException('Popup not found');
+    }
+
+    const nextActive = typeof isActive === 'boolean' ? isActive : !popup.isActive;
+    const updated = await this.prisma.announcement.update({
+      where: { id },
+      data: {
+        isActive: nextActive,
+        status: nextActive ? ContentStatus.PUBLISHED : ContentStatus.DRAFT,
+        publishedAt: nextActive ? (popup.publishedAt ?? new Date()) : null,
+      },
+      include: { analytics: true, promotionProduct: true },
+    });
+    this.bumpVersion();
+    return this.mapAnnouncement(updated);
+  }
+
+  async getPopupAnalytics(id: string) {
+    const popup = await this.prisma.announcement.findFirst({
+      where: { id, type: AnnouncementType.POPUP },
+      include: { analytics: true },
+    });
+    if (!popup) throw new NotFoundException('Popup not found');
+
+    const events = await this.prisma.announcementAnalyticsEvent.groupBy({
+      by: ['eventType'],
+      where: { announcementId: id },
+      _count: { _all: true },
+    });
+
+    return {
+      announcementId: id,
+      analytics: popup.analytics
+        ? {
+            impressions: popup.analytics.impressions,
+            views: popup.analytics.views,
+            dismissals: popup.analytics.dismissals,
+            ctaClicks: popup.analytics.ctaClicks,
+            whatsappClicks: popup.analytics.whatsappClicks,
+            orderClicks: popup.analytics.orderClicks,
+            prebookClicks: popup.analytics.prebookClicks,
+            conversions: popup.analytics.conversions,
+            revenue: Number(popup.analytics.revenue),
+            websiteViews: popup.analytics.websiteViews,
+            androidViews: popup.analytics.androidViews,
+            conversionRate:
+              popup.analytics.impressions > 0
+                ? Number(
+                    ((popup.analytics.conversions / popup.analytics.impressions) * 100).toFixed(1),
+                  )
+                : 0,
+          }
+        : null,
+      events: Object.fromEntries(events.map((event) => [event.eventType, event._count._all])),
+    };
   }
 
   async publishAnnouncement(id: string) {
@@ -477,10 +551,39 @@ export class MarketingService {
 
   async trackEvent(body: {
     announcementId: string;
-    event: 'impression' | 'view' | 'dismiss' | 'cta_click' | 'conversion';
+    event:
+      | 'impression'
+      | 'view'
+      | 'dismiss'
+      | 'close'
+      | 'cta_click'
+      | 'whatsapp_click'
+      | 'order_click'
+      | 'prebook_click'
+      | 'conversion';
     platform: 'WEBSITE' | 'ANDROID';
+    sessionId?: string;
+    customerId?: string;
     revenue?: number;
+    metadata?: Record<string, unknown>;
   }) {
+    const eventType =
+      body.event === 'dismiss'
+        ? 'CLOSE'
+        : body.event === 'impression'
+          ? 'IMPRESSION'
+          : body.event === 'view'
+            ? 'VIEW'
+            : body.event === 'cta_click'
+              ? 'CTA_CLICK'
+              : body.event === 'whatsapp_click'
+                ? 'WHATSAPP_CLICK'
+                : body.event === 'order_click'
+                  ? 'ORDER_CLICK'
+                  : body.event === 'prebook_click'
+                    ? 'PREBOOK_CLICK'
+                    : 'CONVERSION';
+
     const analytics = await this.prisma.announcementAnalytics.upsert({
       where: { announcementId: body.announcementId },
       create: { announcementId: body.announcementId },
@@ -498,21 +601,44 @@ export class MarketingService {
         if (body.platform === 'ANDROID') data.androidViews = { increment: 1 };
         break;
       case 'dismiss':
+      case 'close':
         data.dismissals = { increment: 1 };
         break;
       case 'cta_click':
         data.ctaClicks = { increment: 1 };
         break;
+      case 'whatsapp_click':
+        data.whatsappClicks = { increment: 1 };
+        break;
+      case 'order_click':
+        data.orderClicks = { increment: 1 };
+        data.ctaClicks = { increment: 1 };
+        break;
+      case 'prebook_click':
+        data.prebookClicks = { increment: 1 };
+        data.ctaClicks = { increment: 1 };
+        break;
       case 'conversion':
         data.conversions = { increment: 1 };
-        if (body.revenue) data.revenue = { increment: body.revenue };
+        if (body.revenue != null) data.revenue = { increment: body.revenue };
         break;
     }
 
-    await this.prisma.announcementAnalytics.update({
-      where: { id: analytics.id },
-      data,
-    });
+    await this.prisma.$transaction([
+      this.prisma.announcementAnalytics.update({
+        where: { id: analytics.id },
+        data,
+      }),
+      this.prisma.announcementAnalyticsEvent.create({
+        data: {
+          announcementId: body.announcementId,
+          eventType,
+          sessionId: body.sessionId ?? null,
+          customerId: body.customerId ?? null,
+          metadata: body.metadata ? (body.metadata as Prisma.InputJsonValue) : undefined,
+        },
+      }),
+    ]);
 
     return { ok: true };
   }
@@ -648,9 +774,28 @@ export class MarketingService {
 
   private normalizeInput(data: Prisma.AnnouncementCreateInput | Record<string, unknown>) {
     const result = { ...(data as Record<string, unknown>) };
+    if (!result.type && result.popupType) result.type = AnnouncementType.POPUP;
+    if (result.type === AnnouncementType.POPUP || result.popupType) {
+      result.type = AnnouncementType.POPUP;
+      result.placements = ['POPUP'];
+      if (typeof result.isActive === 'boolean' && result.status === undefined) {
+        result.status = result.isActive ? ContentStatus.PUBLISHED : ContentStatus.DRAFT;
+      }
+      if (result.priority !== undefined) {
+        const priority = Number(result.priority);
+        result.priority = Number.isFinite(priority) ? Math.min(10, Math.max(1, priority)) : 1;
+      }
+    }
     if (typeof result.startsAt === 'string') result.startsAt = new Date(result.startsAt);
     if (typeof result.endsAt === 'string') result.endsAt = new Date(result.endsAt);
     if (typeof result.publishedAt === 'string') result.publishedAt = new Date(result.publishedAt);
+    if (
+      result.startsAt instanceof Date &&
+      result.endsAt instanceof Date &&
+      result.endsAt <= result.startsAt
+    ) {
+      throw new BadRequestException('Popup end date must be after its start date');
+    }
     return result;
   }
 
@@ -690,6 +835,15 @@ export class MarketingService {
     placements: string[];
     orderTypes: string[];
     popupFrequency?: string | null;
+    popupType?: string | null;
+    headline?: string | null;
+    subheadline?: string | null;
+    price?: string | null;
+    availability?: string | null;
+    ctaType?: string | null;
+    ctaMessage?: string | null;
+    imageOnly: boolean;
+    closeOnOverlay: boolean;
     startsAt?: Date | null;
     endsAt?: Date | null;
     publishedAt?: Date | null;
@@ -718,6 +872,9 @@ export class MarketingService {
       views: number;
       dismissals: number;
       ctaClicks: number;
+      whatsappClicks: number;
+      orderClicks: number;
+      prebookClicks: number;
       conversions: number;
       revenue: Prisma.Decimal;
       websiteViews: number;
@@ -757,6 +914,15 @@ export class MarketingService {
       placements: a.placements,
       orderTypes: a.orderTypes,
       popupFrequency: a.popupFrequency,
+      popupType: a.popupType,
+      headline: a.headline,
+      subheadline: a.subheadline,
+      price: a.price,
+      availability: a.availability,
+      ctaType: a.ctaType,
+      ctaMessage: a.ctaMessage,
+      imageOnly: a.imageOnly,
+      closeOnOverlay: a.closeOnOverlay,
       startsAt: a.startsAt?.toISOString() ?? null,
       endsAt: a.endsAt?.toISOString() ?? null,
       publishedAt: a.publishedAt?.toISOString() ?? null,
@@ -799,10 +965,17 @@ export class MarketingService {
             views: a.analytics.views,
             dismissals: a.analytics.dismissals,
             ctaClicks: a.analytics.ctaClicks,
+            whatsappClicks: a.analytics.whatsappClicks,
+            orderClicks: a.analytics.orderClicks,
+            prebookClicks: a.analytics.prebookClicks,
             conversions: a.analytics.conversions,
             revenue: Number(a.analytics.revenue),
             websiteViews: a.analytics.websiteViews,
             androidViews: a.analytics.androidViews,
+            conversionRate:
+              a.analytics.impressions > 0
+                ? Number(((a.analytics.conversions / a.analytics.impressions) * 100).toFixed(1))
+                : 0,
           }
         : undefined,
     };

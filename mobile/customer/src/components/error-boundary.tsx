@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 interface Props {
   children: React.ReactNode;
   onReset?: () => void;
+  fallback?: React.ReactNode;
 }
 
 interface State {
@@ -23,6 +24,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   render() {
     if (this.state.error) {
+      if (this.props.fallback) return this.props.fallback;
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Something went wrong</Text>

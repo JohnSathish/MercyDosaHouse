@@ -93,6 +93,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/cms/media', label: 'Media Library', icon: FolderOpen },
       { href: '/cms/navigation', label: 'Navigation', icon: Navigation },
       { href: '/cms/announcements', label: 'Announcements', icon: Megaphone },
+      { href: '/marketing/popups', label: 'Popup Management', icon: Sparkles },
       { href: '/cms/theme', label: 'Theme Builder', icon: Palette },
       { href: '/cms/seo', label: 'SEO Manager', icon: Search },
       { href: '/cms/mobile', label: 'App Configuration', icon: Smartphone },

@@ -19,6 +19,7 @@ import {
   shareReceipt,
 } from '@/lib/receipt-utils';
 import { useToastStore } from '@/lib/toast-store';
+import { trackMarketingEvent } from '@/lib/marketing-content';
 
 function OrderSuccessFallback() {
   return (
@@ -84,6 +85,22 @@ function OrderSuccessContent() {
       }
     }
   }, [order, orderNumber, toast]);
+
+  useEffect(() => {
+    if (!order || typeof window === 'undefined') return;
+    const popupId = localStorage.getItem('mdh_popup_attribution');
+    if (!popupId) return;
+    const conversionKey = `mdh_popup_conversion_${popupId}_${order.orderNumber}`;
+    if (sessionStorage.getItem(conversionKey)) return;
+    sessionStorage.setItem(conversionKey, '1');
+    localStorage.removeItem('mdh_popup_attribution');
+    void trackMarketingEvent(
+      popupId,
+      'conversion',
+      { orderNumber: order.orderNumber },
+      order.grandTotal,
+    );
+  }, [order]);
 
   if (!orderNumber) return null;
 

@@ -13,7 +13,29 @@ export type AnnouncementPlacement =
   | 'ORDER_TRACKING'
   | 'HOME_BOLD_BANNER';
 
-export type PopupFrequency = 'ONCE_SESSION' | 'ONCE_DAY' | 'EVERY_VISIT';
+export type PopupFrequency =
+  'ONCE_SESSION' | 'ONCE_DAY' | 'EVERY_VISIT' | 'ONCE_CUSTOMER' | 'ALWAYS_UNTIL_CLOSED';
+
+export type PopupContentType =
+  | 'PROMOTIONAL_POSTER'
+  | 'OFFER'
+  | 'ANNOUNCEMENT'
+  | 'NEW_ITEM'
+  | 'FESTIVAL_SPECIAL'
+  | 'PRE_ORDER'
+  | 'CUSTOM';
+
+export type PopupCtaType = 'ORDER_NOW' | 'PREBOOK_NOW' | 'WHATSAPP' | 'CUSTOM_URL' | 'NONE';
+
+export type PopupAnalyticsEventType =
+  | 'IMPRESSION'
+  | 'VIEW'
+  | 'CLOSE'
+  | 'CTA_CLICK'
+  | 'WHATSAPP_CLICK'
+  | 'ORDER_CLICK'
+  | 'PREBOOK_CLICK'
+  | 'CONVERSION';
 
 export type DeliveryAvailabilityStatus =
   'AVAILABLE' | 'LIMITED_AREA' | 'TEMPORARILY_UNAVAILABLE' | 'COMING_SOON';
@@ -25,10 +47,14 @@ export interface AnnouncementAnalyticsDto {
   views: number;
   dismissals: number;
   ctaClicks: number;
+  whatsappClicks: number;
+  orderClicks: number;
+  prebookClicks: number;
   conversions: number;
   revenue: number;
   websiteViews: number;
   androidViews: number;
+  conversionRate?: number;
 }
 
 export interface MarketingPromotionProductDto {
@@ -67,6 +93,15 @@ export interface MarketingAnnouncementDto {
   placements: AnnouncementPlacement[];
   orderTypes: string[];
   popupFrequency?: PopupFrequency | null;
+  popupType?: PopupContentType | null;
+  headline?: string | null;
+  subheadline?: string | null;
+  price?: string | null;
+  availability?: string | null;
+  ctaType?: PopupCtaType | null;
+  ctaMessage?: string | null;
+  imageOnly?: boolean;
+  closeOnOverlay?: boolean;
   startsAt?: string | null;
   endsAt?: string | null;
   publishedAt?: string | null;
@@ -152,6 +187,7 @@ export interface MarketingPublicBundleDto {
   updatedAt: string;
   announcements: MarketingAnnouncementDto[];
   byPlacement: Partial<Record<AnnouncementPlacement, MarketingAnnouncementDto[]>>;
+  promotionalPopup?: MarketingAnnouncementDto | null;
   delivery: DeliveryConfigDto | null;
 }
 
@@ -187,8 +223,19 @@ export interface DeliveryAreaCheckDto {
 
 export interface TrackAnnouncementEventDto {
   announcementId: string;
-  event: 'impression' | 'view' | 'dismiss' | 'cta_click' | 'conversion';
+  event:
+    | 'impression'
+    | 'view'
+    | 'dismiss'
+    | 'close'
+    | 'cta_click'
+    | 'whatsapp_click'
+    | 'order_click'
+    | 'prebook_click'
+    | 'conversion';
   platform: 'WEBSITE' | 'ANDROID';
   sessionId?: string;
+  customerId?: string;
   revenue?: number;
+  metadata?: Record<string, unknown>;
 }

@@ -94,3 +94,21 @@ curl -sI https://mercydosahouse.com/api/v1/health
 ```
 
 Admin login (after seed): `admin@mercydosahouse.com` — change password immediately.
+
+### 10. Promotional popup migration
+
+The popup system extends the existing `announcements` table and adds
+`announcement_analytics_events`. After pulling the release on the VPS, apply the
+checked-in migration before restarting the API:
+
+```bash
+cd /opt/mercy-dosa-house
+docker compose -f docker/docker-compose.prod.coexist.yml run --rm api pnpm exec prisma migrate deploy
+docker compose -f docker/docker-compose.prod.coexist.yml up -d --build api admin website
+```
+
+Then open **Admin → Marketing → Popup Management** to upload a poster and create
+the campaign. The public homepage selects only the highest-priority eligible
+published popup; scheduling and expiry are evaluated by the API, so no cron job
+is required. The upload must use the existing authenticated `/media/upload`
+endpoint, and customer analytics are sent to `/marketing/analytics/track`.

@@ -27,8 +27,28 @@ import { useCartStore } from '@/stores/cart-store';
 import { useCheckoutStore } from '@/stores/checkout-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
 import { useAppConfig, useFeatureFlag, useThemeColors } from '@/providers/config-context';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 const OSMWebView = WebView as unknown as ComponentType<any>;
+
+function createCheckoutMapHtml(latitude: number, longitude: number): string | null {
+  try {
+    return buildOsmMapHtml({
+      points: [
+        {
+          id: 'delivery',
+          latitude,
+          longitude,
+          label: 'Delivery location',
+          type: 'customer',
+        },
+      ],
+      interactive: true,
+    });
+  } catch {
+    return null;
+  }
+}
 
 type AvailableCoupon = {
   code: string;
@@ -92,10 +112,11 @@ export default function CheckoutScreen() {
     enabled: couponsEnabled && !pricing.couponsBlocked && pricing.subtotal > 0,
   });
 
+  const addresses = Array.isArray(profile?.addresses) ? profile.addresses : [];
   const selectedAddress =
-    profile?.addresses.find((a) => a.id === session.selectedAddressId) ??
-    profile?.addresses.find((a) => a.isDefault) ??
-    profile?.addresses[0];
+    addresses.find((a) => a.id === session.selectedAddressId) ??
+    addresses.find((a) => a.isDefault) ??
+    addresses[0];
 
   useEffect(() => {
     if (selectedAddress?.id && !session.selectedAddressId) {
@@ -255,8 +276,8 @@ export default function CheckoutScreen() {
         <Section title="1. Delivery Address">
           {authed && profileLoading ? (
             <ActivityIndicator color={colors.primary} />
-          ) : authed && profile?.addresses.length ? (
-            profile.addresses.map((addr) => (
+          ) : authed && addresses.length ? (
+            addresses.map((addr) => (
               <Pressable
                 key={addr.id}
                 style={[styles.card, session.selectedAddressId === addr.id && styles.cardSelected]}
@@ -342,7 +363,9 @@ export default function CheckoutScreen() {
         {/* Payment */}
         <Section title="3. Payment Method">
           {PAYMENT_OPTIONS.filter((p) => {
-            const methods = config.paymentMethods.filter((m) => m.isEnabled).map((m) => m.method);
+            const methods = (config.paymentMethods ?? [])
+              .filter((m) => m.isEnabled)
+              .map((m) => m.method);
             return methods.length === 0 || methods.includes(p.value);
           }).map((opt) => (
             <Pressable
@@ -531,6 +554,10 @@ function GuestAddressForm() {
     pincode: '',
     state: 'Meghalaya',
   };
+  const mapHtml =
+    typeof draft.latitude === 'number' && typeof draft.longitude === 'number'
+      ? createCheckoutMapHtml(draft.latitude, draft.longitude)
+      : null;
 
   function update(patch: Partial<AddressDto>) {
     session.setGuestAddressDraft({ ...draft, ...patch });
@@ -580,44 +607,49 @@ function GuestAddressForm() {
           {locating ? 'Finding your location…' : '📍 Use My Current Location'}
         </Text>
       </Pressable>
-      {draft.latitude != null && draft.longitude != null ? (
-        <OSMWebView
-          originWhitelist={['*']}
-          source={{
-            html: buildOsmMapHtml({
-              points: [
-                {
-                  id: 'delivery',
-                  latitude: draft.latitude,
-                  longitude: draft.longitude,
-                  label: 'Delivery location',
-                  type: 'customer',
-                },
-              ],
-              interactive: true,
-            }),
-          }}
-          javaScriptEnabled
-          onMessage={(event: { nativeEvent: { data: string } }) => {
-            try {
-              const message = JSON.parse(event.nativeEvent.data) as {
-                type?: string;
-                latitude?: number;
-                longitude?: number;
-              };
-              if (
-                message.type === 'location' &&
-                Number.isFinite(message.latitude) &&
-                Number.isFinite(message.longitude)
-              ) {
-                update({ latitude: message.latitude, longitude: message.longitude });
+      {mapHtml ? (
+        <ErrorBoundary
+          fallback={
+            <View style={styles.mapFallback}>
+              <Text style={styles.note}>
+                Map preview is unavailable. Your delivery pin is still saved.
+              </Text>
+            </View>
+          }
+        >
+          <OSMWebView
+            originWhitelist={['*']}
+            source={{
+              html: mapHtml,
+            }}
+            javaScriptEnabled
+            onMessage={(event: { nativeEvent: { data: string } }) => {
+              try {
+                const message = JSON.parse(event.nativeEvent.data) as {
+                  type?: string;
+                  latitude?: number;
+                  longitude?: number;
+                };
+                if (
+                  message.type === 'location' &&
+                  Number.isFinite(message.latitude) &&
+                  Number.isFinite(message.longitude)
+                ) {
+                  update({ latitude: message.latitude, longitude: message.longitude });
+                }
+              } catch {
+                // Ignore malformed WebView messages.
               }
-            } catch {
-              // Ignore malformed WebView messages.
-            }
-          }}
-          style={styles.checkoutMap}
-        />
+            }}
+            style={styles.checkoutMap}
+          />
+        </ErrorBoundary>
+      ) : draft.latitude != null && draft.longitude != null ? (
+        <View style={styles.mapFallback}>
+          <Text style={styles.note}>
+            Map preview is unavailable. Your delivery pin is still saved.
+          </Text>
+        </View>
       ) : null}
       <TextInput
         style={styles.input}
@@ -744,6 +776,14 @@ const styles = StyleSheet.create({
   },
   locationButtonText: { color: '#14532D', fontWeight: '700' },
   checkoutMap: { height: 190, borderRadius: 12, marginBottom: 8 },
+  mapFallback: {
+    minHeight: 64,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    marginBottom: 8,
+  },
   line: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   totalLine: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
   totalLabel: { fontWeight: '800', fontSize: 16 },

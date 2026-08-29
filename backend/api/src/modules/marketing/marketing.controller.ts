@@ -49,9 +49,40 @@ export class MarketingController {
 
   @ApiBearerAuth()
   @RequirePermissions('cms.read')
+  @Get('popups')
+  listPopups(@Query('all') all?: string) {
+    return this.marketingService.listPopups(all !== 'false');
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.read')
+  @Get('popups/:id/analytics')
+  getPopupAnalytics(@Param('id') id: string) {
+    return this.marketingService.getPopupAnalytics(id);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.write')
+  @Post('popups/:id/toggle')
+  togglePopup(@Param('id') id: string, @Body() body: { isActive?: boolean }) {
+    return this.marketingService.togglePopup(id, body.isActive);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.read')
+  @Get('popups/:id')
+  getPopup(@Param('id') id: string) {
+    return this.marketingService.getAnnouncement(id);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.read')
   @Get('announcements')
-  listAnnouncements(@Query('all') all?: string) {
-    return this.marketingService.listAnnouncements(all === 'true');
+  listAnnouncements(@Query('all') all?: string, @Query('type') type?: 'BAR' | 'POPUP') {
+    return this.marketingService.listAnnouncements(
+      all === 'true',
+      type === 'POPUP' ? 'POPUP' : type === 'BAR' ? 'BAR' : undefined,
+    );
   }
 
   @ApiBearerAuth()
@@ -59,6 +90,34 @@ export class MarketingController {
   @Get('announcements/:id')
   getAnnouncement(@Param('id') id: string) {
     return this.marketingService.getAnnouncement(id);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.write')
+  @Post('popups')
+  createPopup(@Body() body: Record<string, unknown>) {
+    return this.marketingService.createAnnouncement({ ...body, type: 'POPUP' } as never);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.write')
+  @Patch('popups/:id')
+  updatePopup(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.marketingService.updateAnnouncement(id, { ...body, type: 'POPUP' });
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.write')
+  @Delete('popups/:id')
+  deletePopup(@Param('id') id: string) {
+    return this.marketingService.deleteAnnouncement(id);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.write')
+  @Post('popups/:id/duplicate')
+  duplicatePopup(@Param('id') id: string) {
+    return this.marketingService.duplicateAnnouncement(id);
   }
 
   @ApiBearerAuth()

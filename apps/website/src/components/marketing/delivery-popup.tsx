@@ -46,7 +46,11 @@ export function DeliveryPopup() {
 
   useEffect(() => {
     const popup = marketing?.byPlacement?.POPUP?.[0];
-    if (!popup) return;
+    if (!popup || popup.popupType) {
+      setItem(null);
+      setOpen(false);
+      return;
+    }
     if (!shouldShowPopup(popup)) return;
     setItem(popup);
     setOpen(true);
