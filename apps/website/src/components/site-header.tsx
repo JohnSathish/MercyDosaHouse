@@ -20,11 +20,16 @@ const NAV = [
 
 interface SiteHeaderProps {
   phone?: string;
+  fssaiRegistrationNumber?: string | null;
   /** When true, header is inside the fixed top stack (not independently fixed) */
   embedded?: boolean;
 }
 
-export function SiteHeader({ phone = '9566363655', embedded = false }: SiteHeaderProps) {
+export function SiteHeader({
+  phone = '9566363655',
+  fssaiRegistrationNumber,
+  embedded = false,
+}: SiteHeaderProps) {
   const pathname = usePathname();
   const isHome = pathname === '/';
   const [scrolled, setScrolled] = useState(false);
@@ -63,6 +68,20 @@ export function SiteHeader({ phone = '9566363655', embedded = false }: SiteHeade
             </Link>
           ))}
         </nav>
+
+        {fssaiRegistrationNumber ? (
+          <Link
+            href="/fssai"
+            title={`FSSAI Registration No. ${fssaiRegistrationNumber}`}
+            className={`hidden xl:inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+              transparent
+                ? 'bg-white/15 text-white hover:bg-white/25'
+                : 'bg-[#14532D]/10 text-[#14532D] hover:bg-[#14532D]/15'
+            }`}
+          >
+            ✓ FSSAI Registered
+          </Link>
+        ) : null}
 
         <div className="flex items-center gap-2 md:gap-3">
           <a

@@ -4,6 +4,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import type { BusinessSettingsDto, DeliveryConfigDto } from '@mdh/types';
 import { isHomeDeliveryActive } from '@mdh/types';
 import { DeliveryNoticeBody } from '@/components/marketing/delivery-notice';
+import { FssaiDetails } from '@/components/compliance/fssai-details';
 
 interface ContactInfoPanelProps {
   settings: BusinessSettingsDto | null;
@@ -140,6 +141,7 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
             ) : null}
           </div>
         </div>
+        <FssaiDetails settings={settings} compact />
       </div>
     </div>
   );

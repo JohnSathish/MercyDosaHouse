@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { logout } from '@/lib/auth-api';
 import { getStoredUser } from '@/lib/auth-storage';
 import type { AuthUser } from '@mdh/types';
@@ -40,6 +40,26 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.primary }]}>Profile</Text>
         </View>
+
+        {config.business.fssaiEnabled !== false && config.business.fssaiRegistrationNumber ? (
+          <View style={styles.fssaiCard}>
+            <Text style={styles.fssaiTitle}>🛡️ FSSAI Registered Food Business</Text>
+            <Text style={styles.fssaiNumber}>
+              Registration No. {config.business.fssaiRegistrationNumber}
+            </Text>
+            <Text style={styles.fssaiMeta}>
+              {config.business.fssaiKindOfBusiness ?? 'Food Vending Establishment'}
+            </Text>
+            {config.business.fssaiCertificateUrl ? (
+              <Pressable
+                onPress={() => void Linking.openURL(config.business.fssaiCertificateUrl!)}
+                style={styles.fssaiButton}
+              >
+                <Text style={styles.fssaiButtonText}>View registration certificate</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.name}>{user?.name ?? 'Guest'}</Text>
@@ -142,4 +162,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutText: { fontWeight: '700', fontSize: 16 },
+  fssaiCard: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 16,
+  },
+  fssaiTitle: { color: '#14532D', fontSize: 15, fontWeight: '800' },
+  fssaiNumber: { color: '#166534', fontSize: 13, fontWeight: '700', marginTop: 6 },
+  fssaiMeta: { color: '#4B5563', fontSize: 12, marginTop: 3 },
+  fssaiButton: { alignSelf: 'flex-start', marginTop: 10 },
+  fssaiButtonText: { color: '#14532D', fontSize: 13, fontWeight: '700' },
 });

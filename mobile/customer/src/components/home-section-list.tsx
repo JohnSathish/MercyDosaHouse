@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Image,
+  Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -73,6 +74,27 @@ function ChargeHintStrip() {
         Delivery ₹{d.deliveryCharge} · Packing from ₹{d.packingCharge}
         {freeMsg}
       </Text>
+    </View>
+  );
+}
+
+function FssaiTrustCard() {
+  const config = useAppConfig();
+  const business = config.business;
+  if (business.fssaiEnabled === false || !business.fssaiRegistrationNumber) return null;
+
+  return (
+    <View style={styles.fssaiCard}>
+      <Text style={styles.fssaiTitle}>🛡️ FSSAI Registered Food Business</Text>
+      <Text style={styles.fssaiNumber}>Registration No. {business.fssaiRegistrationNumber}</Text>
+      <Text style={styles.fssaiMeta}>
+        {business.fssaiKindOfBusiness ?? 'Food Vending Establishment'} · {business.address}
+      </Text>
+      {business.fssaiCertificateUrl ? (
+        <Pressable onPress={() => void Linking.openURL(business.fssaiCertificateUrl!)}>
+          <Text style={styles.fssaiLink}>View registration certificate</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -575,6 +597,7 @@ export function HomeSectionList() {
       <AnnouncementBar />
       <StoreStatusCard />
       <HomeDeliverySection />
+      <FssaiTrustCard />
 
       <HeroCarousel slides={heroSlides} />
 
@@ -626,6 +649,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   chargeText: { color: '#92400E', fontSize: 11.5, fontWeight: '600', textAlign: 'center' },
+  fssaiCard: {
+    marginHorizontal: 14,
+    marginTop: 12,
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: 12,
+  },
+  fssaiTitle: { color: '#14532D', fontSize: 13, fontWeight: '800' },
+  fssaiNumber: { color: '#166534', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  fssaiMeta: { color: '#4B5563', fontSize: 11, marginTop: 3 },
+  fssaiLink: { color: '#14532D', fontSize: 12, fontWeight: '800', marginTop: 7 },
   searchBlock: { paddingHorizontal: 14, paddingTop: 12 },
   searchResults: { marginTop: 12 },
   seeAll: { fontWeight: '700', marginTop: 8, textAlign: 'center' },

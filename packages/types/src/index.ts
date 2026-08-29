@@ -193,6 +193,16 @@ export interface BusinessSettingsDto {
   socialLinks?: Record<string, string> | null;
   gstNumber?: string | null;
   websiteUrl?: string | null;
+  fssaiEnabled?: boolean;
+  fssaiRegistrationNumber?: string | null;
+  fssaiBusinessName?: string | null;
+  fssaiBusinessAddress?: string | null;
+  fssaiPremisesAddress?: string | null;
+  fssaiNearestLandmark?: string | null;
+  fssaiKindOfBusiness?: string | null;
+  fssaiIssuedOn?: string | null;
+  fssaiFeePaidUntil?: string | null;
+  fssaiCertificateUrl?: string | null;
   receiptShowLogo?: boolean;
   receiptShowQr?: boolean;
   receiptShowGst?: boolean;

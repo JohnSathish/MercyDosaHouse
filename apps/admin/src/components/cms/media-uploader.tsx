@@ -9,9 +9,14 @@ import { getAccessToken } from '@mdh/auth-client';
 interface MediaUploaderProps {
   onUploaded: (url: string) => void;
   label?: string;
+  accept?: string;
 }
 
-export function MediaUploader({ onUploaded, label = 'Upload Image' }: MediaUploaderProps) {
+export function MediaUploader({
+  onUploaded,
+  label = 'Upload Image',
+  accept = 'image/*',
+}: MediaUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,7 +41,7 @@ export function MediaUploader({ onUploaded, label = 'Upload Image' }: MediaUploa
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={accept}
         className="hidden"
         onChange={handleUpload}
       />

@@ -164,6 +164,24 @@ export class SettingsService {
       googleMapsEmbed: s.googleMapsEmbed as string | null,
       gstNumber: (s.gstNumber as string | null) ?? null,
       websiteUrl: (s.websiteUrl as string | null) ?? null,
+      fssaiEnabled: s.fssaiEnabled !== false,
+      fssaiRegistrationNumber: (s.fssaiRegistrationNumber as string | null) ?? '21726006000529',
+      fssaiBusinessName: (s.fssaiBusinessName as string | null) ?? 'John Sathish Soundararajan',
+      fssaiBusinessAddress:
+        (s.fssaiBusinessAddress as string | null) ??
+        'THURINJIKOLLAI, NELLIKOLLAI PO, Bhuvanagiri block, Cuddalore, Tamil Nadu - 608074',
+      fssaiPremisesAddress:
+        (s.fssaiPremisesAddress as string | null) ??
+        'DON BOSCO COLLEGE, TURA, Lower Chandmari, Tura Town, West Garo Hills, Meghalaya - 794001',
+      fssaiNearestLandmark: (s.fssaiNearestLandmark as string | null) ?? 'DON BOSCO COLLEGE TUREA',
+      fssaiKindOfBusiness: (s.fssaiKindOfBusiness as string | null) ?? 'Food Vending Establishment',
+      fssaiIssuedOn: s.fssaiIssuedOn
+        ? new Date(s.fssaiIssuedOn as string | Date).toISOString()
+        : '2026-08-27T00:00:00.000Z',
+      fssaiFeePaidUntil: s.fssaiFeePaidUntil
+        ? new Date(s.fssaiFeePaidUntil as string | Date).toISOString()
+        : '2027-08-26T00:00:00.000Z',
+      fssaiCertificateUrl: (s.fssaiCertificateUrl as string | null) ?? null,
       receiptShowLogo: s.receiptShowLogo !== false,
       receiptShowQr: s.receiptShowQr !== false,
       receiptShowGst: s.receiptShowGst !== false,

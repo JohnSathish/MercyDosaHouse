@@ -64,6 +64,15 @@ export const DEFAULT_APP_CONFIG: MobileAppConfigDto = {
     email: 'info@mercydosahouse.com',
     address: 'Tura, Meghalaya',
     upiId: null,
+    fssaiEnabled: true,
+    fssaiRegistrationNumber: '21726006000529',
+    fssaiBusinessName: 'John Sathish Soundararajan',
+    fssaiPremisesAddress:
+      'DON BOSCO COLLEGE, TURA, Lower Chandmari, Tura Town, West Garo Hills, Meghalaya - 794001',
+    fssaiKindOfBusiness: 'Food Vending Establishment',
+    fssaiIssuedOn: '2026-08-27T00:00:00.000Z',
+    fssaiFeePaidUntil: '2027-08-26T00:00:00.000Z',
+    fssaiCertificateUrl: null,
   },
   homepage: [
     {

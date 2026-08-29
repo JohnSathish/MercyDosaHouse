@@ -1148,6 +1148,16 @@ model BusinessSettings {
   orderYear                Int       @default(2026)
   gstNumber                String?
   websiteUrl               String?
+  fssaiEnabled             Boolean   @default(true)
+  fssaiRegistrationNumber  String?
+  fssaiBusinessName        String?
+  fssaiBusinessAddress     String?
+  fssaiPremisesAddress     String?
+  fssaiNearestLandmark     String?
+  fssaiKindOfBusiness      String?
+  fssaiIssuedOn            DateTime?
+  fssaiFeePaidUntil        DateTime?
+  fssaiCertificateUrl      String?
   receiptShowLogo          Boolean   @default(true)
   receiptShowQr            Boolean   @default(true)
   receiptShowGst           Boolean   @default(true)

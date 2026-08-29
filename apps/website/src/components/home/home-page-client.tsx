@@ -1,6 +1,6 @@
 'use client';
 
-import type { ProductDto } from '@mdh/types';
+import type { BusinessSettingsDto, ProductDto } from '@mdh/types';
 import { allocateHomeCatalog } from '@mdh/utils';
 import { HeroSection } from './hero-section';
 import { CategoriesSection } from './offers-section';
@@ -18,12 +18,14 @@ import {
 } from './sections';
 import { HomeDeliverySection } from '@/components/marketing/home-sections';
 import { SundayBiryaniPromotion } from './sunday-biryani-promotion';
+import { FssaiDetails } from '@/components/compliance/fssai-details';
 
 interface HomePageClientProps {
   products: ProductDto[];
+  settings: BusinessSettingsDto | null;
 }
 
-export function HomePageClient({ products }: HomePageClientProps) {
+export function HomePageClient({ products, settings }: HomePageClientProps) {
   const catalog = allocateHomeCatalog(products, {
     popularLimit: 4,
     menuPreviewLimit: 6,
@@ -37,6 +39,9 @@ export function HomePageClient({ products }: HomePageClientProps) {
       <HeroSection />
       <SundayBiryaniPromotion />
       <HomeDeliverySection />
+      <div className="container mx-auto px-4 py-8">
+        <FssaiDetails settings={settings} compact />
+      </div>
       <CategoriesSection />
       <HomeSearchStrip />
       <CompactProductGrid

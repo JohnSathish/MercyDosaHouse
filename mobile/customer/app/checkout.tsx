@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -262,6 +263,20 @@ export default function CheckoutScreen() {
           <Text style={styles.back}>← Back</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.primary }]}>Checkout</Text>
+
+        {config.business.fssaiEnabled !== false && config.business.fssaiRegistrationNumber ? (
+          <View style={styles.fssaiCard}>
+            <Text style={styles.fssaiTitle}>🛡️ FSSAI Registered Food Business</Text>
+            <Text style={styles.fssaiText}>
+              Registration No. {config.business.fssaiRegistrationNumber}
+            </Text>
+            {config.business.fssaiCertificateUrl ? (
+              <Pressable onPress={() => void Linking.openURL(config.business.fssaiCertificateUrl!)}>
+                <Text style={styles.fssaiLink}>View certificate</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
 
         {authed && profile && (
           <View style={styles.loyaltyCard}>
@@ -694,6 +709,17 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 120 },
   back: { color: '#14532D', fontWeight: '600', marginBottom: 8 },
   title: { fontSize: 24, fontWeight: '800', marginBottom: 16 },
+  fssaiCard: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 12,
+  },
+  fssaiTitle: { color: '#14532D', fontSize: 13, fontWeight: '800' },
+  fssaiText: { color: '#166534', fontSize: 12, fontWeight: '600', marginTop: 4 },
+  fssaiLink: { color: '#14532D', fontSize: 12, fontWeight: '800', marginTop: 8 },
   loyaltyCard: {
     backgroundColor: '#14532D',
     borderRadius: 14,

@@ -12,6 +12,8 @@ interface SiteFooterProps {
   whatsapp?: string;
   address?: string;
   hours?: string;
+  fssaiRegistrationNumber?: string | null;
+  fssaiCertificateUrl?: string | null;
   compact?: boolean;
 }
 
@@ -20,6 +22,8 @@ export function SiteFooter({
   whatsapp = '919566363655',
   address = 'Tura, Meghalaya',
   hours = '7:00 AM - 10:00 PM',
+  fssaiRegistrationNumber,
+  fssaiCertificateUrl,
   compact = false,
 }: SiteFooterProps) {
   const links = [
@@ -61,6 +65,27 @@ export function SiteFooter({
               <FiClock className="w-4 h-4 shrink-0 text-secondary" />
               {hours}
             </li>
+            {fssaiRegistrationNumber ? (
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 shrink-0 text-sm text-secondary">✓</span>
+                <span>
+                  <span className="block text-xs text-white/60">FSSAI Registration</span>
+                  <Link href="/fssai" className="hover:text-secondary transition-colors">
+                    {fssaiRegistrationNumber}
+                  </Link>
+                  {fssaiCertificateUrl ? (
+                    <a
+                      href={fssaiCertificateUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2 text-xs text-secondary underline"
+                    >
+                      Certificate
+                    </a>
+                  ) : null}
+                </span>
+              </li>
+            ) : null}
           </ul>
         </div>
 

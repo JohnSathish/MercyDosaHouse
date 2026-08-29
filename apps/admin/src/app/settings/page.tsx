@@ -207,6 +207,136 @@ export default function SettingsPage() {
 
       <Card className="dark:bg-gray-900">
         <CardHeader>
+          <CardTitle className="text-lg">FSSAI Registration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div>
+              <p className="font-semibold text-emerald-900 dark:text-emerald-200">
+                Show FSSAI details publicly
+              </p>
+              <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
+                Displays the registration badge on the website and customer app.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={form.fssaiEnabled !== false}
+              onChange={(event) => setForm({ ...form, fssaiEnabled: event.target.checked })}
+              className="mt-1 h-4 w-4 rounded"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Registration number</Label>
+              <Input
+                value={form.fssaiRegistrationNumber ?? ''}
+                onChange={(event) =>
+                  setForm({ ...form, fssaiRegistrationNumber: event.target.value })
+                }
+                placeholder="21726006000529"
+              />
+            </div>
+            <div>
+              <Label>Kind of business</Label>
+              <Input
+                value={form.fssaiKindOfBusiness ?? ''}
+                onChange={(event) => setForm({ ...form, fssaiKindOfBusiness: event.target.value })}
+                placeholder="Food Vending Establishment"
+              />
+            </div>
+            <div>
+              <Label>Certificate holder / business name</Label>
+              <Input
+                value={form.fssaiBusinessName ?? ''}
+                onChange={(event) => setForm({ ...form, fssaiBusinessName: event.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Nearest landmark</Label>
+              <Input
+                value={form.fssaiNearestLandmark ?? ''}
+                onChange={(event) => setForm({ ...form, fssaiNearestLandmark: event.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Issued on</Label>
+              <Input
+                type="date"
+                value={form.fssaiIssuedOn?.slice(0, 10) ?? ''}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    fssaiIssuedOn: event.target.value
+                      ? `${event.target.value}T00:00:00.000Z`
+                      : null,
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label>Fee paid until</Label>
+              <Input
+                type="date"
+                value={form.fssaiFeePaidUntil?.slice(0, 10) ?? ''}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    fssaiFeePaidUntil: event.target.value
+                      ? `${event.target.value}T00:00:00.000Z`
+                      : null,
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Certificate holder&apos;s permanent address</Label>
+            <Input
+              value={form.fssaiBusinessAddress ?? ''}
+              onChange={(event) => setForm({ ...form, fssaiBusinessAddress: event.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Food business premises address</Label>
+            <Input
+              value={form.fssaiPremisesAddress ?? ''}
+              onChange={(event) => setForm({ ...form, fssaiPremisesAddress: event.target.value })}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <MediaUploader
+              label="Upload certificate PDF"
+              accept="application/pdf"
+              onUploaded={(url) => setForm({ ...form, fssaiCertificateUrl: url })}
+            />
+            {form.fssaiCertificateUrl ? (
+              <a
+                href={form.fssaiCertificateUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-[#14532D] underline"
+              >
+                View current certificate
+              </a>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Upload the complete 5-page certificate to enable public viewing.
+              </span>
+            )}
+          </div>
+
+          <Button onClick={() => saveBusiness.mutate(form)} disabled={saveBusiness.isPending}>
+            {saveBusiness.isPending ? 'Saving…' : 'Save FSSAI Details'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="dark:bg-gray-900">
+        <CardHeader>
           <CardTitle className="text-lg">Email Delivery (SMTP)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

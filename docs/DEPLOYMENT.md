@@ -135,3 +135,19 @@ Use **Admin → Settings → Notifications → Delivery diagnostics** to confirm
 the FCM service account is configured and that device tokens are registered.
 Use **Test Notification** before changing an order. Failed customer status
 events remain in the dispatch log and are retried automatically.
+
+### 12. FSSAI registration details
+
+The FSSAI registration is stored in `business_settings` and is shared by the
+website and customer app. Apply the migration after pulling the release:
+
+```bash
+cd /opt/mercy-dosa-house
+docker compose -f docker/docker-compose.prod.coexist.yml run --rm api pnpm exec prisma migrate deploy
+docker compose -f docker/docker-compose.prod.coexist.yml up -d --build api admin website
+```
+
+The seeded registration number is `21726006000529`. Review or update the
+details under **Admin → Settings → FSSAI Registration**. Upload the complete
+certificate PDF there; it will be linked from the website `/fssai` page and
+shown in the customer app.

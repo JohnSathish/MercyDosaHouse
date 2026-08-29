@@ -32,7 +32,7 @@ export class MediaController {
       storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowed = ['image/', 'video/', 'image/svg+xml'];
+        const allowed = ['image/', 'video/', 'image/svg+xml', 'application/pdf'];
         if (!allowed.some((t) => file.mimetype.startsWith(t) || file.mimetype === t)) {
           return cb(new BadRequestException('Unsupported file type') as never, false);
         }

@@ -45,7 +45,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <HomePageClient products={products} />
+      <HomePageClient products={products} settings={settings} />
     </>
   );
 }

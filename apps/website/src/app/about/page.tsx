@@ -1,6 +1,22 @@
+import { api } from '@/lib/api';
 import { BRAND } from '@mdh/utils';
+import type { BusinessSettingsDto } from '@mdh/types';
+import { FssaiDetails } from '@/components/compliance/fssai-details';
 
-export default function AboutPage() {
+async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
+  try {
+    return await Promise.race([
+      api.get<BusinessSettingsDto>('/settings/business'),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+export default async function AboutPage() {
+  const settings = await getBusinessSettings();
+
   return (
     <div className="container mx-auto px-4 py-16 max-w-3xl">
       <h1 className="text-3xl font-bold text-primary mb-8">About {BRAND.name}</h1>
@@ -29,6 +45,9 @@ export default function AboutPage() {
             <li>Affordable prices for families</li>
           </ul>
         </section>
+      </div>
+      <div className="mt-10">
+        <FssaiDetails settings={settings} />
       </div>
     </div>
   );

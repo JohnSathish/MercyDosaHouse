@@ -110,6 +110,14 @@ export interface MobileAppConfigDto {
     email?: string | null;
     address?: string | null;
     upiId?: string | null;
+    fssaiEnabled?: boolean;
+    fssaiRegistrationNumber?: string | null;
+    fssaiBusinessName?: string | null;
+    fssaiPremisesAddress?: string | null;
+    fssaiKindOfBusiness?: string | null;
+    fssaiIssuedOn?: string | null;
+    fssaiFeePaidUntil?: string | null;
+    fssaiCertificateUrl?: string | null;
   };
   homepage: MobileHomeSectionDto[];
   announcements: import('./cms').AnnouncementDto[];

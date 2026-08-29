@@ -20,13 +20,23 @@ interface SiteShellProps {
   whatsapp?: string;
   address?: string;
   hours?: string;
+  fssaiRegistrationNumber?: string | null;
+  fssaiCertificateUrl?: string | null;
 }
 
 function BottomNavFallback() {
   return <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t" />;
 }
 
-export function SiteShell({ children, phone, whatsapp, address, hours }: SiteShellProps) {
+export function SiteShell({
+  children,
+  phone,
+  whatsapp,
+  address,
+  hours,
+  fssaiRegistrationNumber,
+  fssaiCertificateUrl,
+}: SiteShellProps) {
   const mainOffset = 'pt-[6.75rem] lg:pt-[7.25rem]';
 
   return (
@@ -40,7 +50,7 @@ export function SiteShell({ children, phone, whatsapp, address, hours }: SiteShe
         <RestaurantClosedBanner />
         <AnnouncementBar />
         <div className="hidden lg:block">
-          <SiteHeader phone={phone} embedded />
+          <SiteHeader phone={phone} fssaiRegistrationNumber={fssaiRegistrationNumber} embedded />
         </div>
         <MobileTopBar embedded />
       </div>
@@ -51,10 +61,25 @@ export function SiteShell({ children, phone, whatsapp, address, hours }: SiteShe
       <main className={`flex-1 ${mainOffset} pb-16 lg:pb-0 mobile-main`}>{children}</main>
 
       <div className="hidden lg:block">
-        <SiteFooter phone={phone} whatsapp={whatsapp} address={address} hours={hours} />
+        <SiteFooter
+          phone={phone}
+          whatsapp={whatsapp}
+          address={address}
+          hours={hours}
+          fssaiRegistrationNumber={fssaiRegistrationNumber}
+          fssaiCertificateUrl={fssaiCertificateUrl}
+        />
       </div>
       <div className="lg:hidden pb-16">
-        <SiteFooter phone={phone} whatsapp={whatsapp} address={address} hours={hours} compact />
+        <SiteFooter
+          phone={phone}
+          whatsapp={whatsapp}
+          address={address}
+          hours={hours}
+          fssaiRegistrationNumber={fssaiRegistrationNumber}
+          fssaiCertificateUrl={fssaiCertificateUrl}
+          compact
+        />
       </div>
 
       <Suspense fallback={<BottomNavFallback />}>
