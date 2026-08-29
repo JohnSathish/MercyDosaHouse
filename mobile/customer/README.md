@@ -65,5 +65,5 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:3001/api/v1
 ## App ID
 
 - Package: `com.mercydosahouse.customer`
-- Version: `1.0.7` (versionCode `8`)
+- Version: `1.0.10` (versionCode `11`)
 - Privacy: https://mercydosahouse.com/privacy

@@ -4,7 +4,7 @@ Expo React Native admin control center for Mercy Dosa House operations.
 
 - Package: `@mdh/admin-app`
 - Android application id: `com.mercydosahouse.admin`
-- Current Play version: `1.0.1` (versionCode `2`)
+- Current Play version: `1.0.5` (versionCode `6`)
 - API: `EXPO_PUBLIC_API_URL` (defaults to production)
 
 ## Local run

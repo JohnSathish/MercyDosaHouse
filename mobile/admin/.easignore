@@ -9,6 +9,7 @@
 ../../apps/
 ../../backend/
 ../../docs/
+../customer/
 
 **/.next/
 **/.turbo/

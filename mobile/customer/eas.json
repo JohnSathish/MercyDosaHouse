@@ -11,6 +11,8 @@
         "buildType": "apk"
       },
       "env": {
+        "EAS_USE_CACHE": "1",
+        "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
         "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com"
       }
@@ -22,6 +24,8 @@
         "buildType": "apk"
       },
       "env": {
+        "EAS_USE_CACHE": "1",
+        "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
         "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com"
       }
@@ -33,6 +37,8 @@
         "buildType": "apk"
       },
       "env": {
+        "EAS_USE_CACHE": "1",
+        "EAS_GRADLE_CACHE": "1",
         "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
         "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com"
       }
@@ -44,6 +50,10 @@
         "buildType": "app-bundle"
       },
       "env": {
+        "EAS_USE_CACHE": "1",
+        "EAS_GRADLE_CACHE": "1",
+        "MDH_ENABLE_R8": "1",
+        "MDH_ENABLE_RESOURCE_SHRINK": "1",
         "EXPO_PUBLIC_API_URL": "https://mercydosahouse.com/api/v1",
         "EXPO_PUBLIC_WEBSITE_URL": "https://mercydosahouse.com"
       }

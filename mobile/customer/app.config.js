@@ -27,7 +27,7 @@ module.exports = ({ config }) => ({
     googleServicesFile: './google-services.json',
     versionCode: 11,
     permissions: ['INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
-    allowBackup: true,
+    allowBackup: false,
   },
   notification: {
     icon: './assets/icon.png',
@@ -40,6 +40,7 @@ module.exports = ({ config }) => ({
     'expo-asset',
     'expo-font',
     'expo-web-browser',
+    '../plugins/with-android-build-optimizations',
     [
       'expo-notifications',
       {

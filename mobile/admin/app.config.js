@@ -47,6 +47,7 @@ module.exports = ({ config }) => ({
     'expo-asset',
     'expo-font',
     'expo-secure-store',
+    '../plugins/with-android-build-optimizations',
     [
       'expo-notifications',
       {
