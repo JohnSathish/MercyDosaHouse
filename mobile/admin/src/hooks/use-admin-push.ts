@@ -128,9 +128,12 @@ export function useAdminPushRegistration(enabled: boolean) {
         if (status !== 'granted' || cancelled) return;
 
         const projectId = getProjectId();
-        const tokenData = projectId
-          ? await Notifications.getExpoPushTokenAsync({ projectId })
-          : await Notifications.getExpoPushTokenAsync();
+        const tokenData =
+          Platform.OS === 'android'
+            ? await Notifications.getDevicePushTokenAsync()
+            : projectId
+              ? await Notifications.getExpoPushTokenAsync({ projectId })
+              : await Notifications.getExpoPushTokenAsync();
         const token = tokenData.data;
         if (!token || cancelled) return;
 

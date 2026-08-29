@@ -17,6 +17,14 @@ type StaffPushConfig = {
   soundName: string;
 };
 
+type PushDiagnostics = {
+  fcmConfigured: boolean;
+  expoTokens: number;
+  nativeTokens: number;
+  pendingCustomerDispatches: number;
+  failedCustomerDispatches: number;
+};
+
 const ROLE_OPTIONS = [
   { key: 'SUPER_ADMIN', label: 'Admin', icon: Shield },
   { key: 'MANAGER', label: 'Manager', icon: UserCog },
@@ -28,6 +36,11 @@ export default function SettingsNotificationsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['staff-push-config'],
     queryFn: () => api.get<StaffPushConfig>('/notifications/staff-push-config'),
+  });
+  const { data: diagnostics } = useQuery({
+    queryKey: ['push-diagnostics'],
+    queryFn: () => api.get<PushDiagnostics>('/notifications/diagnostics'),
+    refetchInterval: 30_000,
   });
 
   const save = useMutation({
@@ -55,6 +68,24 @@ export default function SettingsNotificationsPage() {
           Email alerts and Admin Android new-order push (FCM/Expo) with custom ringtone.
         </p>
       </div>
+
+      <Card className="dark:bg-gray-900">
+        <CardContent className="p-4 sm:p-6">
+          <h2 className="font-semibold text-gray-900 dark:text-white">Delivery diagnostics</h2>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <p>
+              FCM service account:{' '}
+              <span className={diagnostics?.fcmConfigured ? 'text-emerald-700' : 'text-amber-700'}>
+                {diagnostics ? (diagnostics.fcmConfigured ? 'Configured' : 'Missing') : 'Checking…'}
+              </span>
+            </p>
+            <p>Expo tokens: {diagnostics?.expoTokens ?? '—'}</p>
+            <p>Native FCM tokens: {diagnostics?.nativeTokens ?? '—'}</p>
+            <p>Pending customer pushes: {diagnostics?.pendingCustomerDispatches ?? '—'}</p>
+            <p>Failed customer pushes: {diagnostics?.failedCustomerDispatches ?? '—'}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="dark:bg-gray-900">
         <CardContent className="p-4 sm:p-6 space-y-4">

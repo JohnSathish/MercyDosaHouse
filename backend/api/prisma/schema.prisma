@@ -1205,9 +1205,13 @@ model PushDispatch {
   newStatus        String?
   notificationType String?
   notificationId   String?
+  channelId        String?
+  sound            String?
   deliveryStatus   String    @default("PENDING")
   lastError        String?
   attempts         Int       @default(0)
+  lastAttemptAt    DateTime?
+  nextAttemptAt    DateTime?
   sentAt           DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

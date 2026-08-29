@@ -20,6 +20,7 @@ type OrderPushData = {
   type?: string;
   orderId?: string;
   orderNumber?: string;
+  screen?: string;
 };
 
 async function ensureCustomerChannel() {
@@ -44,21 +45,36 @@ export function useCustomerPush() {
   const router = useRouter();
   const handledLaunch = useRef(false);
   const registeredAuthToken = useRef<string | null>(null);
+  const registrationInFlight = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     let subResponse: Notifications.Subscription | undefined;
     let subReceived: Notifications.Subscription | undefined;
 
-    const openOrder = (data: OrderPushData) => {
-      if (data?.orderNumber) {
-        router.push(`/track/${encodeURIComponent(data.orderNumber)}`);
+    const openOrder = async (data: OrderPushData) => {
+      if (!data?.orderNumber) return;
+      if (data.orderId) {
+        const accessToken = await getAccessToken();
+        if (accessToken) {
+          await api
+            .post('/notifications/read-by-order', { orderId: data.orderId })
+            .catch(() => undefined);
+        }
       }
+      router.push(`/track/${encodeURIComponent(data.orderNumber)}`);
     };
 
     const registerDevice = async () => {
       const token = await getAccessToken();
-      if (!token || cancelled || registeredAuthToken.current === token) return;
+      if (
+        !token ||
+        cancelled ||
+        registeredAuthToken.current === token ||
+        registrationInFlight.current
+      )
+        return;
+      registrationInFlight.current = true;
       try {
         await ensureCustomerChannel();
         const { status: existing } = await Notifications.getPermissionsAsync();
@@ -84,6 +100,8 @@ export function useCustomerPush() {
         await storePushToken(tokenData.data);
       } catch {
         /* emulator / permission */
+      } finally {
+        registrationInFlight.current = false;
       }
     };
 
@@ -105,7 +123,7 @@ export function useCustomerPush() {
     });
 
     subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
-      openOrder((response.notification.request.content.data ?? {}) as OrderPushData);
+      void openOrder((response.notification.request.content.data ?? {}) as OrderPushData);
     });
     subReceived = Notifications.addNotificationReceivedListener(() => undefined);
 
@@ -113,7 +131,7 @@ export function useCustomerPush() {
       handledLaunch.current = true;
       void Notifications.getLastNotificationResponseAsync().then((response) => {
         if (response && !cancelled) {
-          openOrder((response.notification.request.content.data ?? {}) as OrderPushData);
+          void openOrder((response.notification.request.content.data ?? {}) as OrderPushData);
         }
       });
     }

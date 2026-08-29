@@ -3,12 +3,13 @@
 import { useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Mail, Lock, Shield, Zap } from 'lucide-react';
+import { Lock, Shield, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getPostLoginRedirect, isCustomer, type AuthUser } from '@mdh/auth-client';
 import { APP_URLS } from '@/lib/app-urls';
 import { clearUserSessionQueries } from '@/lib/auth-queries';
 import { getSafeRedirect } from '@/lib/auth-redirect';
+import { SiteLogoMark } from '@/components/site-logo';
 import { CustomerLoginForm } from './customer-login-form';
 
 const TRUST_BADGES = [
@@ -43,44 +44,39 @@ export function LoginFormPanel() {
   );
 
   return (
-    <div className="relative flex flex-col items-center justify-center px-4 py-10 lg:py-12 bg-[#FFF8E8] min-h-[calc(100vh-4.5rem)]">
-      <div className="hidden lg:block absolute bottom-8 right-8 pointer-events-none select-none opacity-70">
-        <span className="text-3xl absolute bottom-0 right-0">🌿</span>
-        <span className="text-2xl absolute bottom-6 right-10">🌶️</span>
-      </div>
+    <div className="relative flex min-h-[calc(100vh-4.5rem)] items-center justify-center overflow-hidden bg-[#FFF8E8] px-4 py-8 sm:py-10 lg:py-12">
+      <div className="pointer-events-none absolute -right-24 top-8 h-72 w-72 rounded-full bg-[#F59E0B]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-[#14532D]/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-[url('/images/hero-dosa.png')] bg-cover bg-center opacity-[0.06] mix-blend-multiply lg:hidden" />
 
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55 }}
-        className="w-full max-w-[440px]"
+        className="relative z-10 w-full max-w-[560px]"
       >
-        <div className="lg:hidden text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#14532D]/10 mb-3">
-            <Mail className="w-7 h-7 text-[#14532D]" />
-          </div>
-          <h1 className="text-2xl font-bold text-[#14532D]">Mercy Dosa House</h1>
-          <p className="text-[#F59E0B] text-xs font-semibold uppercase tracking-widest mt-1">
-            Authentic South Indian Flavours
-          </p>
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-[0_8px_40px_rgba(20,83,45,0.12)] border border-[#14532D]/5 overflow-hidden">
-          <div className="pt-8 pb-4 px-8 text-center">
-            <div className="hidden lg:flex items-center justify-center w-14 h-14 rounded-2xl bg-[#14532D]/8 mx-auto mb-4">
-              <Mail className="w-7 h-7 text-[#14532D]" />
+        <div className="overflow-hidden rounded-[28px] border border-[#14532D]/10 bg-white shadow-[0_24px_70px_rgba(20,83,45,0.16)]">
+          <div className="px-5 pb-5 pt-7 text-center sm:px-10 sm:pb-6 sm:pt-9">
+            <div className="mb-4 flex justify-center">
+              <SiteLogoMark size="lg" />
             </div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-[#14532D] font-[family-name:var(--font-poppins)]">
-              Welcome back
-            </h2>
-            <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#C17A08]">
+              Taste of South India
+            </p>
+            <h1 className="mt-4 font-[family-name:var(--font-poppins)] text-[2rem] font-bold leading-tight text-[#14532D] sm:text-4xl">
+              Welcome back <span aria-hidden="true">👋</span>
+            </h1>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-gray-500">
               {fromCheckout
                 ? 'Log in to use your saved name and delivery address at checkout.'
-                : 'Sign in with email OTP or Google. Mobile OTP is coming soon.'}
+                : 'Sign in with Email OTP or Google.'}
             </p>
+            {!fromCheckout ? (
+              <p className="mt-1 text-xs font-medium text-[#C17A08]">Mobile OTP is coming soon.</p>
+            ) : null}
           </div>
 
-          <div className="px-8 pb-6">
+          <div className="px-5 pb-6 sm:px-10 sm:pb-8">
             <CustomerLoginForm
               onAuthenticated={handleAuthenticated}
               guestHref={redirectTo || '/'}
@@ -88,19 +84,19 @@ export function LoginFormPanel() {
             />
           </div>
 
-          <div className="border-t border-gray-100 bg-[#FAFAF8] px-6 py-4 grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 border-t border-gray-100 bg-[#FAFAF8] px-4 py-4 sm:px-8">
             {TRUST_BADGES.map(({ icon: Icon, label }) => (
               <div key={label} className="flex flex-col items-center text-center gap-1">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#14532D]/8">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#14532D]/[0.08]">
                   <Icon className="w-3.5 h-3.5 text-[#14532D]" />
                 </div>
-                <span className="text-[10px] font-medium text-gray-500 leading-tight">{label}</span>
+                <span className="text-[10px] font-medium leading-tight text-gray-500">{label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="mt-5 text-center text-xs text-gray-400">
           Made with <span className="text-red-400">❤️</span> for food lovers
         </p>
       </motion.div>

@@ -9,7 +9,7 @@ import type { MarketingAnnouncementDto } from '@mdh/types';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { dismissAnnouncement, trackMarketingEvent } from '@/lib/marketing-content';
 
-const SESSION_KEY = 'mdh_promotional_popup_seen';
+const SESSION_KEY = 'mdh_promotional_popup_seen_v2';
 const DAY_KEY = 'mdh_promotional_popup_day';
 const CUSTOMER_KEY = 'mdh_promotional_popup_customer';
 const CLOSED_KEY = 'mdh_promotional_popup_closed';
@@ -61,9 +61,10 @@ export function PromotionalPopup() {
     if (pathname !== '/') return;
     const popup = marketing?.promotionalPopup;
     if (!popup || shownRef.current === popup.id || !shouldShow(popup)) return;
-    shownRef.current = popup.id;
-    markShown(popup);
     const timer = window.setTimeout(() => {
+      if (shownRef.current === popup.id) return;
+      shownRef.current = popup.id;
+      markShown(popup);
       setItem(popup);
       setOpen(true);
       void trackMarketingEvent(popup.id, 'impression');

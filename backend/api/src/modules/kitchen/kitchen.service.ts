@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   OrderStatus,
   TrackingStatus,
@@ -8,9 +8,8 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
+import { OrdersService } from '../orders/orders.service';
 import { InventoryService } from '../inventory/inventory.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { isValidOrderStatusTransition } from '../orders/order-status-transitions';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.PENDING,
@@ -41,8 +40,8 @@ export class KitchenService {
   constructor(
     private prisma: PrismaService,
     private gateway: OrdersGateway,
+    private orders: OrdersService,
     private inventoryService: InventoryService,
-    private notifications: NotificationsService,
   ) {}
 
   private mapOrder(order: OrderWithItems) {
@@ -216,24 +215,6 @@ export class KitchenService {
     });
   }
 
-  private async writeStatusHistory(
-    orderId: string,
-    previousStatus: OrderStatus | null,
-    newStatus: OrderStatus,
-    userId?: string,
-    remarks?: string,
-  ) {
-    await this.prisma.orderStatusHistory.create({
-      data: {
-        orderId,
-        previousStatus,
-        newStatus,
-        updatedById: userId,
-        remarks,
-      },
-    });
-  }
-
   private async nextTokenNumber(): Promise<number> {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -253,63 +234,30 @@ export class KitchenService {
       });
       return this.mapOrder(current);
     }
-    if (!isValidOrderStatusTransition(existing.status, OrderStatus.ACCEPTED)) {
-      throw new BadRequestException(`Cannot move order from ${existing.status} to ACCEPTED`);
-    }
-
     const tokenNumber = existing.tokenNumber ?? (await this.nextTokenNumber());
-
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: OrderStatus.ACCEPTED,
-        trackingStatus: TrackingStatus.ACCEPTED,
-        tokenNumber,
-      },
-      include: orderInclude,
-    });
-
-    await this.writeStatusHistory(
-      id,
-      existing.status,
-      OrderStatus.ACCEPTED,
-      userId,
-      'Kitchen accepted',
-    );
-    await this.logAction(id, 'ACCEPTED', userId);
-
-    this.gateway.emitOrderUpdate(id, {
-      status: OrderStatus.ACCEPTED,
+    const order = await this.orders.updateStatus(id, OrderStatus.ACCEPTED, {
       trackingStatus: TrackingStatus.ACCEPTED,
+      updatedById: userId,
+      remarks: 'Kitchen accepted',
     });
-    void this.notifications.notifyCustomerStatus(id, OrderStatus.ACCEPTED, {
-      previousStatus: existing.status,
-    });
-
-    return this.mapOrder(order);
+    if (!existing.tokenNumber) {
+      await this.prisma.order.update({ where: { id }, data: { tokenNumber } });
+    }
+    await this.logAction(id, 'ACCEPTED', userId);
+    return order;
   }
 
   async rejectOrder(id: string, reason?: string, userId?: string) {
     const existing = await this.prisma.order.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Order not found');
-
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: { status: OrderStatus.CANCELLED, rejectReason: reason ?? 'Rejected by kitchen' },
-      include: orderInclude,
-    });
-
-    await this.writeStatusHistory(id, existing.status, OrderStatus.CANCELLED, userId, reason);
-    await this.logAction(id, 'REJECTED', userId, undefined, { reason });
-
-    this.gateway.emitOrderUpdate(id, { status: OrderStatus.CANCELLED });
-    if (existing.status !== OrderStatus.CANCELLED) {
-      void this.notifications.notifyCustomerStatus(id, OrderStatus.CANCELLED, {
-        previousStatus: existing.status,
-        reason: reason ?? 'Rejected by kitchen',
-      });
+    if (existing.status === OrderStatus.CANCELLED) {
+      return this.mapOrder(
+        await this.prisma.order.findUniqueOrThrow({ where: { id }, include: orderInclude }),
+      );
     }
-    return this.mapOrder(order);
+    const order = await this.orders.rejectOrder(id, reason ?? 'Rejected by kitchen', userId);
+    await this.logAction(id, 'REJECTED', userId, undefined, { reason });
+    return order;
   }
 
   async markPreparing(
@@ -319,34 +267,20 @@ export class KitchenService {
   ) {
     const existing = await this.prisma.order.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Order not found');
-
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: OrderStatus.PREPARING,
-        trackingStatus,
-        kitchenStartedAt: existing.kitchenStartedAt ?? new Date(),
-      },
-      include: orderInclude,
+    const order = await this.orders.updateStatus(id, OrderStatus.PREPARING, {
+      trackingStatus,
+      updatedById: userId,
     });
-
-    await this.writeStatusHistory(id, existing.status, OrderStatus.PREPARING, userId);
+    await this.prisma.order.update({
+      where: { id },
+      data: { kitchenStartedAt: existing.kitchenStartedAt ?? new Date() },
+    });
     await this.logAction(id, 'PREPARING', userId);
 
     // Auto-deduct recipe ingredients from inventory
     await this.inventoryService.deductForOrder(id).catch(() => undefined);
 
-    this.gateway.emitOrderUpdate(id, {
-      status: OrderStatus.PREPARING,
-      trackingStatus,
-    });
-    if (existing.status !== OrderStatus.PREPARING) {
-      void this.notifications.notifyCustomerStatus(id, OrderStatus.PREPARING, {
-        previousStatus: existing.status,
-      });
-    }
-
-    return this.mapOrder(order);
+    return order;
   }
 
   async markReady(id: string, userId?: string) {
@@ -358,29 +292,12 @@ export class KitchenService {
       data: { kitchenStatus: KitchenItemStatus.READY },
     });
 
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: {
-        status: OrderStatus.READY,
-        trackingStatus: TrackingStatus.PACKING,
-      },
-      include: orderInclude,
-    });
-
-    await this.writeStatusHistory(id, existing.status, OrderStatus.READY, userId);
-    await this.logAction(id, 'READY', userId);
-
-    this.gateway.emitOrderUpdate(id, {
-      status: OrderStatus.READY,
+    const order = await this.orders.updateStatus(id, OrderStatus.READY, {
       trackingStatus: TrackingStatus.PACKING,
+      updatedById: userId,
     });
-    if (existing.status !== OrderStatus.READY) {
-      void this.notifications.notifyCustomerStatus(id, OrderStatus.READY, {
-        previousStatus: existing.status,
-      });
-    }
-
-    return this.mapOrder(order);
+    await this.logAction(id, 'READY', userId);
+    return order;
   }
 
   async markComplete(id: string, userId?: string) {

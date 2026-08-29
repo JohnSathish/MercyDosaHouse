@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   OnModuleInit,
   Logger,
@@ -275,7 +276,7 @@ export class OrdersService implements OnModuleInit {
       void this.orderEmailNotification.notifyOrderConfirmed(order.id);
       void this.notificationsService.notifyStaffNewOrder(order.id);
     }
-    void this.notificationsService.notifyCustomerOrderPlaced(order.id);
+    await this.notificationsService.notifyCustomerOrderPlaced(order.id);
     return this.findOne(order.id);
   }
 
@@ -602,13 +603,22 @@ export class OrdersService implements OnModuleInit {
     }
 
     const order = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({
-        where: { id },
+      const claimed = await tx.order.updateMany({
+        where: { id, status: existing.status },
         data: {
           status,
           ...(options?.trackingStatus ? { trackingStatus: options.trackingStatus } : {}),
           ...(status === OrderStatus.DELIVERED ? { paymentStatus: PaymentStatus.COMPLETED } : {}),
         },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException(
+          'Order status changed by another operator. Refresh and try again.',
+        );
+      }
+
+      const updated = await tx.order.findUniqueOrThrow({
+        where: { id },
         include: { items: true },
       });
 
@@ -661,7 +671,7 @@ export class OrdersService implements OnModuleInit {
       trackingStatus: options?.trackingStatus,
       message: this.statusMessage(status),
     });
-    void this.notificationsService.notifyCustomerStatus(id, status, {
+    await this.notificationsService.notifyCustomerStatus(id, status, {
       previousStatus: existing.status,
       reason: options?.remarks,
     });
@@ -669,17 +679,28 @@ export class OrdersService implements OnModuleInit {
   }
 
   async rejectOrder(id: string, reason: string, updatedById?: string) {
-    const previousOrder = await this.prisma.order.findUnique({
-      where: { id },
-      select: { status: true },
-    });
-    const order = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { id } });
       if (!existing) throw new NotFoundException('Order not found');
+      if (existing.status === OrderStatus.CANCELLED) {
+        return { order: existing, previousStatus: null };
+      }
+      if (!isValidOrderStatusTransition(existing.status, OrderStatus.CANCELLED)) {
+        throw new BadRequestException(`Cannot cancel order from ${existing.status}`);
+      }
 
-      const updated = await tx.order.update({
-        where: { id },
+      const claimed = await tx.order.updateMany({
+        where: { id, status: existing.status },
         data: { status: OrderStatus.CANCELLED, rejectReason: reason },
+      });
+      if (claimed.count !== 1) {
+        throw new ConflictException(
+          'Order status changed by another operator. Refresh and try again.',
+        );
+      }
+
+      const updated = await tx.order.findUniqueOrThrow({
+        where: { id },
         include: { items: true },
       });
 
@@ -700,17 +721,20 @@ export class OrdersService implements OnModuleInit {
         },
       });
 
-      return updated;
+      return { order: updated, previousStatus: existing.status };
     });
+    const order = result.order;
 
     this.gateway.emitOrderUpdate(order.id, {
       status: OrderStatus.CANCELLED,
       message: `Unfortunately your order was cancelled. Reason: ${reason}`,
     });
-    void this.notificationsService.notifyCustomerStatus(id, OrderStatus.CANCELLED, {
-      previousStatus: previousOrder?.status,
-      reason,
-    });
+    if (result.previousStatus) {
+      await this.notificationsService.notifyCustomerStatus(id, OrderStatus.CANCELLED, {
+        previousStatus: result.previousStatus,
+        reason,
+      });
+    }
     return this.findOne(order.id);
   }
 

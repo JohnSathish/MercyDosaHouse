@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Lock, Mail, Smartphone, UserRound } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  ChevronRight,
+  Globe,
+  Loader2,
+  Lock,
+  Mail,
+  Smartphone,
+  UserRound,
+} from 'lucide-react';
 import { Button, Input, Label } from '@mdh/ui';
 import {
   getAuthMethods,
@@ -34,6 +44,43 @@ declare global {
   }
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function friendlyAuthError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (message.includes('email') && (message.includes('valid') || message.includes('format'))) {
+    return 'Please enter a valid email address.';
+  }
+  if (message.includes('expired') || message.includes('expire')) {
+    return 'This code has expired. Please request a new one.';
+  }
+  if (
+    message.includes('attempt') ||
+    message.includes('too many') ||
+    message.includes('rate limit') ||
+    message.includes('429')
+  ) {
+    return 'Too many attempts. Please wait a few minutes and try again.';
+  }
+  if (message.includes('google')) {
+    return "Google sign-in couldn't be completed. Please try again.";
+  }
+  if (
+    message.includes('send') ||
+    message.includes('email') ||
+    message.includes('503') ||
+    message.includes('502')
+  ) {
+    return "We couldn't send the verification code. Please try again.";
+  }
+  if (message.includes('otp') || message.includes('code') || message.includes('invalid')) {
+    return "That code doesn't match. Please try again.";
+  }
+  return fallback;
+}
+
 function OtpInput({
   value,
   onChange,
@@ -60,6 +107,14 @@ function OtpInput({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length);
+    if (!pasted) return;
+    onChange(pasted);
+    inputs.current[Math.min(pasted.length, length - 1)]?.focus();
+  };
+
   return (
     <div className="flex justify-center gap-2 sm:gap-3">
       {Array.from({ length }).map((_, i) => (
@@ -74,7 +129,9 @@ function OtpInput({
           value={value[i] || ''}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
-          className="w-11 h-14 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-2xl border-2 border-[#14532D]/15 bg-[#FFF8E8] focus:border-[#14532D] focus:ring-2 focus:ring-[#14532D]/20 outline-none transition-all"
+          onPaste={i === 0 ? handlePaste : undefined}
+          autoComplete={i === 0 ? 'one-time-code' : 'off'}
+          className="h-14 w-11 rounded-2xl border-2 border-[#14532D]/15 bg-[#FFF8E8] text-center text-xl font-bold outline-none transition-all focus:border-[#14532D] focus:ring-2 focus:ring-[#14532D]/20 sm:w-12"
           aria-label={`OTP digit ${i + 1}`}
         />
       ))}
@@ -100,6 +157,7 @@ function GoogleSignInButton({
     const render = () => {
       if (cancelled || !hostRef.current || !window.google?.accounts?.id) return;
       hostRef.current.innerHTML = '';
+      const availableWidth = hostRef.current.clientWidth;
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: (response) => {
@@ -109,7 +167,7 @@ function GoogleSignInButton({
       window.google.accounts.id.renderButton(hostRef.current, {
         theme: 'outline',
         size: 'large',
-        width: 360,
+        width: availableWidth ? Math.min(360, availableWidth) : 360,
         text: 'continue_with',
         shape: 'pill',
       });
@@ -199,11 +257,7 @@ export function CustomerLoginForm({
         const { user } = await googleLogin(API_URL, { idToken });
         await onAuthenticated(user);
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "We couldn't complete Google sign-in. Please try again.",
-        );
+        setError(friendlyAuthError(err, "Google sign-in couldn't be completed. Please try again."));
       } finally {
         setLoading(false);
       }
@@ -213,6 +267,10 @@ export function CustomerLoginForm({
 
   const handleSendEmailOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -223,9 +281,7 @@ export function CustomerLoginForm({
       setOtp('');
       setStep('otp');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "We couldn't send the email. Please try again.",
-      );
+      setError(friendlyAuthError(err, "We couldn't send the verification code. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -233,16 +289,17 @@ export function CustomerLoginForm({
 
   const handleVerifyEmailOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.length !== 6) return;
+    if (otp.length !== 6) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
       const { user } = await verifyEmailOtp(API_URL, { sessionId, otp });
       await onAuthenticated(user);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "We couldn't verify that code. Please try again.",
-      );
+      setError(friendlyAuthError(err, "That code doesn't match. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -256,9 +313,7 @@ export function CustomerLoginForm({
       const res = await resendEmailOtp(API_URL, { sessionId });
       setCooldown(res.cooldownSeconds);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "We couldn't send the email. Please try again.",
-      );
+      setError(friendlyAuthError(err, "We couldn't send the verification code. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -279,22 +334,29 @@ export function CustomerLoginForm({
                 setStep('email');
                 setError('');
               }}
-              className="w-full text-left rounded-2xl border-2 border-[#14532D]/15 bg-[#FFF8E8] p-4 hover:border-[#14532D] transition-colors"
+              className="group w-full rounded-2xl border-2 border-[#14532D]/15 bg-[#FFF8E8] p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#14532D] hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#14532D]/15"
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-[#14532D]/10 flex items-center justify-center">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#14532D]/10">
                   <Mail className="h-5 w-5 text-[#14532D]" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-semibold text-[#14532D]">Continue with Email OTP</p>
-                  <p className="text-xs text-gray-500">We'll send a 6-digit code to your inbox.</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    We&apos;ll send a secure 6-digit code to your inbox.
+                  </p>
                 </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[#14532D] transition-transform group-hover:translate-x-0.5" />
               </div>
             </button>
           )}
 
           {showGoogle && (
-            <div className={loading ? 'pointer-events-none opacity-60' : ''}>
+            <div
+              className={`mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-white px-2 py-2 shadow-sm transition-shadow hover:shadow-md ${
+                loading ? 'pointer-events-none opacity-60' : ''
+              }`}
+            >
               <GoogleSignInButton
                 clientId={methods!.googleClientId!}
                 onCredential={handleGoogleCredential}
@@ -303,19 +365,53 @@ export function CustomerLoginForm({
             </div>
           )}
 
+          {!showGoogle && (
+            <div
+              className="mt-3 w-full rounded-2xl border-2 border-gray-200 bg-gray-50 p-4 opacity-80"
+              aria-disabled="true"
+              role="status"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gray-200 flex items-center justify-center">
+                  <Globe className="h-5 w-5 text-gray-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-500">Continue with Google</p>
+                  <p className="text-xs text-gray-400">
+                    Temporarily unavailable — Google sign-in setup is pending.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="my-4 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-gray-200" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400">
+              or
+            </span>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+
           <div
-            className="w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 opacity-80 cursor-not-allowed"
-            aria-disabled
+            className="mt-4 w-full cursor-not-allowed rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 opacity-80"
+            aria-disabled="true"
+            role="status"
           >
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gray-200 flex items-center justify-center">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-200">
                 <Smartphone className="h-5 w-5 text-gray-400" />
               </div>
-              <div>
-                <p className="font-semibold text-gray-500">Continue with Mobile OTP</p>
-                <p className="text-xs text-gray-400">
-                  Coming soon — we&apos;re currently setting up secure mobile verification. Please
-                  use email or Google.
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-gray-500">Continue with Mobile OTP</p>
+                  <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                    Coming soon
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                  We&apos;re currently setting up secure mobile verification. Please use Email OTP
+                  or Google for now.
                 </p>
               </div>
             </div>
@@ -326,10 +422,11 @@ export function CustomerLoginForm({
               <Button
                 type="button"
                 variant="outline"
-                className="w-full min-h-[52px] rounded-2xl border-2 border-[#14532D]/25 text-[#14532D] font-semibold hover:bg-[#14532D]/5 gap-2"
+                className="mt-4 min-h-[52px] w-full gap-2 rounded-2xl border-2 border-[#14532D]/25 font-semibold text-[#14532D] transition-all hover:-translate-y-0.5 hover:bg-[#14532D]/5 hover:shadow-sm"
               >
                 <UserRound className="w-4 h-4" />
                 {guestLabel || (fromCheckout ? 'Continue without login' : 'Continue as Guest')}
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           )}
@@ -353,14 +450,31 @@ export function CustomerLoginForm({
               required
             />
           </div>
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          {error && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           <Button
             type="submit"
-            disabled={loading || !email.includes('@')}
-            className="w-full min-h-[52px] rounded-2xl bg-[#14532D] hover:bg-[#14532D]/90 text-white font-semibold gap-2"
+            disabled={loading || !isValidEmail(email)}
+            className="min-h-[52px] w-full gap-2 rounded-2xl bg-[#14532D] font-semibold text-white shadow-sm transition-all hover:bg-[#14532D]/90 hover:shadow-md"
           >
-            {loading ? 'Sending…' : 'Send OTP'}
-            {!loading && <ArrowRight className="w-4 h-4" />}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending code…
+              </>
+            ) : (
+              <>
+                Send OTP
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
           <button
             type="button"
@@ -381,14 +495,31 @@ export function CustomerLoginForm({
             Enter the 6-digit code sent to {maskedEmail || email}
           </p>
           <OtpInput value={otp} onChange={setOtp} />
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          {error && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           <Button
             type="submit"
             disabled={loading || otp.length !== 6}
-            className="w-full min-h-[52px] rounded-2xl bg-[#14532D] hover:bg-[#14532D]/90 text-white font-semibold gap-2"
+            className="min-h-[52px] w-full gap-2 rounded-2xl bg-[#14532D] font-semibold text-white shadow-sm transition-all hover:bg-[#14532D]/90 hover:shadow-md"
           >
-            {loading ? 'Verifying…' : 'Verify & Login'}
-            {!loading && <ArrowRight className="w-4 h-4" />}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Verifying…
+              </>
+            ) : (
+              <>
+                Verify &amp; Login
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
           <button
             type="button"

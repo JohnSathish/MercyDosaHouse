@@ -112,3 +112,26 @@ the campaign. The public homepage selects only the highest-priority eligible
 published popup; scheduling and expiry are evaluated by the API, so no cron job
 is required. The upload must use the existing authenticated `/media/upload`
 endpoint, and customer analytics are sent to `/marketing/analytics/track`.
+
+### 11. Push notification delivery
+
+Android builds register native FCM tokens. The API therefore requires the
+Firebase service-account JSON in the VPS root `.env`; keep it on one line and
+never expose it to the website or mobile app:
+
+```env
+FIREBASE_SERVICE_ACCOUNT_JSON=<compact-service-account-json>
+```
+
+After updating the environment, apply migrations and recreate the API:
+
+```bash
+cd /opt/mercy-dosa-house
+docker compose -f docker/docker-compose.prod.coexist.yml run --rm api pnpm exec prisma migrate deploy
+docker compose -f docker/docker-compose.prod.coexist.yml up -d api
+```
+
+Use **Admin → Settings → Notifications → Delivery diagnostics** to confirm
+the FCM service account is configured and that device tokens are registered.
+Use **Test Notification** before changing an order. Failed customer status
+events remain in the dispatch log and are retried automatically.

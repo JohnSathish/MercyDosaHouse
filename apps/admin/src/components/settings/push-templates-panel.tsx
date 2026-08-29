@@ -41,7 +41,13 @@ export function PushTemplatesPanel() {
   });
 
   const testPush = useMutation({
-    mutationFn: () => api.post<{ ok: boolean; devices: number }>('/notifications/test-push'),
+    mutationFn: () =>
+      api.post<{
+        ok: boolean;
+        devices: number;
+        status: string;
+        error?: string;
+      }>('/notifications/test-push'),
   });
 
   if (isLoading || !data) {
@@ -164,8 +170,12 @@ export function PushTemplatesPanel() {
         {testPush.isPending ? 'Sending…' : 'Test Notification'}
       </Button>
       {testPush.data ? (
-        <p className="text-sm text-emerald-700">
-          Sent to {testPush.data.devices} registered device(s) for your login.
+        <p className={`text-sm ${testPush.data.ok ? 'text-emerald-700' : 'text-amber-700'}`}>
+          {testPush.data.ok
+            ? `Sent to ${testPush.data.devices} registered device(s) for your login.`
+            : `Push ${testPush.data.status.toLowerCase()}: ${
+                testPush.data.error ?? 'check device registration and Firebase configuration'
+              }`}
         </p>
       ) : null}
     </div>

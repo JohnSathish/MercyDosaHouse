@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersGateway } from '../orders/orders.gateway';
+import { OrdersService } from '../orders/orders.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RoutingService } from './routing.service';
 import { isValidOrderStatusTransition } from '../orders/order-status-transitions';
@@ -53,6 +54,7 @@ export class DeliveryService {
   constructor(
     private prisma: PrismaService,
     private gateway: OrdersGateway,
+    private orders: OrdersService,
     private notifications: NotificationsService,
     private routing: RoutingService,
   ) {}
@@ -691,7 +693,7 @@ export class DeliveryService {
       message: 'Delivery assigned',
     });
     if (!previousTracking || previousTracking.deliveryStaffId !== staff.id) {
-      void this.notifications.notifyCustomerStatus(orderId, 'ASSIGNED', {
+      await this.notifications.notifyCustomerStatus(orderId, 'ASSIGNED', {
         previousStatus: previousTracking?.status ?? DeliveryAssignmentStatus.WAITING,
       });
     }
@@ -732,11 +734,11 @@ export class DeliveryService {
     if (!(ASSIGNMENT_TRANSITIONS[tracking.status] ?? []).includes(status)) {
       throw new BadRequestException(`Cannot move delivery from ${tracking.status} to ${status}`);
     }
+    if (status === DeliveryAssignmentStatus.DELIVERED) {
+      throw new BadRequestException('Use OTP verification to complete delivery');
+    }
 
     const updates: Prisma.DeliveryTrackingUpdateInput = { status };
-    let orderStatus: OrderStatus | undefined;
-    let previousOrderStatus: OrderStatus | undefined;
-
     if (status === DeliveryAssignmentStatus.PICKED_UP) {
       updates.pickedUpAt = new Date();
     } else if (status === DeliveryAssignmentStatus.OUT_FOR_DELIVERY) {
@@ -751,48 +753,27 @@ export class DeliveryService {
       if (!order || !isValidOrderStatusTransition(order.status, OrderStatus.OUT_FOR_DELIVERY)) {
         throw new BadRequestException('Order must be READY before delivery can start');
       }
-      previousOrderStatus = order.status;
       updates.outForDeliveryAt = new Date();
       updates.locationSharingActive = true;
-      orderStatus = OrderStatus.OUT_FOR_DELIVERY;
-    } else if (
-      status === DeliveryAssignmentStatus.DELIVERED ||
-      status === DeliveryAssignmentStatus.CANCELLED
-    ) {
-      updates.locationSharingActive = false;
     }
-
-    await this.prisma.deliveryTracking.update({ where: { orderId }, data: updates });
 
     if (status === DeliveryAssignmentStatus.PICKED_UP) {
-      void this.notifications.notifyCustomerStatus(orderId, 'PICKED_UP', {
+      await this.prisma.deliveryTracking.update({ where: { orderId }, data: updates });
+      await this.notifications.notifyCustomerStatus(orderId, 'PICKED_UP', {
         previousStatus: tracking.status,
       });
-    }
-
-    if (orderStatus) {
-      await this.prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: orderStatus,
-          trackingStatus: TrackingStatus.OUT_FOR_DELIVERY,
-        },
-      });
-      await this.prisma.orderStatusHistory.create({
-        data: {
-          orderId,
-          previousStatus: previousOrderStatus,
-          newStatus: orderStatus,
-          updatedById: userId,
-          remarks: 'Delivery started',
-        },
-      });
-      this.gateway.emitOrderUpdate(orderId, {
-        status: orderStatus,
+    } else if (status === DeliveryAssignmentStatus.OUT_FOR_DELIVERY) {
+      await this.orders.updateStatus(orderId, OrderStatus.OUT_FOR_DELIVERY, {
         trackingStatus: TrackingStatus.OUT_FOR_DELIVERY,
+        updatedById: userId,
+        remarks: 'Delivery started',
       });
-      void this.notifications.notifyCustomerStatus(orderId, orderStatus, {
-        previousStatus: previousOrderStatus,
+      await this.prisma.deliveryTracking.update({
+        where: { orderId },
+        data: {
+          outForDeliveryAt: updates.outForDeliveryAt,
+          locationSharingActive: true,
+        },
       });
     } else if (status === DeliveryAssignmentStatus.CANCELLED) {
       const order = await this.prisma.order.findUnique({
@@ -800,29 +781,7 @@ export class DeliveryService {
         select: { status: true },
       });
       if (order && order.status !== OrderStatus.CANCELLED) {
-        if (!isValidOrderStatusTransition(order.status, OrderStatus.CANCELLED)) {
-          throw new BadRequestException(`Cannot cancel order from ${order.status}`);
-        }
-        await this.prisma.order.update({
-          where: { id: orderId },
-          data: { status: OrderStatus.CANCELLED },
-        });
-        await this.prisma.orderStatusHistory.create({
-          data: {
-            orderId,
-            previousStatus: order.status,
-            newStatus: OrderStatus.CANCELLED,
-            updatedById: userId,
-            remarks: reason ?? 'Delivery assignment cancelled',
-          },
-        });
-        this.gateway.emitOrderUpdate(orderId, {
-          status: OrderStatus.CANCELLED,
-        });
-        void this.notifications.notifyCustomerStatus(orderId, OrderStatus.CANCELLED, {
-          previousStatus: order.status,
-          reason: reason ?? 'Delivery assignment cancelled',
-        });
+        await this.orders.rejectOrder(orderId, reason ?? 'Delivery assignment cancelled', userId);
       }
     }
 
@@ -852,21 +811,18 @@ export class DeliveryService {
     if (order.deliveryOtp !== otp) throw new BadRequestException('Invalid OTP');
 
     const now = new Date();
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: OrderStatus.DELIVERED,
-        trackingStatus: TrackingStatus.DELIVERED,
-        paymentStatus: order.paymentMethod === 'COD' ? 'COMPLETED' : order.paymentStatus,
-      },
+    await this.orders.updateStatus(orderId, OrderStatus.DELIVERED, {
+      trackingStatus: TrackingStatus.DELIVERED,
+      updatedById: userId,
+      remarks: 'Delivered with OTP verification',
     });
 
     if (order.deliveryTracking) {
       await this.prisma.deliveryTracking.update({
         where: { orderId },
         data: {
-          status: DeliveryAssignmentStatus.DELIVERED,
           deliveredAt: now,
+          locationSharingActive: false,
         },
       });
 
@@ -893,16 +849,6 @@ export class DeliveryService {
       }
     }
 
-    await this.prisma.orderStatusHistory.create({
-      data: {
-        orderId,
-        previousStatus: OrderStatus.OUT_FOR_DELIVERY,
-        newStatus: OrderStatus.DELIVERED,
-        updatedById: userId,
-        remarks: 'Delivered with OTP verification',
-      },
-    });
-
     await this.logDelivery(
       orderId,
       'DELIVERED',
@@ -911,14 +857,6 @@ export class DeliveryService {
       order.deliveryTracking?.deliveryStaffId ?? undefined,
       userId,
     );
-
-    this.gateway.emitOrderUpdate(orderId, {
-      status: OrderStatus.DELIVERED,
-      trackingStatus: TrackingStatus.DELIVERED,
-    });
-    void this.notifications.notifyCustomerStatus(orderId, OrderStatus.DELIVERED, {
-      previousStatus: OrderStatus.OUT_FOR_DELIVERY,
-    });
 
     return this.getOrder(orderId);
   }

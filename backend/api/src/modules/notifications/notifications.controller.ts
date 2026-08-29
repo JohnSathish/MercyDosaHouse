@@ -20,6 +20,12 @@ export class NotificationsController {
   }
 
   @RequirePermissions('settings.read')
+  @Get('diagnostics')
+  getPushDiagnostics() {
+    return this.notificationsService.getPushDiagnostics();
+  }
+
+  @RequirePermissions('settings.read')
   @Get('order-dispatches')
   getOrderDispatches() {
     return this.notificationsService.getOrderNotificationLogs();
