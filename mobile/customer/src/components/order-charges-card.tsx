@@ -4,18 +4,36 @@ import { useAppConfig } from '@/providers/config-context';
 
 interface OrderChargesCardProps {
   deliveryIsFree?: boolean;
+  packingTotal?: number;
+  packedItemCount?: number;
   compact?: boolean;
 }
 
-export function OrderChargesCard({ deliveryIsFree, compact }: OrderChargesCardProps) {
+export function OrderChargesCard({
+  deliveryIsFree,
+  packingTotal,
+  packedItemCount,
+  compact,
+}: OrderChargesCardProps) {
   const config = useAppConfig();
   const deliveryCharge = config.delivery.deliveryCharge;
+  const defaultPackingCharge = config.delivery.packingCharge ?? 20;
   const freeDeliveryLimit = config.delivery.freeDeliveryLimit ?? 299;
+  const packingLabel =
+    packingTotal != null && packedItemCount != null
+      ? `Packing (${packedItemCount} Item${packedItemCount === 1 ? '' : 's'})`
+      : 'Packing';
+  const packingValue =
+    packingTotal != null
+      ? formatCurrency(packingTotal)
+      : `${formatCurrency(defaultPackingCharge)} / item`;
 
   return (
     <View style={[styles.card, compact && styles.cardCompact]}>
       <Text style={styles.title}>Order Charges</Text>
-      <Text style={styles.line}>🍱 Packing: ₹20 / item (typical)</Text>
+      <Text style={styles.line}>
+        🍱 {packingLabel}: {packingValue}
+      </Text>
       <Text style={styles.line}>
         🛵 Delivery:{' '}
         {deliveryIsFree ? (

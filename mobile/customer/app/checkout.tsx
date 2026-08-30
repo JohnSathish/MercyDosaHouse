@@ -184,6 +184,10 @@ export default function CheckoutScreen() {
     queryFn: () =>
       api.post<{
         grandTotal: number;
+        subtotal: number;
+        deliveryCharge: number;
+        packingCharge: number;
+        packedItemCount: number;
         discountAmount: number;
         discountName: string | null;
       }>('/orders/quote', {
@@ -196,6 +200,15 @@ export default function CheckoutScreen() {
     enabled: quoteItems.length > 0,
     staleTime: 10_000,
   });
+
+  const displayedSubtotal = serverQuote?.subtotal ?? pricing.subtotal;
+  const displayedDelivery = serverQuote?.deliveryCharge ?? pricing.delivery;
+  const displayedPacking = serverQuote?.packingCharge ?? pricing.packingTotal;
+  const displayedPackedItemCount =
+    serverQuote?.packedItemCount ?? items.reduce((n, i) => n + i.quantity, 0);
+  const displayedDeliveryIsFree = serverQuote
+    ? serverQuote.deliveryCharge === 0
+    : pricing.deliveryIsFree;
 
   const addresses = Array.isArray(profile?.addresses) ? profile.addresses : [];
   const selectedAddress =
@@ -579,20 +592,22 @@ export default function CheckoutScreen() {
           ))}
           <View style={styles.line}>
             <Text>Subtotal</Text>
-            <Text>{formatCurrency(pricing.subtotal)}</Text>
+            <Text>{formatCurrency(displayedSubtotal)}</Text>
           </View>
           <View style={styles.line}>
             <Text>Delivery</Text>
-            <Text style={pricing.deliveryIsFree ? styles.discount : undefined}>
-              {pricing.deliveryIsFree ? 'Free Delivery' : formatCurrency(pricing.delivery)}
+            <Text style={displayedDeliveryIsFree ? styles.discount : undefined}>
+              {displayedDeliveryIsFree ? 'Free Delivery' : formatCurrency(displayedDelivery)}
             </Text>
           </View>
           <View style={styles.line}>
             <Text>
               Packing
-              {items.length ? ` (${items.reduce((n, i) => n + i.quantity, 0)} Items)` : ''}
+              {displayedPackedItemCount
+                ? ` (${displayedPackedItemCount} Item${displayedPackedItemCount === 1 ? '' : 's'})`
+                : ''}
             </Text>
-            <Text>{formatCurrency(pricing.packingTotal)}</Text>
+            <Text>{formatCurrency(displayedPacking)}</Text>
           </View>
           {(serverQuote?.discountAmount ?? 0) > 0 ? (
             <View style={styles.line}>

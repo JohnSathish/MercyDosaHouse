@@ -38,7 +38,12 @@ export default function CartScreen() {
           </View>
         ) : (
           <>
-            <OrderChargesCard deliveryIsFree={pricing.deliveryIsFree} compact />
+            <OrderChargesCard
+              deliveryIsFree={pricing.deliveryIsFree}
+              packingTotal={pricing.packingTotal}
+              packedItemCount={items.reduce((n, item) => n + item.quantity, 0)}
+              compact
+            />
             {items.map((item) => {
               const img = resolveAssetUrl(item.imageUrl, WEBSITE_URL);
               return (

@@ -308,6 +308,7 @@ export function CheckoutPageClient() {
         subtotal: number;
         deliveryCharge: number;
         packingCharge: number;
+        packedItemCount: number;
         discountAmount: number;
         discountName: string | null;
         couponDiscount: number;
@@ -324,6 +325,11 @@ export function CheckoutPageClient() {
   });
 
   const grandTotal = serverQuote?.grandTotal ?? clientTotal;
+  const displayedSubtotal = serverQuote?.subtotal ?? sub;
+  const displayedDelivery = serverQuote?.deliveryCharge ?? delivery;
+  const displayedPacking = serverQuote?.packingCharge ?? packing;
+  const displayedPackedItemCount = serverQuote?.packedItemCount ?? packedCount;
+  const displayedDeliveryIsFree = serverQuote ? serverQuote.deliveryCharge === 0 : deliveryIsFree;
 
   const { data: availableCoupons = [] } = useQuery({
     queryKey: ['coupons-available', sub, quoteItems],
@@ -1094,12 +1100,15 @@ export function CheckoutPageClient() {
             );
           })}
           <div className="mt-3 space-y-1.5 text-sm">
-            <Row label="Subtotal" value={formatCurrency(sub)} />
+            <Row label="Subtotal" value={formatCurrency(displayedSubtotal)} />
             <Row
               label="Delivery"
-              value={deliveryIsFree ? 'Free Delivery' : formatCurrency(delivery)}
+              value={displayedDeliveryIsFree ? 'Free Delivery' : formatCurrency(displayedDelivery)}
             />
-            <Row label={formatPackingLabel(packedCount)} value={formatCurrency(packing)} />
+            <Row
+              label={formatPackingLabel(displayedPackedItemCount)}
+              value={formatCurrency(displayedPacking)}
+            />
             {(serverQuote?.discountAmount ?? 0) > 0 && (
               <Row
                 label={serverQuote?.discountName ?? 'Discount'}
