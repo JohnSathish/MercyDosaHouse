@@ -31,6 +31,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <Text style={styles.body}>
             The app hit an unexpected error. You can try again without reinstalling.
           </Text>
+          {this.state.error?.message ? (
+            <Text style={styles.detail} selectable>
+              {this.state.error.message}
+            </Text>
+          ) : null}
           <Pressable
             style={styles.button}
             onPress={() => {
@@ -57,7 +62,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7E6',
   },
   title: { fontSize: 20, fontWeight: '700', color: '#14532D', marginBottom: 8 },
-  body: { color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  body: { color: '#6B7280', textAlign: 'center', lineHeight: 20, marginBottom: 12 },
+  detail: {
+    color: '#92400E',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
   button: {
     backgroundColor: '#14532D',
     borderRadius: 12,

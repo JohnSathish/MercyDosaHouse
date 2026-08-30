@@ -36,7 +36,7 @@ export function useConfigStore() {
 
 export function useFeatureFlag(key: string): boolean {
   const config = useAppConfig();
-  return config.featureFlags[key] ?? false;
+  return config.featureFlags?.[key] ?? false;
 }
 
 export function useThemeColors() {

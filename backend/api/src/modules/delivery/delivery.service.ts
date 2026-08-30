@@ -43,8 +43,16 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
 const ASSIGNMENT_TRANSITIONS: Partial<
   Record<DeliveryAssignmentStatus, DeliveryAssignmentStatus[]>
 > = {
-  WAITING: [DeliveryAssignmentStatus.ASSIGNED, DeliveryAssignmentStatus.CANCELLED],
-  ASSIGNED: [DeliveryAssignmentStatus.PICKED_UP, DeliveryAssignmentStatus.CANCELLED],
+  WAITING: [
+    DeliveryAssignmentStatus.ASSIGNED,
+    DeliveryAssignmentStatus.OUT_FOR_DELIVERY,
+    DeliveryAssignmentStatus.CANCELLED,
+  ],
+  ASSIGNED: [
+    DeliveryAssignmentStatus.PICKED_UP,
+    DeliveryAssignmentStatus.OUT_FOR_DELIVERY,
+    DeliveryAssignmentStatus.CANCELLED,
+  ],
   PICKED_UP: [DeliveryAssignmentStatus.OUT_FOR_DELIVERY, DeliveryAssignmentStatus.CANCELLED],
   OUT_FOR_DELIVERY: [DeliveryAssignmentStatus.DELIVERED, DeliveryAssignmentStatus.CANCELLED],
 };
@@ -743,14 +751,20 @@ export class DeliveryService {
       updates.pickedUpAt = new Date();
     } else if (status === DeliveryAssignmentStatus.OUT_FOR_DELIVERY) {
       const config = await this.prisma.deliveryConfig.findFirst({ where: { isActive: true } });
-      if (config?.trackingEnabled === false) {
+      const isAdmin = roles.some((role) => role === 'SUPER_ADMIN' || role === 'MANAGER');
+      if (config?.trackingEnabled === false && !isAdmin) {
         throw new BadRequestException('Live delivery tracking is currently disabled');
       }
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
         select: { status: true },
       });
-      if (!order || !isValidOrderStatusTransition(order.status, OrderStatus.OUT_FOR_DELIVERY)) {
+      if (
+        !order ||
+        (order.status !== OrderStatus.READY &&
+          order.status !== OrderStatus.OUT_FOR_DELIVERY &&
+          !isValidOrderStatusTransition(order.status, OrderStatus.OUT_FOR_DELIVERY))
+      ) {
         throw new BadRequestException('Order must be READY before delivery can start');
       }
       updates.outForDeliveryAt = new Date();
@@ -876,13 +890,66 @@ export class DeliveryService {
   }
 
   async startDelivery(orderId: string, userId: string, roles: string[] = []) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status === OrderStatus.OUT_FOR_DELIVERY) {
+      const existing = await this.prisma.deliveryTracking.findUnique({ where: { orderId } });
+      if (existing?.status === DeliveryAssignmentStatus.OUT_FOR_DELIVERY) {
+        return this.getOrder(orderId);
+      }
+    }
+    if (order.status !== OrderStatus.READY && order.status !== OrderStatus.OUT_FOR_DELIVERY) {
+      await this.orders.updateStatus(orderId, OrderStatus.READY, {
+        updatedById: userId,
+        remarks: 'Advanced to ready so delivery can start',
+      });
+    }
+
+    const existingAssignment = await this.prisma.deliveryTracking.findUnique({
+      where: { orderId },
+    });
+    const resetAssignment =
+      !existingAssignment ||
+      existingAssignment.status === DeliveryAssignmentStatus.WAITING ||
+      existingAssignment.status === DeliveryAssignmentStatus.CANCELLED;
+
+    await this.prisma.deliveryTracking.upsert({
+      where: { orderId },
+      create: { orderId, status: DeliveryAssignmentStatus.WAITING },
+      update: resetAssignment
+        ? { status: DeliveryAssignmentStatus.WAITING, locationSharingActive: false }
+        : {},
+    });
+
+    const staff = await this.prisma.deliveryStaff.findUnique({ where: { userId } });
+    if (staff) {
+      await this.prisma.deliveryTracking.update({
+        where: { orderId },
+        data: {
+          deliveryStaffId: staff.id,
+          status: DeliveryAssignmentStatus.ASSIGNED,
+          assignedAt: new Date(),
+        },
+      });
+    } else {
+      await this.prisma.deliveryTracking.updateMany({
+        where: {
+          orderId,
+          status: {
+            in: [DeliveryAssignmentStatus.WAITING, DeliveryAssignmentStatus.CANCELLED],
+          },
+        },
+        data: { status: DeliveryAssignmentStatus.ASSIGNED, assignedAt: new Date() },
+      });
+    }
+
     const tracking = await this.prisma.deliveryTracking.findUnique({
       where: { orderId },
       include: { deliveryStaff: true },
     });
     if (!tracking) throw new NotFoundException('Delivery assignment not found');
     const isAdmin = roles.some((role) => role === 'SUPER_ADMIN' || role === 'MANAGER');
-    if (!isAdmin && tracking.deliveryStaff?.userId !== userId) {
+    if (!isAdmin && tracking.deliveryStaff?.userId && tracking.deliveryStaff.userId !== userId) {
       throw new ForbiddenException('This delivery is not assigned to you');
     }
     return this.updateAssignmentStatus(

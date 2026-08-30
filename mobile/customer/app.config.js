@@ -28,6 +28,14 @@ module.exports = ({ config }) => ({
     versionCode: 11,
     permissions: ['INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
     allowBackup: false,
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: false,
+        data: [{ scheme: 'mercydosa', host: 'google-auth' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
   },
   notification: {
     icon: './assets/icon.png',

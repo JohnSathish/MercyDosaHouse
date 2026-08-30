@@ -143,10 +143,16 @@ function InlineHomeSearch() {
 }
 
 function CategoriesSection() {
-  const { data: categories = [], isLoading } = useQuery({
+  const { data: categoriesRaw = [], isLoading } = useQuery({
     queryKey: ['categories', 'mobile'],
-    queryFn: () => api.get<Category[]>('/categories?active=true&channel=mobile'),
+    queryFn: () =>
+      api.get<Category[] | { data: Category[] }>('/categories?active=true&channel=mobile'),
   });
+  const categories = Array.isArray(categoriesRaw)
+    ? categoriesRaw
+    : Array.isArray(categoriesRaw.data)
+      ? categoriesRaw.data
+      : [];
 
   return (
     <View style={styles.section}>
@@ -545,14 +551,23 @@ function useHomeCatalog() {
 
 export function HomeSectionList() {
   const config = useAppConfig();
-  const sections = useMemo(() => config.homepage.filter((s) => s.isEnabled), [config.homepage]);
+  const sections = useMemo(
+    () => (Array.isArray(config.homepage) ? config.homepage.filter((s) => s.isEnabled) : []),
+    [config.homepage],
+  );
   const catalogQuery = useHomeCatalog();
   const products = catalogQuery.data?.data ?? [];
 
-  const { data: categories = [] } = useQuery({
+  const { data: categoriesRaw = [] } = useQuery({
     queryKey: ['categories', 'mobile'],
-    queryFn: () => api.get<Category[]>('/categories?active=true&channel=mobile'),
+    queryFn: () =>
+      api.get<Category[] | { data: Category[] }>('/categories?active=true&channel=mobile'),
   });
+  const categories = Array.isArray(categoriesRaw)
+    ? categoriesRaw
+    : Array.isArray(categoriesRaw.data)
+      ? categoriesRaw.data
+      : [];
 
   const catalog = useMemo(
     () =>

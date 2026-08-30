@@ -1,20 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
 import { getAccessToken, storePushToken } from '@/lib/auth-storage';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 type OrderPushData = {
   type?: string;
@@ -22,17 +11,6 @@ type OrderPushData = {
   orderNumber?: string;
   screen?: string;
 };
-
-async function ensureCustomerChannel() {
-  if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync('order_updates', {
-    name: 'Mercy Dosa House — Order Updates',
-    description: 'Live updates about your Mercy Dosa House orders.',
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 150, 250],
-    sound: 'default',
-  });
-}
 
 function getProjectId(): string | undefined {
   return (
@@ -49,8 +27,27 @@ export function useCustomerPush() {
 
   useEffect(() => {
     let cancelled = false;
-    let subResponse: Notifications.Subscription | undefined;
-    let subReceived: Notifications.Subscription | undefined;
+    let Notifications: typeof import('expo-notifications');
+    try {
+      // Native module can be missing on a sideloaded/incomplete APK.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Notifications = require('expo-notifications');
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+    } catch {
+      return;
+    }
+
+    let subResponse: { remove: () => void } | undefined;
+    let subReceived: { remove: () => void } | undefined;
+    let tokenSubscription: { remove: () => void } | undefined;
 
     const openOrder = async (data: OrderPushData) => {
       if (!data?.orderNumber) return;
@@ -63,6 +60,17 @@ export function useCustomerPush() {
         }
       }
       router.push(`/track/${encodeURIComponent(data.orderNumber)}`);
+    };
+
+    const ensureCustomerChannel = async () => {
+      if (Platform.OS !== 'android') return;
+      await Notifications.setNotificationChannelAsync('order_updates', {
+        name: 'Mercy Dosa House — Order Updates',
+        description: 'Live updates about your Mercy Dosa House orders.',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 150, 250],
+        sound: 'default',
+      });
     };
 
     const registerDevice = async () => {
@@ -99,7 +107,7 @@ export function useCustomerPush() {
         registeredAuthToken.current = token;
         await storePushToken(tokenData.data);
       } catch {
-        /* emulator / permission */
+        /* emulator / permission / missing native module */
       } finally {
         registrationInFlight.current = false;
       }
@@ -107,7 +115,7 @@ export function useCustomerPush() {
 
     void registerDevice();
     const authPoll = setInterval(() => void registerDevice(), 5000);
-    const tokenSubscription = Notifications.addPushTokenListener((tokenData) => {
+    tokenSubscription = Notifications.addPushTokenListener((tokenData) => {
       if (cancelled || Platform.OS !== 'android' || !tokenData.data) return;
       void getAccessToken()
         .then(async (accessToken) => {
@@ -139,7 +147,7 @@ export function useCustomerPush() {
     return () => {
       cancelled = true;
       clearInterval(authPoll);
-      tokenSubscription.remove();
+      tokenSubscription?.remove();
       subResponse?.remove();
       subReceived?.remove();
     };

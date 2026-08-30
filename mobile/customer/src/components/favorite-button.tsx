@@ -5,14 +5,19 @@ import { useFeatureFlag } from '@/providers/config-context';
 
 export function FavoriteButton({ productId, size = 22 }: { productId: string; size?: number }) {
   const enabled = useFeatureFlag('wishlist');
-  const { data: favorites = [], refetch } = useQuery({
+  const { data: favoritesRaw = [], refetch } = useQuery({
     queryKey: ['favorites'],
-    queryFn: () => api.get<{ id: string }[]>('/users/me/favorites'),
+    queryFn: () => api.get<{ id: string }[] | { data: { id: string }[] }>('/users/me/favorites'),
     enabled,
   });
 
   if (!enabled) return null;
 
+  const favorites = Array.isArray(favoritesRaw)
+    ? favoritesRaw
+    : Array.isArray(favoritesRaw.data)
+      ? favoritesRaw.data
+      : [];
   const isFav = favorites.some((p) => p.id === productId);
 
   async function toggle() {

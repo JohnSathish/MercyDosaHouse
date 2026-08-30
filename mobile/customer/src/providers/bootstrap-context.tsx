@@ -83,6 +83,9 @@ function normalizeConfig(input: unknown): MobileAppConfigDto {
       ...DEFAULT_APP_CONFIG.featureFlags,
       ...remoteFlags,
     },
+    marketing: isRecord(raw.marketing)
+      ? (raw.marketing as MobileAppConfigDto['marketing'])
+      : undefined,
     paymentMethods: arrayOrDefault(raw.paymentMethods, DEFAULT_APP_CONFIG.paymentMethods),
     help: {
       ...DEFAULT_APP_CONFIG.help,

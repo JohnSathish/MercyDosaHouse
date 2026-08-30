@@ -71,6 +71,14 @@ type AvailableCoupon = {
 };
 
 export default function CheckoutScreen() {
+  return (
+    <ErrorBoundary>
+      <CheckoutScreenBody />
+    </ErrorBoundary>
+  );
+}
+
+function CheckoutScreenBody() {
   const colors = useThemeColors();
   const config = useAppConfig();
   const queryClient = useQueryClient();

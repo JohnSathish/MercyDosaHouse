@@ -13,8 +13,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as Google from 'expo-auth-session/providers/google';
+import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import { ErrorBoundary } from '@/components/error-boundary';
 import {
   getAuthMethods,
   googleLogin,
@@ -28,6 +29,77 @@ import { WEBSITE_URL } from '@/lib/constants';
 import { resolveAssetUrl } from '@/ui/theme';
 
 WebBrowser.maybeCompleteAuthSession();
+
+function idTokenFromAuthUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const parsed = Linking.parse(url);
+  const fromQuery = parsed.queryParams?.idToken ?? parsed.queryParams?.id_token;
+  const token = Array.isArray(fromQuery) ? fromQuery[0] : fromQuery;
+  if (typeof token === 'string' && token.length > 0) return token;
+  try {
+    const hash = url.includes('#') ? url.slice(url.indexOf('#') + 1) : '';
+    const hashParams = new URLSearchParams(hash);
+    return hashParams.get('idToken') || hashParams.get('id_token');
+  } catch {
+    return null;
+  }
+}
+
+function GoogleSignInButton({
+  loading,
+  returnTo,
+  onError,
+  onLoading,
+}: {
+  loading: boolean;
+  returnTo: string;
+  onError: (message: string | null) => void;
+  onLoading: (value: boolean) => void;
+}) {
+  async function startGoogleSignIn() {
+    onError(null);
+    onLoading(true);
+    try {
+      const redirectUri = 'mercydosa://google-auth';
+      const authUrl = `${WEBSITE_URL}/auth/google-native?redirect=${encodeURIComponent(redirectUri)}`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        onError('Google sign-in was cancelled.');
+        return;
+      }
+      if (result.type !== 'success') {
+        onError("Google sign-in couldn't be completed. Please try again.");
+        return;
+      }
+      const idToken = idTokenFromAuthUrl(result.url);
+      if (!idToken) {
+        onError("Google sign-in couldn't be completed. Please try again.");
+        return;
+      }
+      await googleLogin({ idToken });
+      router.replace(returnTo as '/(tabs)');
+    } catch (err) {
+      onError(friendlyAuthError(err, "Google sign-in couldn't be completed. Please try again."));
+    } finally {
+      onLoading(false);
+    }
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
+      disabled={loading}
+      onPress={() => {
+        void startGoogleSignIn();
+      }}
+    >
+      <Text style={styles.googleMark}>G</Text>
+      <Text style={styles.googleBtnText}>
+        {loading ? 'Signing you in…' : 'Continue with Google'}
+      </Text>
+    </Pressable>
+  );
+}
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -67,6 +139,14 @@ function friendlyAuthError(error: unknown, fallback: string) {
 }
 
 export default function LoginScreen() {
+  return (
+    <ErrorBoundary>
+      <LoginScreenBody />
+    </ErrorBoundary>
+  );
+}
+
+function LoginScreenBody() {
   const config = useAppConfig();
   const colors = useThemeColors();
   const params = useLocalSearchParams<{ returnTo?: string }>();
@@ -84,13 +164,6 @@ export default function LoginScreen() {
 
   const webClientId =
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || methods?.googleClientId || undefined;
-  const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    androidClientId,
-    webClientId,
-    selectAccount: true,
-  });
 
   const logoUri = resolveAssetUrl(
     config.branding.logoUrl ?? config.branding.splashLogoUrl,
@@ -118,27 +191,6 @@ export default function LoginScreen() {
     const t = setInterval(() => setCooldown((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [cooldown]);
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params.id_token;
-      if (!idToken) {
-        setError("Google sign-in couldn't be completed. Please try again.");
-        return;
-      }
-      setLoading(true);
-      googleLogin({ idToken })
-        .then(() => router.replace(returnTo as '/(tabs)'))
-        .catch((err) => {
-          setError(
-            friendlyAuthError(err, "Google sign-in couldn't be completed. Please try again."),
-          );
-        })
-        .finally(() => setLoading(false));
-    } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
-      setError('Google sign-in was cancelled.');
-    }
-  }, [response, returnTo]);
 
   async function handleSendEmailOtp() {
     if (!isValidEmail(email)) {
@@ -248,22 +300,31 @@ export default function LoginScreen() {
                   </Pressable>
                 ) : null}
 
-                {showGoogle ? (
-                  <Pressable
-                    style={({ pressed }) => [styles.googleBtn, pressed && styles.pressed]}
-                    disabled={!request || loading}
-                    onPress={() => {
-                      setError(null);
-                      promptAsync().catch(() =>
-                        setError("Google sign-in couldn't be completed. Please try again."),
-                      );
-                    }}
+                {!methods ? (
+                  <View style={styles.googleUnavailable}>
+                    <ActivityIndicator color="#14532D" />
+                  </View>
+                ) : showGoogle && webClientId ? (
+                  <ErrorBoundary
+                    fallback={
+                      <View style={styles.googleUnavailable} accessibilityRole="text">
+                        <Text style={styles.googleMarkMuted}>G</Text>
+                        <View style={styles.actionCopy}>
+                          <Text style={styles.googleUnavailableTitle}>Continue with Google</Text>
+                          <Text style={styles.googleUnavailableBody}>
+                            Google sign-in could not start. Use Email OTP.
+                          </Text>
+                        </View>
+                      </View>
+                    }
                   >
-                    <Text style={styles.googleMark}>G</Text>
-                    <Text style={styles.googleBtnText}>
-                      {loading ? 'Signing you in…' : 'Continue with Google'}
-                    </Text>
-                  </Pressable>
+                    <GoogleSignInButton
+                      loading={loading}
+                      returnTo={returnTo}
+                      onError={setError}
+                      onLoading={setLoading}
+                    />
+                  </ErrorBoundary>
                 ) : (
                   <View style={styles.googleUnavailable} accessibilityRole="text">
                     <Text style={styles.googleMarkMuted}>G</Text>

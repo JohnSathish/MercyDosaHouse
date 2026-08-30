@@ -47,7 +47,16 @@ export default function OrderDetailScreen() {
           ? api.post(`/delivery/orders/${id}/start`)
           : api.patch(`/orders/${id}/status`, {
               status,
-              trackingStatus: status === 'PREPARING' ? 'COOKING' : status,
+              trackingStatus:
+                status === 'PREPARING'
+                  ? 'COOKING'
+                  : status === 'READY'
+                    ? 'PACKING'
+                    : status === 'ACCEPTED'
+                      ? 'ACCEPTED'
+                      : status === 'DELIVERED'
+                        ? 'DELIVERED'
+                        : undefined,
             }),
     onSuccess: refresh,
     onError: (e: Error) => Alert.alert('Action failed', e.message),

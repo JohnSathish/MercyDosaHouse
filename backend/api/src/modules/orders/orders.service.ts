@@ -29,7 +29,7 @@ import { OrdersGateway } from './orders.gateway';
 import { OrderEmailNotificationService } from '../notifications/order-email-notification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SettingsService } from '../settings/settings.service';
-import { isValidOrderStatusTransition } from './order-status-transitions';
+import { isValidOrderStatusTransition, getForwardStatusPath } from './order-status-transitions';
 import { MarketingService } from '../marketing/marketing.service';
 import { CouponsService } from '../coupons/coupons.service';
 
@@ -607,15 +607,29 @@ export class OrdersService implements OnModuleInit {
       return this.findOne(id);
     }
     if (!isValidOrderStatusTransition(existing.status, status)) {
-      throw new BadRequestException(`Cannot move order from ${existing.status} to ${status}`);
+      const path = getForwardStatusPath(existing.status, status);
+      if (!path?.length) {
+        throw new BadRequestException(`Cannot move order from ${existing.status} to ${status}`);
+      }
+      let last = await this.findOne(id);
+      for (const hop of path) {
+        last = await this.updateStatus(id, hop, {
+          ...options,
+          trackingStatus: hop === status ? options?.trackingStatus : undefined,
+        });
+      }
+      return last;
     }
+    const trackingStatus = this.safeTrackingStatus(status, options?.trackingStatus);
     if (status === OrderStatus.OUT_FOR_DELIVERY && existing.orderType === 'DELIVERY') {
       const assignment = await this.prisma.deliveryTracking.findUnique({
         where: { orderId: id },
         select: { deliveryStaffId: true },
       });
-      if (!assignment?.deliveryStaffId) {
-        throw new BadRequestException('Assign a delivery agent before starting delivery');
+      if (!assignment) {
+        await this.prisma.deliveryTracking.create({
+          data: { orderId: id, status: DeliveryAssignmentStatus.WAITING },
+        });
       }
     }
 
@@ -624,7 +638,7 @@ export class OrdersService implements OnModuleInit {
         where: { id, status: existing.status },
         data: {
           status,
-          ...(options?.trackingStatus ? { trackingStatus: options.trackingStatus } : {}),
+          ...(trackingStatus ? { trackingStatus } : {}),
           ...(status === OrderStatus.DELIVERED ? { paymentStatus: PaymentStatus.COMPLETED } : {}),
         },
       });
@@ -753,6 +767,20 @@ export class OrdersService implements OnModuleInit {
       });
     }
     return this.findOne(order.id);
+  }
+
+  private safeTrackingStatus(
+    status: OrderStatus,
+    requested?: TrackingStatus,
+  ): TrackingStatus | undefined {
+    const allowed = new Set<string>(Object.values(TrackingStatus));
+    if (requested && allowed.has(requested)) return requested;
+    if (status === OrderStatus.ACCEPTED) return TrackingStatus.ACCEPTED;
+    if (status === OrderStatus.PREPARING) return TrackingStatus.COOKING;
+    if (status === OrderStatus.READY) return TrackingStatus.PACKING;
+    if (status === OrderStatus.OUT_FOR_DELIVERY) return TrackingStatus.OUT_FOR_DELIVERY;
+    if (status === OrderStatus.DELIVERED) return TrackingStatus.DELIVERED;
+    return undefined;
   }
 
   private statusMessage(status: OrderStatus): string {

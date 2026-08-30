@@ -1,16 +1,43 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { AddressDto } from '@mdh/types';
+import { api } from '@/lib/api';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import { useCartStore } from '@/stores/cart-store';
+import { useCheckoutStore } from '@/stores/checkout-store';
 import { WEBSITE_URL } from '@/lib/constants';
 import { COLORS, RADIUS, SHADOW, resolveAssetUrl } from './theme';
 
-export function AppHeader({ locationLabel = 'Select location' }: { locationLabel?: string }) {
+function shortLocation(addr?: Partial<AddressDto> | null): string | null {
+  if (!addr) return null;
+  const area = [addr.landmark, addr.line2, addr.city].map((part) => part?.trim()).find(Boolean);
+  if (area) return area;
+  const line = addr.line1?.trim();
+  if (line) return line.split(',')[0]?.trim() || line;
+  return null;
+}
+
+export function AppHeader({ locationLabel }: { locationLabel?: string }) {
   const config = useAppConfig();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const cartCount = useCartStore((s) => s.itemCount());
+  const selectedAddressId = useCheckoutStore((s) => s.selectedAddressId);
+  const guestDraft = useCheckoutStore((s) => s.guestAddressDraft);
+  const { data: addressesRaw = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: () => api.get<AddressDto[]>('/users/me/addresses'),
+    retry: false,
+  });
+  const addresses = Array.isArray(addressesRaw) ? addressesRaw : [];
+  const saved =
+    addresses.find((addr) => addr.id === selectedAddressId) ??
+    addresses.find((addr) => addr.isDefault) ??
+    addresses[0];
+  const resolvedLocation =
+    locationLabel?.trim() || shortLocation(saved) || shortLocation(guestDraft) || 'Select location';
   const logoUri = resolveAssetUrl(
     config.branding.logoUrl ?? config.branding.appIconUrl,
     WEBSITE_URL,
@@ -43,7 +70,7 @@ export function AppHeader({ locationLabel = 'Select location' }: { locationLabel
             >
               <Text style={styles.locationPin}>📍</Text>
               <Text style={styles.location} numberOfLines={1}>
-                {locationLabel}
+                {resolvedLocation}
               </Text>
               <Text style={styles.chevron}>▾</Text>
             </Pressable>

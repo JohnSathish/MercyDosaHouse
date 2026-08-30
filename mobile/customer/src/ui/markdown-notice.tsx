@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { COLORS } from './theme';
 
@@ -18,7 +18,7 @@ function renderInline(text: string, keyPrefix: string, boldColor: string) {
   let i = 0;
   while ((match = re.exec(text))) {
     if (match.index > last) {
-      nodes.push(<Fragment key={`${keyPrefix}-t${i}`}>{text.slice(last, match.index)}</Fragment>);
+      nodes.push(text.slice(last, match.index));
     }
     nodes.push(
       <Text key={`${keyPrefix}-b${i}`} style={[styles.bold, { color: boldColor }]}>
@@ -29,9 +29,7 @@ function renderInline(text: string, keyPrefix: string, boldColor: string) {
     i += 1;
   }
   if (last < text.length) {
-    nodes.push(
-      <Fragment key={`${keyPrefix}-end`}>{text.slice(last).replace(/\*\*/g, '')}</Fragment>,
-    );
+    nodes.push(text.slice(last).replace(/\*\*/g, ''));
   }
   return nodes;
 }
