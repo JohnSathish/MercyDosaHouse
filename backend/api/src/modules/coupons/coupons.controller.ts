@@ -42,6 +42,7 @@ export class CouponsController {
       code: string;
       subtotal: number;
       items?: { productId: string; categoryId?: string; totalPrice: number }[];
+      customerPhone?: string;
     },
     @Req() req: { user?: { id?: string; sub?: string }; orderChannel?: 'WEBSITE' | 'ANDROID' },
   ) {
@@ -51,6 +52,7 @@ export class CouponsController {
       body.items ?? [],
       req.user?.id ?? req.user?.sub,
       orderChannelOf(req),
+      body.customerPhone,
     );
     if (!result) throw new BadRequestException('Discount not found');
     return {

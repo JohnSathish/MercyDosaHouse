@@ -1588,6 +1588,26 @@ async function main() {
   }
 
   await prisma.coupon.upsert({
+    where: { code: 'APP10' },
+    update: {
+      isActive: true,
+      appliesTo: 'ANDROID',
+    },
+    create: {
+      code: 'APP10',
+      name: 'App Exclusive 10% OFF',
+      description: '10% OFF on the Mercy Dosa House Android app. Min ₹99, max ₹100.',
+      type: 'PERCENTAGE',
+      value: 10,
+      minOrderAmount: 99,
+      maxDiscount: 100,
+      appliesTo: 'ANDROID',
+      usageMode: 'EVERY_ORDER',
+      isActive: true,
+    },
+  });
+
+  await prisma.coupon.upsert({
     where: { code: 'APPFIRST10' },
     update: {},
     create: {

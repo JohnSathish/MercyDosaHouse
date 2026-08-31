@@ -52,13 +52,19 @@ export class AppChannelService {
 
   resolve(req: Request): OrderChannel {
     const token = header(req, 'x-mdh-app-token');
-    if (!token) return 'WEBSITE';
-    try {
-      const payload = this.jwt.verify<{ typ?: string; client?: string }>(token);
-      if (payload.typ === TOKEN_TYP && payload.client === CLIENT_ID) return 'ANDROID';
-    } catch {
-      return 'WEBSITE';
+    if (token) {
+      try {
+        const payload = this.jwt.verify<{ typ?: string; client?: string }>(token);
+        if (payload.typ === TOKEN_TYP && payload.client === CLIENT_ID) return 'ANDROID';
+      } catch {
+        /* Token expired or unsigned — still accept native-app signals below. */
+      }
     }
+    const client = header(req, 'x-mdh-client');
+    const pkg = header(req, 'x-mdh-package');
+    if (client === CLIENT_ID && pkg === PACKAGE_NAME) return 'ANDROID';
+    const ua = header(req, 'user-agent').toLowerCase();
+    if (ua.includes('okhttp') || ua.includes('mercydosa')) return 'ANDROID';
     return 'WEBSITE';
   }
 

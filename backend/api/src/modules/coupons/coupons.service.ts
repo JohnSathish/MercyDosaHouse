@@ -206,9 +206,13 @@ export class CouponsService {
       include: { products: true, categories: true, customers: true },
       orderBy: { createdAt: 'desc' },
     });
+    if (code && !discounts.length) {
+      throw new BadRequestException('Discount code not found');
+    }
     const eligible: Array<{ discount: any; amount: number }> = [];
+    let lastReason = 'Invalid or ineligible discount';
     for (const discount of discounts) {
-      const amount = await this.getEligibleAmount(
+      const { amount, reason } = await this.getEligibleAmount(
         discount,
         subtotal,
         resolvedItems,
@@ -217,8 +221,9 @@ export class CouponsService {
         customerPhone,
       );
       if (amount > 0) eligible.push({ discount, amount });
+      else if (reason) lastReason = reason;
     }
-    if (code && !eligible.length) throw new BadRequestException('Invalid or ineligible discount');
+    if (code && !eligible.length) throw new BadRequestException(lastReason);
     return eligible.sort((a, b) => b.amount - a.amount)[0] ?? null;
   }
 
@@ -280,7 +285,13 @@ export class CouponsService {
       usageMode: string;
     }> = [];
     for (const coupon of coupons) {
-      const amount = await this.getEligibleAmount(coupon, subtotal, itemProducts, userId, channel);
+      const { amount } = await this.getEligibleAmount(
+        coupon,
+        subtotal,
+        itemProducts,
+        userId,
+        channel,
+      );
       if (amount <= 0) continue;
       eligible.push({
         id: coupon.id,
@@ -303,6 +314,8 @@ export class CouponsService {
 
   private async getEligibleAmount(
     coupon: {
+      id: string;
+      code?: string;
       isActive: boolean;
       usageLimit: number | null;
       usageCount: number;
@@ -321,24 +334,44 @@ export class CouponsService {
       products: { productId: string }[];
       categories: { categoryId: string }[];
       customers: { userId: string }[];
-      id: string;
     },
     subtotal: number,
     items: { productId: string; categoryId: string; totalPrice: number }[],
     userId?: string,
     channel: 'WEBSITE' | 'ANDROID' = 'WEBSITE',
     customerPhone?: string,
-  ) {
+  ): Promise<{ amount: number; reason?: string }> {
     const now = new Date();
-    if (!coupon.isActive || (coupon.startsAt && coupon.startsAt > now)) return 0;
-    if ((coupon.endsAt || coupon.expiresAt) && (coupon.endsAt || coupon.expiresAt)! < now) return 0;
-    if (coupon.usageLimit != null && coupon.usageCount >= coupon.usageLimit) return 0;
-    if (subtotal < Number(coupon.minOrderAmount)) return 0;
-    if (!this.matchesTimeWindow(coupon.startTime, coupon.endTime, now)) return 0;
+    const code = coupon.code?.trim().toUpperCase() || 'this discount';
+    if (!coupon.isActive) return { amount: 0, reason: `${code} is not active` };
+    if (coupon.startsAt && coupon.startsAt > now) {
+      return { amount: 0, reason: `${code} is not valid yet` };
+    }
+    if ((coupon.endsAt || coupon.expiresAt) && (coupon.endsAt || coupon.expiresAt)! < now) {
+      return { amount: 0, reason: `${code} has expired` };
+    }
+    if (coupon.usageLimit != null && coupon.usageCount >= coupon.usageLimit) {
+      return { amount: 0, reason: `${code} has reached its usage limit` };
+    }
+    const minOrder = Number(coupon.minOrderAmount);
+    if (subtotal < minOrder) {
+      const need = Math.ceil(minOrder - subtotal);
+      return {
+        amount: 0,
+        reason: `Add ₹${need} more to use ${code} (minimum ₹${minOrder})`,
+      };
+    }
+    if (!this.matchesTimeWindow(coupon.startTime, coupon.endTime, now)) {
+      return { amount: 0, reason: `${code} is not available at this time` };
+    }
 
     const appliesTo = coupon.appliesTo || 'ALL';
-    if (appliesTo === 'ANDROID' && channel !== 'ANDROID') return 0;
-    if (appliesTo === 'WEBSITE' && channel !== 'WEBSITE') return 0;
+    if (appliesTo === 'ANDROID' && channel !== 'ANDROID') {
+      return { amount: 0, reason: `${code} is an app-exclusive discount` };
+    }
+    if (appliesTo === 'WEBSITE' && channel !== 'WEBSITE') {
+      return { amount: 0, reason: `${code} is only valid on the website` };
+    }
 
     if (
       (appliesTo === 'SPECIFIC_CUSTOMER' || coupon.customers.length) &&
@@ -349,13 +382,15 @@ export class CouponsService {
             where: { userId_couponId: { userId, couponId: coupon.id } },
           })
         : null;
-      if (!assigned) return 0;
+      if (!assigned) return { amount: 0, reason: `${code} is not assigned to this account` };
     }
     if (userId && coupon.perCustomerUsageLimit != null) {
       const used = await this.prisma.order.count({
         where: { couponId: coupon.id, userId, status: { not: 'CANCELLED' } },
       });
-      if (used >= coupon.perCustomerUsageLimit) return 0;
+      if (used >= coupon.perCustomerUsageLimit) {
+        return { amount: 0, reason: `You have already used ${code}` };
+      }
     }
 
     const usageMode = coupon.usageMode || 'EVERY_ORDER';
@@ -372,10 +407,26 @@ export class CouponsService {
               ...(userId ? { userId } : customerPhone ? { customerPhone } : { id: '__none__' }),
             };
       if (!userId && !customerPhone) {
-        if (channel !== 'ANDROID' || usageMode !== 'FIRST_APP_ORDER') return 0;
+        if (channel !== 'ANDROID' || usageMode !== 'FIRST_APP_ORDER') {
+          return {
+            amount: 0,
+            reason:
+              usageMode === 'FIRST_APP_ORDER'
+                ? `${code} is only for your first order in the app`
+                : `${code} is only for your first order`,
+          };
+        }
       } else {
         const prior = await this.prisma.order.count({ where });
-        if (prior > 0) return 0;
+        if (prior > 0) {
+          return {
+            amount: 0,
+            reason:
+              usageMode === 'FIRST_APP_ORDER'
+                ? `${code} is only for your first order in the app`
+                : `${code} is only for your first order`,
+          };
+        }
       }
     }
 
@@ -387,14 +438,16 @@ export class CouponsService {
           .filter((item) => productIds.has(item.productId) || categoryIds.has(item.categoryId))
           .reduce((sum, item) => sum + item.totalPrice, 0)
       : subtotal;
-    if (eligibleSubtotal <= 0) return 0;
+    if (eligibleSubtotal <= 0) {
+      return { amount: 0, reason: `${code} does not apply to items in this cart` };
+    }
 
     let amount =
       coupon.type === 'PERCENTAGE'
         ? (eligibleSubtotal * Number(coupon.value)) / 100
         : Number(coupon.value);
     if (coupon.maxDiscount != null) amount = Math.min(amount, Number(coupon.maxDiscount));
-    return Math.max(0, Math.min(amount, eligibleSubtotal));
+    return { amount: Math.max(0, Math.min(amount, eligibleSubtotal)) };
   }
 
   private matchesTimeWindow(startTime: string | null, endTime: string | null, date: Date) {
