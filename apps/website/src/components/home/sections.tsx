@@ -210,7 +210,7 @@ export function DeliveryStepsSection() {
 
 export function StatsSection() {
   const stats = [
-    { value: 5000, suffix: '+', label: 'Orders Served' },
+    { value: 1000, suffix: '+', label: 'Orders Served' },
     { value: 4.9, suffix: '', label: 'Rating', isDecimal: true },
     { value: 100, suffix: '%', label: 'Fresh Ingredients' },
     { value: 20, suffix: ' min', label: 'Avg Delivery' },

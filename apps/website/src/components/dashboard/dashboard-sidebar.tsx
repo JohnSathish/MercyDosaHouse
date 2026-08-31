@@ -9,6 +9,7 @@ import {
   MapPin,
   Ticket,
   Bell,
+  Coins,
   Settings,
   Star,
   FileText,
@@ -30,6 +31,7 @@ const NAV: {
   { id: 'feedback', label: 'My Feedback', icon: Star },
   { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
   { id: 'coupons', label: 'Coupons', icon: Ticket },
+  { id: 'loyalty', label: 'Bronze Coins', icon: Coins },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

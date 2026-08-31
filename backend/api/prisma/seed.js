@@ -512,7 +512,7 @@ async function main() {
     ctaPrimary: { label: 'Order Now', href: '/menu' },
     ctaSecondary: { label: 'View Menu', href: '/menu' },
     stats: [
-      { value: 5000, suffix: '+', label: 'Orders Delivered' },
+      { value: 1000, suffix: '+', label: 'Orders Delivered' },
       { value: 4.9, suffix: '', label: 'Average Rating', prefix: '★ ' },
       { value: 30, suffix: ' min', label: 'Avg Delivery' },
     ],

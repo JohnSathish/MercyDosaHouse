@@ -64,7 +64,7 @@ export default function MenuScreen() {
     [categoriesRaw],
   );
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['products', categoryId, search, foodFilter],
     queryFn: () => {
       const q = new URLSearchParams({ available: 'true', limit: '50' });
@@ -146,7 +146,13 @@ export default function MenuScreen() {
             {products.map((p) => (
               <FoodCard key={p.id} product={p} showFavorite />
             ))}
-            {!products.length ? <Text style={styles.empty}>No items found.</Text> : null}
+            {isError ? (
+              <Pressable onPress={() => void refetch()} style={styles.retry}>
+                <Text style={styles.empty}>Couldn’t load the menu. Tap to retry.</Text>
+              </Pressable>
+            ) : !products.length ? (
+              <Text style={styles.empty}>No items found.</Text>
+            ) : null}
           </>
         )}
         <View style={{ height: 96 }} />
@@ -184,5 +190,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   list: { padding: 16, paddingTop: 0 },
+  retry: { paddingVertical: 24 },
   empty: { color: COLORS.textMuted, textAlign: 'center', marginTop: 24 },
 });

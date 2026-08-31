@@ -1,10 +1,12 @@
-import { type Href, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { type Href, router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { logout } from '@/lib/auth-api';
 import { getStoredUser } from '@/lib/auth-storage';
-import type { AuthUser } from '@mdh/types';
+import type { AuthUser, LoyaltyMeDto } from '@mdh/types';
 import { SupportLinks } from '@/components/support-links';
+import { api } from '@/lib/api';
 import { useAppConfig, useFeatureFlag, useThemeColors } from '@/providers/config-context';
 
 function MenuLink({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
@@ -24,10 +26,17 @@ export default function ProfileScreen() {
   const wishlistEnabled = useFeatureFlag('wishlist');
   const notificationsEnabled = useFeatureFlag('push_notifications');
   const [user, setUser] = useState<AuthUser | null>(null);
+  const { data: loyalty } = useQuery({
+    queryKey: ['loyalty-me'],
+    queryFn: () => api.get<LoyaltyMeDto>('/loyalty/me'),
+    enabled: Boolean(user),
+  });
 
-  useEffect(() => {
-    void getStoredUser().then(setUser);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void getStoredUser().then(setUser);
+    }, []),
+  );
 
   async function handleLogout() {
     await logout();
@@ -62,9 +71,23 @@ export default function ProfileScreen() {
         ) : null}
 
         <View style={styles.card}>
-          <Text style={styles.name}>{user?.name ?? 'Guest'}</Text>
-          <Text style={styles.meta}>{user?.phone ?? 'Not signed in'}</Text>
+          <Text style={styles.name}>{user?.name?.trim() || user?.email || 'Guest'}</Text>
+          <Text style={styles.meta}>
+            {user ? user.phone || user.email || 'Signed in' : 'Not signed in'}
+          </Text>
         </View>
+
+        {user && loyaltyEnabled && loyalty?.account.enabled !== false ? (
+          <Pressable style={styles.bronzeCard} onPress={() => router.push('/loyalty')}>
+            <Text style={styles.bronzeTitle}>🪙 Bronze Coins</Text>
+            <Text style={styles.bronzeCoins}>{loyalty?.account.available ?? 0} Coins</Text>
+            <Text style={styles.bronzeWorth}>Worth ₹{loyalty?.account.valueAvailable ?? 0}</Text>
+            <Text style={styles.bronzeHint}>Keep ordering & earn more rewards!</Text>
+            <View style={styles.bronzeBtn}>
+              <Text style={styles.bronzeBtnText}>View Rewards</Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Account</Text>
@@ -79,11 +102,7 @@ export default function ProfileScreen() {
                 <MenuLink icon="❤️" label="Favorites" onPress={() => router.push('/favorites')} />
               ) : null}
               {loyaltyEnabled ? (
-                <MenuLink
-                  icon="⭐"
-                  label="Loyalty Rewards"
-                  onPress={() => router.push('/loyalty')}
-                />
+                <MenuLink icon="🪙" label="Bronze Coins" onPress={() => router.push('/loyalty')} />
               ) : null}
               {notificationsEnabled ? (
                 <MenuLink
@@ -185,4 +204,23 @@ const styles = StyleSheet.create({
   fssaiMeta: { color: '#4B5563', fontSize: 12, marginTop: 3 },
   fssaiButton: { alignSelf: 'flex-start', marginTop: 10 },
   fssaiButtonText: { color: '#14532D', fontSize: 13, fontWeight: '700' },
+  bronzeCard: {
+    backgroundColor: '#14532D',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  bronzeTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  bronzeCoins: { color: '#FDE68A', fontSize: 32, fontWeight: '800', marginTop: 8 },
+  bronzeWorth: { color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  bronzeHint: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 8 },
+  bronzeBtn: {
+    marginTop: 14,
+    backgroundColor: '#F59E0B',
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+  },
+  bronzeBtnText: { color: '#14532D', fontWeight: '800' },
 });

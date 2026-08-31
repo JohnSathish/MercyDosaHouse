@@ -6,6 +6,7 @@ export type DashboardSection =
   | 'feedback'
   | 'addresses'
   | 'coupons'
+  | 'loyalty'
   | 'notifications'
   | 'settings';
 

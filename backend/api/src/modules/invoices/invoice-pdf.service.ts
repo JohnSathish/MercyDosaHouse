@@ -73,6 +73,23 @@ function winAnsi(value: string): string {
   return value.replace(/₹/g, 'Rs.').replace(/[^\t\n\r\u0020-\u007E\u00A0-\u00FF]/g, '');
 }
 
+function patchWinAnsi(doc: PDFKit.PDFDocument) {
+  const text = doc.text.bind(doc);
+  doc.text = ((
+    str: string,
+    x?: number | PDFKit.Mixins.TextOptions,
+    y?: number,
+    options?: PDFKit.Mixins.TextOptions,
+  ) => {
+    const safe = winAnsi(String(str ?? ''));
+    if (typeof x === 'object') return text(safe, x);
+    return text(safe, x, y, options);
+  }) as typeof doc.text;
+  const heightOfString = doc.heightOfString.bind(doc);
+  doc.heightOfString = ((str: string, options?: PDFKit.Mixins.TextOptions) =>
+    heightOfString(winAnsi(String(str ?? '')), options)) as typeof doc.heightOfString;
+}
+
 function inr(n: number): string {
   const amount = n.toLocaleString('en-IN', {
     minimumFractionDigits: 2,
@@ -105,6 +122,17 @@ export class InvoicePdfService {
   private readonly logger = new Logger(InvoicePdfService.name);
 
   async render(raw: InvoicePdfPayload): Promise<Buffer> {
+    try {
+      return await this.renderFull(raw);
+    } catch (err) {
+      this.logger.error(
+        `Invoice PDF render failed, using simple fallback: ${err instanceof Error ? err.message : err}`,
+      );
+      return this.renderFallback(raw);
+    }
+  }
+
+  private async renderFull(raw: InvoicePdfPayload): Promise<Buffer> {
     const payload = this.sanitize(raw);
     const doc = new PDFDocument({
       size: 'A4',
@@ -115,6 +143,7 @@ export class InvoicePdfService {
         Author: payload.business.name,
       },
     });
+    patchWinAnsi(doc);
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
     const done = new Promise<Buffer>((resolve, reject) => {
@@ -122,21 +151,43 @@ export class InvoicePdfService {
       doc.on('error', reject);
     });
 
-    try {
-      this.drawHeader(doc, payload);
-      let y = 168;
-      y = this.drawMetaAndParties(doc, payload, y);
-      y = this.drawItems(doc, payload, y);
-      y = this.drawTotals(doc, payload, y);
-      y = this.drawPaymentAndBank(doc, payload, y);
-      await this.drawUpiQr(doc, payload, y);
-      this.drawFooterCopy(doc, payload);
-      this.addPageNumbers(doc);
-      doc.end();
-    } catch (err) {
-      doc.end();
-      throw err;
-    }
+    this.drawHeader(doc, payload);
+    let y = 168;
+    y = this.drawMetaAndParties(doc, payload, y);
+    y = this.drawItems(doc, payload, y);
+    y = this.drawTotals(doc, payload, y);
+    y = this.drawPaymentAndBank(doc, payload, y);
+    await this.drawUpiQr(doc, payload, y);
+    this.drawFooterCopy(doc, payload);
+    this.addPageNumbers(doc);
+    doc.end();
+    return done;
+  }
+
+  private renderFallback(raw: InvoicePdfPayload): Promise<Buffer> {
+    const payload = this.sanitize(raw);
+    const doc = new PDFDocument({ size: 'A4', margin: 48 });
+    patchWinAnsi(doc);
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    const done = new Promise<Buffer>((resolve, reject) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+    });
+    doc.font('Helvetica-Bold').fontSize(18).text(payload.business.name);
+    doc.moveDown(0.4);
+    doc.font('Helvetica').fontSize(12).text(`Invoice ${payload.invoiceNumber}`);
+    doc.text(`Date: ${fmtDate(payload.invoiceDate)}`);
+    doc.text(`Bill to: ${payload.customerName}`);
+    doc.moveDown();
+    payload.items.forEach((item, i) => {
+      doc.text(`${i + 1}. ${item.description}  x${item.quantity}  ${inr(item.amount)}`);
+    });
+    doc.moveDown();
+    doc.font('Helvetica-Bold').text(`Grand total: ${inr(payload.grandTotal)}`);
+    doc.font('Helvetica').text(`Amount paid: ${inr(payload.amountPaid)}`);
+    doc.text(`Balance due: ${inr(payload.balanceDue)}`);
+    doc.end();
     return done;
   }
 
@@ -220,7 +271,7 @@ export class InvoicePdfService {
       .text(payload.business.name.toUpperCase(), left, 28, {
         width: 300,
       });
-    const tag = payload.business.tagline || 'FOOD • QUALITY • TRUST';
+    const tag = payload.business.tagline || 'FOOD - QUALITY - TRUST';
     doc.font('Helvetica').fontSize(9).fillColor(GOLD).text(tag, left, 52, { width: 300 });
 
     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(16).text('INVOICE', 360, 28, {
@@ -377,7 +428,9 @@ export class InvoicePdfService {
       .font('Helvetica-Oblique')
       .fontSize(8)
       .fillColor(MUTED)
-      .text(`Amount in Words: ${amountInWordsInr(payload.grandTotal)}`, 40, y, { width: 515 });
+      .text(`Amount in Words: ${winAnsi(amountInWordsInr(payload.grandTotal))}`, 40, y, {
+        width: 515,
+      });
     return y + 28;
   }
 

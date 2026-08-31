@@ -702,7 +702,7 @@ export function CheckoutPageClient() {
               )}
             </p>
             <p className="text-xs text-muted-foreground">
-              {profile.phone} · {profile.loyaltyTier} · {profile.loyaltyPoints} pts
+              {profile.phone} · 🪙 {profile.bronze?.available ?? profile.loyaltyPoints} Bronze Coins
             </p>
           </div>
           <Sparkles className="h-5 w-5 text-[#F59E0B]" />
@@ -1059,28 +1059,91 @@ export function CheckoutPageClient() {
           </div>
         </CheckoutSection>
 
-        {/* Rewards */}
-        {authed && profile && profile.loyaltyPoints > 0 && (
-          <CheckoutSection title="Reward Points" icon={Gift}>
+        {/* Bronze Coins */}
+        {authed && profile && (profile.bronze?.enabled ?? true) ? (
+          <CheckoutSection title="🪙 Use Bronze Coins" icon={Gift}>
             <p className="text-sm text-muted-foreground mb-2">
-              Available: <strong>{profile.loyaltyPoints} points</strong> (1 pt = ₹1)
+              You have{' '}
+              <strong>{profile.bronze?.available ?? profile.loyaltyPoints} Bronze Coins</strong>
+              {' · '}Worth ₹{profile.bronze?.valueAvailable ?? profile.loyaltyPoints}
             </p>
-            <input
-              type="range"
-              min={0}
-              max={Math.min(
-                profile.loyaltyPoints,
-                sub + charges.delivery + packing - couponDiscount,
-              )}
-              value={session.rewardPointsToUse}
-              onChange={(e) => session.setRewardPointsToUse(Number(e.target.value))}
-              className="w-full accent-[#14532D]"
-            />
-            <p className="text-sm font-semibold text-[#14532D] mt-1">
-              Redeeming: {formatCurrency(session.rewardPointsToUse)}
+            <label className="flex items-center gap-2 text-sm mb-2">
+              <input
+                type="checkbox"
+                checked={session.rewardPointsToUse > 0}
+                onChange={(e) =>
+                  session.setRewardPointsToUse(
+                    e.target.checked
+                      ? Math.min(
+                          profile.bronze?.available ?? profile.loyaltyPoints,
+                          100,
+                          Math.max(0, Math.floor(sub)),
+                        )
+                      : 0,
+                  )
+                }
+              />
+              Use Bronze Coins
+            </label>
+            {session.rewardPointsToUse > 0 ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      session.setRewardPointsToUse(Math.max(0, session.rewardPointsToUse - 1))
+                    }
+                  >
+                    −
+                  </Button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.min(
+                      profile.bronze?.available ?? profile.loyaltyPoints,
+                      100,
+                      Math.max(0, Math.floor(sub)),
+                    )}
+                    value={session.rewardPointsToUse}
+                    onChange={(e) => session.setRewardPointsToUse(Number(e.target.value))}
+                    className="flex-1 accent-[#14532D]"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      session.setRewardPointsToUse(
+                        Math.min(
+                          profile.bronze?.available ?? profile.loyaltyPoints,
+                          session.rewardPointsToUse + 1,
+                        ),
+                      )
+                    }
+                  >
+                    +
+                  </Button>
+                </div>
+                <p className="text-sm font-semibold text-[#14532D] mt-2">
+                  Coins to use: {session.rewardPointsToUse} · Discount: ₹{session.rewardPointsToUse}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Remaining after redemption:{' '}
+                  {(profile.bronze?.available ?? profile.loyaltyPoints) - session.rewardPointsToUse}{' '}
+                  Coins
+                </p>
+                <p className="text-sm text-emerald-700 font-semibold mt-1">
+                  🪙 You save ₹{session.rewardPointsToUse} using Bronze Coins
+                </p>
+              </>
+            ) : null}
+            <p className="text-xs text-muted-foreground mt-2">
+              You’ll earn 1 Bronze Coin when your order is delivered. 1 Coin = ₹1.
             </p>
           </CheckoutSection>
-        )}
+        ) : null}
 
         {/* Order Summary */}
         <CheckoutSection title="Order Summary" icon={CheckCircle2}>
@@ -1119,7 +1182,11 @@ export function CheckoutPageClient() {
               />
             )}
             {rewardDiscount > 0 && (
-              <Row label="Reward Points" value={`−${formatCurrency(rewardDiscount)}`} green />
+              <Row
+                label="Bronze Coins Discount"
+                value={`−${formatCurrency(rewardDiscount)}`}
+                green
+              />
             )}
             {serverQuote?.discountName && (serverQuote.discountAmount ?? 0) > 0 && (
               <p className="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-2 py-1.5">

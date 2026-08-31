@@ -14,18 +14,13 @@ import { EmptyState } from './empty-state';
 import { AddressFormDialog } from './address-form-dialog';
 import { StatCard } from './stat-card';
 import { getProductImage } from '@/lib/product-images';
-import {
-  getHeaderDisplayName,
-  getLoyaltyTier,
-  getRewardPoints,
-  type DashboardSection,
-} from './types';
+import { getHeaderDisplayName, getRewardPoints, type DashboardSection } from './types';
 import { RateOrderButton } from '@/components/reviews/review-form';
 import { useCartStore } from '@/lib/cart-store';
 import { api, API_URL } from '@/lib/api';
 import { getAccessToken } from '@mdh/auth-client';
 import { useToastStore } from '@/lib/toast-store';
-import { useRouter } from 'next/navigation';
+import { useLoyaltyMe } from '@/lib/use-loyalty';
 
 interface DashboardContentProps {
   section: DashboardSection;
@@ -44,11 +39,11 @@ export function DashboardOverview({
   addresses,
   onSectionChange,
 }: Omit<DashboardContentProps, 'section' | 'notifications'>) {
+  const { data: loyalty } = useLoyaltyMe();
   const orderCount = orders.length;
   const favoriteCount = favorites.length;
-  const rewardPoints = getRewardPoints(orderCount, favoriteCount);
+  const rewardPoints = loyalty?.account.available ?? getRewardPoints(orderCount, favoriteCount);
   const totalSaved = orders.reduce((sum, o) => sum + (o.discount || 0), 0);
-  const tier = getLoyaltyTier(orderCount);
   const recentOrders = orders.slice(0, 3);
 
   const activity = useMemo(() => {
@@ -68,7 +63,7 @@ export function DashboardOverview({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon="📦" label="Total Orders" value={orderCount} index={0} />
         <StatCard icon="❤️" label="Favourite Items" value={favoriteCount} index={1} />
-        <StatCard icon="🏆" label="Reward Points" value={rewardPoints} suffix=" pts" index={2} />
+        <StatCard icon="🪙" label="Bronze Coins" value={rewardPoints} suffix=" coins" index={2} />
         <StatCard icon="💰" label="Saved" value={totalSaved || 0} prefix="₹" index={3} />
       </div>
 
@@ -105,15 +100,18 @@ export function DashboardOverview({
           </CardContent>
         </Card>
 
-        <Card
-          className={`rounded-2xl shadow-lg border-0 bg-gradient-to-br ${tier.color} text-white overflow-hidden`}
-        >
+        <Card className="rounded-2xl shadow-lg border-0 bg-gradient-to-br from-[#14532D] to-amber-800 text-white overflow-hidden">
           <CardContent className="p-6">
-            <p className="text-white/80 text-sm font-medium mb-1">{tier.label}</p>
+            <p className="text-white/80 text-sm font-medium mb-1">🪙 Bronze Coins</p>
             <p className="text-3xl font-bold mb-1">{rewardPoints}</p>
-            <p className="text-white/90 text-sm mb-6">Reward Points</p>
-            <Button className="w-full bg-white text-[#14532D] hover:bg-white/90 font-semibold">
-              Redeem Now
+            <p className="text-white/90 text-sm mb-6">
+              Worth ₹{loyalty?.account.valueAvailable ?? rewardPoints}
+            </p>
+            <Button
+              className="w-full bg-white text-[#14532D] hover:bg-white/90 font-semibold"
+              onClick={() => onSectionChange('loyalty')}
+            >
+              View Rewards
             </Button>
           </CardContent>
         </Card>
@@ -703,5 +701,101 @@ export function DashboardHeader({ userName }: { userName?: string | null }) {
       <p className="text-gray-500 mt-1">Enjoy your favourite South Indian meals.</p>
       <p className="text-xs text-gray-400 mt-2">{today}</p>
     </motion.div>
+  );
+}
+
+export function LoyaltyPanel() {
+  const { data, isLoading } = useLoyaltyMe();
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading Bronze Coins…</p>;
+  if (!data) {
+    return (
+      <EmptyState
+        emoji="🪙"
+        title="Sign in to see Bronze Coins"
+        description="Earn 1 Bronze Coin when your order is delivered. 1 coin = ₹1."
+        actionLabel="Browse Menu"
+        actionHref="/menu"
+      />
+    );
+  }
+  const a = data.account;
+  const cfg = data.config;
+  return (
+    <div className="space-y-6">
+      <Card className="rounded-2xl border-0 bg-gradient-to-br from-[#14532D] to-amber-800 text-white">
+        <CardContent className="p-6">
+          <p className="text-sm text-white/80">
+            {a.coinSymbol} {a.coinName}
+          </p>
+          <p className="text-4xl font-bold mt-2">{a.available} Coins</p>
+          <p className="text-amber-200 mt-1">Worth ₹{a.valueAvailable}</p>
+          <p className="text-white/80 text-sm mt-4">Keep ordering & earn more rewards!</p>
+        </CardContent>
+      </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Available', value: a.available },
+          { label: 'Pending', value: a.pending },
+          { label: 'Total Earned', value: a.totalEarned },
+          { label: 'Redeemed', value: a.totalRedeemed },
+        ].map((s) => (
+          <Card key={s.label}>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-amber-700">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <Card>
+        <CardContent className="p-6 space-y-2 text-sm text-[#374151]">
+          <h2 className="font-bold text-[#14532D] mb-2">How Bronze Coins Work</h2>
+          <p>1️⃣ Place an order</p>
+          <p>2️⃣ Complete your order</p>
+          <p>
+            3️⃣ Earn {cfg.earnMode === 'PER_ORDER' ? `${cfg.coinsPerOrder} Bronze Coin` : 'coins'}{' '}
+            {cfg.earnWhenLabel}
+          </p>
+          <p>4️⃣ Collect coins with every order</p>
+          <p>
+            5️⃣ Redeem coins for discounts (min {cfg.minRedeem} coins, max {cfg.maxRedeemPerOrder})
+          </p>
+          <p className="font-semibold text-[#14532D] pt-2">1 Bronze Coin = ₹{cfg.coinValue}</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-6">
+          <h2 className="font-bold text-[#14532D] mb-4">Bronze Coins History</h2>
+          {data.transactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No coin activity yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {data.transactions.map((t) => (
+                <div key={t.id} className="flex justify-between border-b pb-2 text-sm">
+                  <div>
+                    <p className="font-semibold">
+                      {t.coins >= 0 ? '🪙 +' : '🪙 '}
+                      {t.coins} {t.orderNumber ? `· #${t.orderNumber}` : ''}
+                    </p>
+                    <p className="text-muted-foreground">{t.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(t.createdAt).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      t.coins >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'
+                    }
+                  >
+                    {t.coins >= 0 ? '+' : ''}
+                    {t.coins}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -28,6 +28,7 @@ import {
   History,
   Shield,
   Sparkles,
+  Coins,
   Settings,
   Smartphone,
   HelpCircle,
@@ -73,6 +74,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/delivery', label: 'Delivery Management', icon: Truck },
       { href: '/categories', label: 'Categories', icon: Layers },
       { href: '/offers-discounts', label: 'Offers & Discounts', icon: Ticket },
+      { href: '/loyalty', label: 'Loyalty & Rewards', icon: Coins },
       { href: '/reports', label: 'Reports & Analytics', icon: FileBarChart },
       {
         href: '/marketing',

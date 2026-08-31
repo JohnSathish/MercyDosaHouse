@@ -8,6 +8,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Button } from '@mdh/ui';
 import { SiteLogo } from '@/components/site-logo';
 import { UserMenu } from '@/components/dashboard/user-menu';
+import { HeaderBronzeBadge } from '@/components/loyalty/header-bronze-badge';
 import { useCartStore } from '@/lib/cart-store';
 
 const NAV = [
@@ -87,6 +88,7 @@ export function SiteHeader({
         ) : null}
 
         <div className="flex items-center gap-2 md:gap-3">
+          <HeaderBronzeBadge transparent={transparent} />
           <a
             href={`tel:${phone}`}
             className={`hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors ${

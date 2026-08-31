@@ -1,6 +1,7 @@
 import { PaymentMethod } from './enums';
 import type { LoyaltyTier } from './customers';
 import type { AddressDto } from './address';
+import type { LoyaltyAccountDto } from './loyalty';
 
 export type DeliveryTiming = 'now' | 'scheduled';
 
@@ -11,6 +12,7 @@ export interface CheckoutProfileDto {
   email?: string | null;
   loyaltyPoints: number;
   loyaltyTier: LoyaltyTier;
+  bronze?: LoyaltyAccountDto | null;
   preferredPayment?: PaymentMethod | null;
   preferredDelivery?: string | null;
   addresses: AddressDto[];

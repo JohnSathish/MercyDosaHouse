@@ -5,8 +5,13 @@ import { refreshTokens } from './auth-api';
 import { getAppChannelToken } from './app-channel';
 
 export class ApiClient {
-  private async request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
-    const token = await getAccessToken();
+  private async request<T>(
+    path: string,
+    options: RequestInit = {},
+    retried = false,
+    skipAuth = false,
+  ): Promise<T> {
+    const token = skipAuth ? null : await getAccessToken();
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string> | undefined),
     };
@@ -15,8 +20,12 @@ export class ApiClient {
     }
     if (token) headers.Authorization = `Bearer ${token}`;
     if (!path.startsWith('/auth/app-channel')) {
-      const appToken = await getAppChannelToken();
-      if (appToken) headers['X-MDH-App-Token'] = appToken;
+      try {
+        const appToken = await getAppChannelToken();
+        if (appToken) headers['X-MDH-App-Token'] = appToken;
+      } catch {
+        /* Catalog and other public routes must still load without app attestation. */
+      }
     }
 
     let res: Response;
@@ -27,8 +36,14 @@ export class ApiClient {
     }
 
     if (res.status === 401 && !retried) {
-      const refreshed = await refreshTokens();
-      if (refreshed) return this.request<T>(path, options, true);
+      if (!skipAuth) {
+        const refreshed = await refreshTokens();
+        if (refreshed) return this.request<T>(path, options, true);
+        const method = (options.method || 'GET').toUpperCase();
+        if (method === 'GET' && token) {
+          return this.request<T>(path, options, true, true);
+        }
+      }
       await clearAuth();
     }
 

@@ -136,8 +136,8 @@ export function UserMenu({ transparent }: UserMenuProps) {
               <DropdownMenuItem onClick={() => router.push('/dashboard?tab=orders')}>
                 <ShoppingBag className="w-4 h-4" /> Orders
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push('/dashboard?tab=favorites')}>
-                <Heart className="w-4 h-4" /> Favorites
+              <DropdownMenuItem onClick={() => router.push('/dashboard?tab=loyalty')}>
+                <User className="w-4 h-4" /> Bronze Coins
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push('/dashboard?tab=settings')}>
                 <Settings className="w-4 h-4" /> Settings

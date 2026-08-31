@@ -274,6 +274,7 @@ enum NotificationType {
   ASSIGNED
   PICKED_UP
   REVIEW_REPLY
+  LOYALTY
 }
 
 enum LoyaltyTier {
@@ -288,6 +289,22 @@ enum RewardTransactionType {
   REDEEM
   ADJUST
   RESET
+}
+
+enum LoyaltyProgramKey {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum LoyaltyTxnType {
+  EARN
+  REDEEM
+  REFUND
+  REVERSAL
+  ADMIN_ADJUSTMENT
+  EXPIRY
 }
 
 model User {
@@ -322,6 +339,9 @@ model User {
   kitchenLogs          KitchenLog[]
   customerNotes        CustomerNote[]
   rewardTransactions   RewardTransaction[]
+  loyaltyAccounts      LoyaltyAccount[]
+  loyaltyTransactions  LoyaltyTransaction[]
+  loyaltyTxnActors     LoyaltyTransaction[] @relation("LoyaltyTxnActor")
   customerActivities   CustomerActivity[]
   userCoupons          UserCoupon[]
   couponCustomers      CouponCustomer[]
@@ -733,6 +753,7 @@ model Order {
   emailNotifications   OrderEmailNotification[]
   review               Review?
   invoices             Invoice[]
+  loyaltyTransactions  LoyaltyTransaction[]
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
 
@@ -1085,6 +1106,52 @@ model RewardTransaction {
   @@map("customer_rewards")
 }
 
+model LoyaltyAccount {
+  id            String            @id @default(uuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programKey    LoyaltyProgramKey @default(BRONZE)
+  available     Int               @default(0)
+  pending       Int               @default(0)
+  totalEarned   Int               @default(0)
+  totalRedeemed Int               @default(0)
+  totalExpired  Int               @default(0)
+  totalRefunded Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  transactions  LoyaltyTransaction[]
+
+  @@unique([userId, programKey])
+  @@index([programKey, available])
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id           String            @id @default(uuid())
+  accountId    String
+  account      LoyaltyAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programKey   LoyaltyProgramKey @default(BRONZE)
+  orderId      String?
+  order        Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type         LoyaltyTxnType
+  coins        Int
+  remaining    Int               @default(0)
+  balanceAfter Int
+  description  String
+  reference    String?           @unique
+  createdById  String?
+  createdBy    User?             @relation("LoyaltyTxnActor", fields: [createdById], references: [id], onDelete: SetNull)
+  expiresAt    DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([userId, createdAt])
+  @@index([orderId])
+  @@index([type, expiresAt])
+  @@map("loyalty_transactions")
+}
+
 model CustomerActivity {
   id          String   @id @default(uuid())
   userId      String
@@ -1314,6 +1381,8 @@ model BusinessSettings {
   feedbackConfig           Json?
   /// Invoice prefix, tax defaults, footer, terms, bank details (admin-only)
   invoiceConfig            Json?
+  /// Bronze Coins loyalty: earning, redemption, expiry (admin-configurable)
+  loyaltyConfig            Json?
   /// Website/app download promo: copy, Play Store URL, placement toggles
   appPromoConfig           Json?
   createdAt                DateTime  @default(now())

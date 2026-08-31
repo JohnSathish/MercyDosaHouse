@@ -38,6 +38,7 @@ import { SettingsService } from '../settings/settings.service';
 import { isValidOrderStatusTransition, getForwardStatusPath } from './order-status-transitions';
 import { MarketingService } from '../marketing/marketing.service';
 import { CouponsService } from '../coupons/coupons.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 import { EmailService } from '../notifications/email.service';
 import { SmsService } from '../notifications/sms.service';
 import { RequestUser } from '../../common/guards';
@@ -54,6 +55,7 @@ export class OrdersService implements OnModuleInit {
     private settingsService: SettingsService,
     private marketingService: MarketingService,
     private couponsService: CouponsService,
+    private loyalty: LoyaltyService,
     private jwt: JwtService,
     private email: EmailService,
     private sms: SmsService,
@@ -130,6 +132,15 @@ export class OrdersService implements OnModuleInit {
     await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Cart is empty');
     const pricing = await this.computePricing(data);
+    const bronze = await this.loyalty.quote({
+      userId: data.userId,
+      requestedCoins: data.rewardPointsUsed ?? 0,
+      subtotal: pricing.subtotal,
+      deliveryCharge: pricing.deliveryCharge,
+      packingCharge: pricing.packingCharge,
+      couponDiscount: pricing.couponDiscount,
+      couponApplied: Boolean(pricing.couponId),
+    });
     return {
       subtotal: pricing.subtotal,
       deliveryCharge: pricing.deliveryCharge,
@@ -144,6 +155,7 @@ export class OrdersService implements OnModuleInit {
       totalDiscount: pricing.totalDiscount,
       grandTotal: pricing.grandTotal,
       minOrderAmount: pricing.minOrderAmount,
+      bronze,
       items: pricing.orderItems.map((i) => ({
         productId: i.productId,
         variantId: i.variantId,
@@ -209,6 +221,20 @@ export class OrdersService implements OnModuleInit {
       }
     }
     const pricing = await this.computePricing({ ...data, orderType });
+    if ((data.rewardPointsUsed ?? 0) > 0 && pricing.rewardPointsUsed === 0) {
+      const bronze = await this.loyalty.quote({
+        userId: data.userId,
+        requestedCoins: data.rewardPointsUsed ?? 0,
+        subtotal: pricing.subtotal,
+        deliveryCharge: pricing.deliveryCharge,
+        packingCharge: pricing.packingCharge,
+        couponDiscount: pricing.couponDiscount,
+        couponApplied: Boolean(pricing.couponId),
+      });
+      throw new BadRequestException(
+        bronze.blockedReason || 'Cannot redeem Bronze Coins on this order',
+      );
+    }
     const orderNumber = await this.generateOrderNumber();
     const branch = await this.prisma.branch.findFirst({ where: { isDefault: true } });
 
@@ -275,18 +301,12 @@ export class OrdersService implements OnModuleInit {
       }
 
       if (pricing.rewardPointsUsed > 0 && data.userId) {
-        const updatedUser = await tx.user.update({
-          where: { id: data.userId },
-          data: { loyaltyPoints: { decrement: pricing.rewardPointsUsed } },
-        });
-        await tx.rewardTransaction.create({
-          data: {
-            userId: data.userId,
-            type: 'REDEEM',
-            points: -pricing.rewardPointsUsed,
-            balance: updatedUser.loyaltyPoints,
-            description: `Redeemed on order ${orderNumber}`,
-          },
+        await this.loyalty.applyRedemption(tx, {
+          userId: data.userId,
+          orderId: created.id,
+          orderNumber,
+          coins: pricing.rewardPointsUsed,
+          discount: pricing.rewardDiscount,
         });
       }
 
@@ -321,6 +341,15 @@ export class OrdersService implements OnModuleInit {
       void this.notificationsService.notifyStaffNewOrder(order.id);
     }
     await this.notificationsService.notifyCustomerOrderPlaced(order.id);
+    if (pricing.rewardPointsUsed > 0 && data.userId) {
+      const snap = await this.loyalty.snapshot(data.userId);
+      void this.loyalty.notifyRedeemed(
+        data.userId,
+        pricing.rewardPointsUsed,
+        pricing.rewardDiscount,
+        snap.available,
+      );
+    }
     const mapped = await this.findOne(order.id);
     return { ...mapped, trackToken: this.signTrackToken(order.id, order.orderNumber) };
   }
@@ -518,17 +547,28 @@ export class OrdersService implements OnModuleInit {
     const discountUsageLimit = discountResult?.discount.usageLimit ?? null;
 
     let rewardDiscount = 0;
-    const rewardPointsUsed = data.rewardPointsUsed ?? 0;
-    if (rewardPointsUsed > 0 && data.userId) {
-      const user = await this.prisma.user.findUnique({ where: { id: data.userId } });
-      if (!user) throw new BadRequestException('User not found');
-      if (user.loyaltyPoints < rewardPointsUsed) {
-        throw new BadRequestException('Insufficient reward points');
+    let rewardPointsUsed = 0;
+    const requestedCoins = data.rewardPointsUsed ?? 0;
+    if (requestedCoins > 0 && data.userId) {
+      const cfg = await this.loyalty.getConfig();
+      const account = await this.loyalty.snapshot(data.userId);
+      const redeem = this.loyalty.computeRedeem(cfg, {
+        available: account.available,
+        requested: requestedCoins,
+        subtotal,
+        deliveryCharge,
+        packingCharge,
+        taxAmount: 0,
+        couponDiscount,
+        couponApplied: Boolean(couponId),
+      });
+      if (redeem.reason && requestedCoins > 0) {
+        rewardDiscount = 0;
+        rewardPointsUsed = 0;
+      } else {
+        rewardDiscount = redeem.discount;
+        rewardPointsUsed = redeem.coins;
       }
-      rewardDiscount = Math.min(
-        rewardPointsUsed,
-        subtotal + deliveryCharge + packingCharge - couponDiscount,
-      );
     }
 
     const totalDiscount = couponDiscount + rewardDiscount;
@@ -839,6 +879,12 @@ export class OrdersService implements OnModuleInit {
       previousStatus: existing.status,
       reason: options?.remarks,
     });
+    if (status === OrderStatus.DELIVERED) {
+      void this.loyalty.awardForOrder(id);
+    }
+    if (status === OrderStatus.CANCELLED) {
+      void this.loyalty.reverseForOrder(id, 'CANCELLED');
+    }
     return this.findOne(order.id);
   }
 
@@ -898,6 +944,7 @@ export class OrdersService implements OnModuleInit {
         previousStatus: result.previousStatus,
         reason,
       });
+      void this.loyalty.reverseForOrder(id, 'CANCELLED');
     }
     return this.findOne(order.id);
   }

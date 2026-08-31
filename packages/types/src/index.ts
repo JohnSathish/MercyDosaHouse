@@ -289,4 +289,5 @@ export * from './marketing';
 export * from './notifications';
 export * from './reviews';
 export * from './invoices';
+export * from './loyalty';
 export * from './app-promo';

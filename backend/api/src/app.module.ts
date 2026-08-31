@@ -18,6 +18,7 @@ import { CouponsModule } from './modules/coupons/coupons.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { AppChannelModule } from './common/app-channel.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { CmsModule } from './modules/cms/cms.module';
@@ -54,6 +55,7 @@ import { JwtAuthGuard, PermissionsGuard } from './common/guards';
     NotificationsModule,
     ReviewsModule,
     InvoicesModule,
+    LoyaltyModule,
     ReportsModule,
     CmsModule,
     OffersModule,

@@ -380,7 +380,9 @@ function CheckoutScreenBody() {
           <View style={styles.loyaltyCard}>
             <Text style={styles.loyaltyName}>{profile.name ?? profile.phone}</Text>
             <Text style={styles.loyaltyMeta}>
-              {profile.loyaltyTier} · {profile.loyaltyPoints} reward pts
+              {profile.bronze
+                ? `🪙 ${profile.bronze.available} Bronze Coins · ₹${profile.bronze.valueAvailable}`
+                : `${profile.loyaltyTier} · ${profile.loyaltyPoints} Bronze Coins`}
             </Text>
           </View>
         )}
@@ -586,20 +588,51 @@ function CheckoutScreenBody() {
         ) : null}
 
         {/* Loyalty */}
-        {loyaltyEnabled && authed && profile && profile.loyaltyPoints > 0 ? (
-          <Section title="⭐ Reward Points">
-            <Text style={styles.note}>Use up to {profile.loyaltyPoints} points (1 pt = ₹1)</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="number-pad"
-              placeholder="Points to use"
-              value={session.rewardPointsToUse ? String(session.rewardPointsToUse) : ''}
-              onChangeText={(v) =>
-                session.setRewardPointsToUse(
-                  Math.min(profile.loyaltyPoints, Math.max(0, Number(v.replace(/\D/g, '')) || 0)),
-                )
-              }
-            />
+        {loyaltyEnabled && authed && profile ? (
+          <Section title="🪙 Use Bronze Coins">
+            <Text style={styles.note}>
+              You have {profile.bronze?.available ?? profile.loyaltyPoints} Bronze Coins · Worth ₹
+              {profile.bronze?.valueAvailable ?? profile.loyaltyPoints}
+            </Text>
+            <View style={styles.stepper}>
+              <Pressable
+                style={styles.stepBtn}
+                onPress={() =>
+                  session.setRewardPointsToUse(Math.max(0, session.rewardPointsToUse - 1))
+                }
+              >
+                <Text style={styles.stepText}>−</Text>
+              </Pressable>
+              <Text style={styles.stepValue}>{session.rewardPointsToUse}</Text>
+              <Pressable
+                style={styles.stepBtn}
+                onPress={() =>
+                  session.setRewardPointsToUse(
+                    Math.min(
+                      profile.bronze?.available ?? profile.loyaltyPoints,
+                      session.rewardPointsToUse + 1,
+                    ),
+                  )
+                }
+              >
+                <Text style={styles.stepText}>+</Text>
+              </Pressable>
+            </View>
+            {session.rewardPointsToUse > 0 ? (
+              <>
+                <Text style={styles.success}>
+                  🪙 You save ₹{session.rewardPointsToUse} using Bronze Coins
+                </Text>
+                <Text style={styles.note}>
+                  Remaining after redemption:{' '}
+                  {(profile.bronze?.available ?? profile.loyaltyPoints) - session.rewardPointsToUse}{' '}
+                  Coins
+                </Text>
+              </>
+            ) : null}
+            <Text style={styles.note}>
+              You’ll earn 1 Bronze Coin when your order is delivered. 1 Coin = ₹1.
+            </Text>
           </Section>
         ) : null}
 
@@ -642,7 +675,7 @@ function CheckoutScreenBody() {
           ) : null}
           {pricing.rewardDiscount > 0 ? (
             <View style={styles.line}>
-              <Text style={styles.discount}>Reward points</Text>
+              <Text style={styles.discount}>Bronze Coins Discount</Text>
               <Text style={styles.discount}>−{formatCurrency(pricing.rewardDiscount)}</Text>
             </View>
           ) : null}
@@ -970,6 +1003,23 @@ const styles = StyleSheet.create({
   totalValue: { fontWeight: '800', fontSize: 16, color: '#14532D' },
   discount: { color: '#059669' },
   note: { color: '#6B7280', fontSize: 13, marginBottom: 8 },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 16, marginVertical: 8 },
+  stepBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#14532D',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepText: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  stepValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#14532D',
+    minWidth: 40,
+    textAlign: 'center',
+  },
   err: { color: '#DC2626', marginBottom: 8 },
   success: { color: '#059669', fontWeight: '600' },
   footer: {

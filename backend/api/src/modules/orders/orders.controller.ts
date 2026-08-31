@@ -37,7 +37,8 @@ export class OrdersController {
       userId: req.user?.id,
       couponCode: body.couponCode as string | undefined,
       scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
-      rewardPointsUsed: body.rewardPointsUsed as number | undefined,
+      rewardPointsUsed:
+        (body.rewardPointsUsed as number | undefined) ?? (body.bronzeCoins as number | undefined),
       orderType: (body.orderType as 'DELIVERY' | 'ONLINE_PICKUP' | undefined) ?? 'DELIVERY',
       orderSource: orderChannelOf(req),
       customerPhone: body.customerPhone as string | undefined,
@@ -120,7 +121,8 @@ export class OrdersController {
       couponCode: body.couponCode as string | undefined,
       addressId,
       scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
-      rewardPointsUsed: body.rewardPointsUsed as number | undefined,
+      rewardPointsUsed:
+        (body.rewardPointsUsed as number | undefined) ?? (body.bronzeCoins as number | undefined),
       orderType: (body.orderType as 'DELIVERY' | 'ONLINE_PICKUP' | undefined) ?? 'DELIVERY',
       orderSource: orderChannelOf(req),
     });

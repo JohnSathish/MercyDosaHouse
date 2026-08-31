@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AddressType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 export interface CreateAddressInput {
   contactName: string;
@@ -22,7 +23,10 @@ export interface CreateAddressInput {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private loyalty: LoyaltyService,
+  ) {}
 
   private sanitizeAddressInput(data: Partial<CreateAddressInput>): Partial<CreateAddressInput> {
     const optionalString = (v?: string) => (v?.trim() ? v.trim() : undefined);
@@ -212,13 +216,16 @@ export class UsersService {
       },
     });
 
+    const bronze = await this.loyalty.snapshot(userId).catch(() => null);
+
     return {
       id: user.id,
       name: user.name,
       phone: user.phone,
       email: user.email,
-      loyaltyPoints: user.loyaltyPoints,
+      loyaltyPoints: bronze?.available ?? user.loyaltyPoints,
       loyaltyTier: user.loyaltyTier,
+      bronze,
       preferredPayment: user.preferredPayment,
       preferredDelivery: user.preferredDelivery,
       addresses: user.addresses,

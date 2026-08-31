@@ -11,9 +11,10 @@ Set in `.env` (copy from `.env.example`):
 ```env
 EXPO_PUBLIC_API_URL=https://mercydosahouse.com/api/v1
 EXPO_PUBLIC_WEBSITE_URL=https://mercydosahouse.com
+ANDROID_APP_CHANNEL_SECRET=
 ```
 
-These are baked in at **build time**. OTP, email, and payment credentials stay on the server — never in the app.
+Use the **same** `ANDROID_APP_CHANNEL_SECRET` as `/opt/mercy-dosa-house/.env` on the VPS. It is baked into the APK at build time. These are baked in at **build time**. OTP, email, and payment credentials stay on the server — never commit the secret.
 
 ## Build production AAB (Play Store)
 

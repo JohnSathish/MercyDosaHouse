@@ -62,6 +62,10 @@ export default function OrderSuccessScreen() {
         <Text style={styles.emoji}>🎉</Text>
         <Text style={[styles.title, { color: colors.primary }]}>Order Placed!</Text>
         <Text style={styles.subtitle}>Thank you for ordering from {config.branding.appName}.</Text>
+        <View style={styles.earnBox}>
+          <Text style={styles.earnTitle}>🪙 You’ll earn 1 Bronze Coin when delivered</Text>
+          <Text style={styles.earnBody}>1 Coin = ₹1 · Order more. Collect more. Save more.</Text>
+        </View>
 
         {orderNumber ? (
           <View style={styles.orderBox}>
@@ -178,6 +182,15 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 56, marginBottom: 12, marginTop: 8 },
   title: { fontSize: 26, fontWeight: '800' },
   subtitle: { color: COLORS.textMuted, marginTop: 8, textAlign: 'center', fontSize: 14 },
+  earnBox: {
+    marginTop: 16,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 14,
+    padding: 12,
+    width: '100%',
+  },
+  earnTitle: { color: '#14532D', fontWeight: '800', textAlign: 'center' },
+  earnBody: { color: '#6B7280', fontSize: 12, textAlign: 'center', marginTop: 4 },
   orderBox: {
     ...SHADOW.card,
     backgroundColor: COLORS.surface,

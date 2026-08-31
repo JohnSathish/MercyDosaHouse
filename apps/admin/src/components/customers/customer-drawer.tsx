@@ -40,7 +40,7 @@ const TABS: { id: Tab; label: string; icon: typeof Star }[] = [
   { id: 'overview', label: 'Overview', icon: Star },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
   { id: 'addresses', label: 'Addresses', icon: MapPin },
-  { id: 'rewards', label: 'Rewards', icon: Gift },
+  { id: 'rewards', label: 'Bronze Coins', icon: Gift },
   { id: 'coupons', label: 'Coupons', icon: Gift },
   { id: 'favorites', label: 'Favorites', icon: Heart },
   { id: 'reviews', label: 'Reviews', icon: MessageSquare },
@@ -66,6 +66,9 @@ export function CustomerDrawer({ customer, open, onClose, onRefresh }: CustomerD
   const [tab, setTab] = useState<Tab>('overview');
   const [noteText, setNoteText] = useState('');
   const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [adjustAction, setAdjustAction] = useState<'add' | 'deduct'>('add');
+  const [adjustCoins, setAdjustCoins] = useState('1');
+  const [adjustReason, setAdjustReason] = useState('');
   const toast = useToastStore((s) => s.show);
 
   const blockMutation = useMutation({
@@ -91,6 +94,21 @@ export function CustomerDrawer({ customer, open, onClose, onRefresh }: CustomerD
       toast('Rewards reset');
       onRefresh();
     },
+  });
+
+  const adjustCoinsMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/loyalty/admin/customers/${customer!.id}/adjust`, {
+        action: adjustAction,
+        coins: Number(adjustCoins) || 0,
+        reason: adjustReason,
+      }),
+    onSuccess: () => {
+      toast('Bronze Coins adjusted');
+      setAdjustReason('');
+      onRefresh();
+    },
+    onError: (e: Error) => toast(e.message),
   });
 
   const replyMutation = useMutation({
@@ -371,18 +389,78 @@ export function CustomerDrawer({ customer, open, onClose, onRefresh }: CustomerD
 
                   {tab === 'rewards' && (
                     <div className="space-y-4">
+                      <div className="rounded-2xl bg-gradient-to-br from-[#14532D] to-[#1B5E3B] p-4 text-white">
+                        <p className="text-sm text-white/80">🪙 Bronze Coins</p>
+                        <p className="text-3xl font-bold mt-1">
+                          {customer.rewards.available} Coins
+                        </p>
+                        <p className="text-amber-200 text-sm">
+                          Worth ₹{customer.rewards.available}
+                        </p>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { label: 'Current', value: customer.rewards.current },
+                          { label: 'Available', value: customer.rewards.available },
                           { label: 'Total Earned', value: customer.rewards.totalEarned },
                           { label: 'Redeemed', value: customer.rewards.totalRedeemed },
-                          { label: 'Available', value: customer.rewards.available },
+                          { label: 'Current', value: customer.rewards.current },
                         ].map((s) => (
                           <div key={s.label} className="rounded-xl bg-muted/50 p-3 text-center">
                             <p className="text-2xl font-bold text-[#F59E0B]">{s.value}</p>
                             <p className="text-xs text-muted-foreground">{s.label}</p>
                           </div>
                         ))}
+                      </div>
+                      <div className="rounded-xl border p-3 space-y-2">
+                        <p className="font-semibold text-sm">Adjust Bronze Coins</p>
+                        <div className="flex gap-4 text-sm">
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              checked={adjustAction === 'add'}
+                              onChange={() => setAdjustAction('add')}
+                            />
+                            Add
+                          </label>
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="radio"
+                              checked={adjustAction === 'deduct'}
+                              onChange={() => setAdjustAction('deduct')}
+                            />
+                            Deduct
+                          </label>
+                        </div>
+                        <input
+                          className="w-full rounded-md border px-3 py-2 text-sm"
+                          placeholder="Coins"
+                          value={adjustCoins}
+                          onChange={(e) => setAdjustCoins(e.target.value.replace(/\D/g, ''))}
+                        />
+                        <input
+                          className="w-full rounded-md border px-3 py-2 text-sm"
+                          placeholder="Reason (required)"
+                          value={adjustReason}
+                          onChange={(e) => setAdjustReason(e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          className="bg-[#14532D] text-white"
+                          disabled={adjustCoinsMutation.isPending || !adjustReason.trim()}
+                          onClick={() => {
+                            if (
+                              typeof window !== 'undefined' &&
+                              !window.confirm(
+                                `${adjustAction === 'add' ? 'Add' : 'Deduct'} ${adjustCoins} coins?`,
+                              )
+                            ) {
+                              return;
+                            }
+                            adjustCoinsMutation.mutate();
+                          }}
+                        >
+                          Confirm adjustment
+                        </Button>
                       </div>
                       <div className="space-y-2">
                         {customer.rewards.transactions.map((t) => (

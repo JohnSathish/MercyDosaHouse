@@ -29,6 +29,7 @@ import {
   FavoritesPanel,
   AddressesPanel,
   CouponsPanel,
+  LoyaltyPanel,
   NotificationsPanel,
   SettingsPanel,
 } from './dashboard-panels';
@@ -43,6 +44,7 @@ const SECTION_TITLES: Record<DashboardSection, string> = {
   feedback: 'My Feedback',
   addresses: 'Saved Addresses',
   coupons: 'Coupons',
+  loyalty: 'Bronze Coins',
   notifications: 'Notifications',
   settings: 'Settings',
 };
@@ -161,6 +163,8 @@ function DashboardInner() {
         );
       case 'coupons':
         return <CouponsPanel />;
+      case 'loyalty':
+        return <LoyaltyPanel />;
       case 'notifications':
         return <NotificationsPanel notifications={notifications} />;
       case 'settings':

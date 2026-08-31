@@ -370,12 +370,24 @@ export class CustomersService {
 
     timeline.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    const totalEarned = user.rewardTransactions
-      .filter((t) => t.type === RewardTransactionType.EARN)
-      .reduce((s, t) => s + t.points, 0);
-    const totalRedeemed = user.rewardTransactions
-      .filter((t) => t.type === RewardTransactionType.REDEEM)
-      .reduce((s, t) => s + Math.abs(t.points), 0);
+    const bronze = await this.prisma.loyaltyAccount.findUnique({
+      where: { userId_programKey: { userId: id, programKey: 'BRONZE' } },
+    });
+    const ledger = await this.prisma.loyaltyTransaction.findMany({
+      where: { userId: id, programKey: 'BRONZE' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    const totalEarned =
+      bronze?.totalEarned ??
+      user.rewardTransactions
+        .filter((t) => t.type === RewardTransactionType.EARN)
+        .reduce((s, t) => s + t.points, 0);
+    const totalRedeemed =
+      bronze?.totalRedeemed ??
+      user.rewardTransactions
+        .filter((t) => t.type === RewardTransactionType.REDEEM)
+        .reduce((s, t) => s + Math.abs(t.points), 0);
 
     return {
       ...this.mapListItem(user, stats),
@@ -415,14 +427,14 @@ export class CustomersService {
       })),
       notes: user.customerNotes,
       rewards: {
-        current: user.loyaltyPoints,
+        current: bronze?.available ?? user.loyaltyPoints,
         totalEarned,
         totalRedeemed,
-        available: user.loyaltyPoints,
-        transactions: user.rewardTransactions.map((t) => ({
+        available: bronze?.available ?? user.loyaltyPoints,
+        transactions: (ledger.length ? ledger : user.rewardTransactions).map((t) => ({
           id: t.id,
-          points: t.points,
-          balance: t.balance,
+          points: 'coins' in t ? t.coins : t.points,
+          balance: 'balanceAfter' in t ? t.balanceAfter : t.balance,
           type: t.type,
           description: t.description,
           createdAt: t.createdAt.toISOString(),

@@ -43,7 +43,7 @@ export const DEFAULT_INVOICE_CONFIG: InvoiceConfig = {
   taxRate: 0,
   showBankDetails: true,
   showUpiQr: true,
-  footer: 'Thank you for choosing Mercy Dosa House! ❤️',
+  footer: 'Thank you for choosing Mercy Dosa House.',
   termsAndConditions: '',
   paymentInstructions: '',
   pan: '',

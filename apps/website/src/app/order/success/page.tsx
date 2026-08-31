@@ -183,6 +183,10 @@ function OrderSuccessContent() {
           Order Placed Successfully!
         </h1>
         <p className="text-muted-foreground">Your order has been received.</p>
+        <div className="mt-4 mx-auto max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-[#14532D]">
+          🪙 You’ll earn 1 Bronze Coin when your order is delivered.
+          <br />1 Coin = ₹1 · Order more. Collect more. Save more.
+        </div>
       </motion.div>
 
       <Card className="mb-6 border-[#F59E0B]/20 shadow-md">

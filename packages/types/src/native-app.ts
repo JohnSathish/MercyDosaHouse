@@ -9,4 +9,5 @@ export * from './mobile';
 export * from './checkout';
 export * from './customers';
 export * from './marketing';
+export * from './loyalty';
 export type { AddressDto } from './address';

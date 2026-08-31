@@ -13,6 +13,35 @@ const productionEnv = {
   EXPO_PUBLIC_WEBSITE_URL: process.env.EXPO_PUBLIC_WEBSITE_URL || 'https://mercydosahouse.com',
 };
 
+function loadDotEnv(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  for (const line of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (productionEnv[key] == null || productionEnv[key] === '') {
+      productionEnv[key] = value;
+    }
+  }
+}
+
+loadDotEnv(path.join(root, '.env'));
+if (!productionEnv.ANDROID_APP_CHANNEL_SECRET) {
+  console.error(
+    'ANDROID_APP_CHANNEL_SECRET is missing. Add the same value as the VPS .env to mobile/customer/.env before building the APK.',
+  );
+  process.exit(1);
+}
+
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) return;
   fs.mkdirSync(dest, { recursive: true });

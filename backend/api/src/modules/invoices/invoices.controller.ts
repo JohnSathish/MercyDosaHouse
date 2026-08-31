@@ -32,11 +32,16 @@ export class InvoicesController {
   @ApiBearerAuth()
   @Get('mine/:id/pdf')
   async minePdf(@Req() req: { user: RequestUser }, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.invoices.pdfMine(req.user.id, id);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', String(buffer.length));
-    res.end(buffer);
+    try {
+      const { buffer, filename } = await this.invoices.pdfMine(req.user.id, id);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', String(buffer.length));
+      res.end(buffer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not generate invoice PDF';
+      if (!res.headersSent) res.status(500).json({ statusCode: 500, message });
+    }
   }
 
   @ApiBearerAuth()
@@ -49,11 +54,16 @@ export class InvoicesController {
   @Get('share/:token/pdf')
   @Header('Cache-Control', 'private, no-store')
   async sharePdf(@Param('token') token: string, @Res() res: Response) {
-    const { buffer, filename } = await this.invoices.pdfFromShareToken(token);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    res.setHeader('Content-Length', String(buffer.length));
-    res.end(buffer);
+    try {
+      const { buffer, filename } = await this.invoices.pdfFromShareToken(token);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      res.setHeader('Content-Length', String(buffer.length));
+      res.end(buffer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not generate invoice PDF';
+      if (!res.headersSent) res.status(500).json({ statusCode: 500, message });
+    }
   }
 
   @ApiBearerAuth()
@@ -93,12 +103,19 @@ export class InvoicesController {
     @Query('download') download: string | undefined,
     @Res() res: Response,
   ) {
-    const { buffer, filename } = await this.invoices.generatePdf(id, req.user);
-    const disposition = download === '0' ? 'inline' : 'attachment';
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
-    res.setHeader('Content-Length', String(buffer.length));
-    res.end(buffer);
+    try {
+      const { buffer, filename } = await this.invoices.generatePdf(id, req.user);
+      const disposition = download === '0' ? 'inline' : 'attachment';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+      res.setHeader('Content-Length', String(buffer.length));
+      res.end(buffer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not generate invoice PDF';
+      if (!res.headersSent) {
+        res.status(500).json({ statusCode: 500, message });
+      }
+    }
   }
 
   @ApiBearerAuth()

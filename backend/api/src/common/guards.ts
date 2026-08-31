@@ -25,7 +25,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -33,8 +33,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     if (isPublic) {
       const request = context.switchToHttp().getRequest<{ headers?: { authorization?: string } }>();
       if (!request.headers?.authorization) return true;
+      try {
+        await super.canActivate(context);
+      } catch {
+        /* Invalid or expired JWT must not block public catalog routes. */
+      }
+      return true;
     }
-    return super.canActivate(context);
+    const result = await super.canActivate(context);
+    return result === true;
   }
 
   handleRequest<TUser>(

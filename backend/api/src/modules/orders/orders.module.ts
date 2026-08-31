@@ -7,9 +7,17 @@ import { SettingsModule } from '../settings/settings.module';
 import { MarketingModule } from '../marketing/marketing.module';
 import { AuthModule } from '../auth/auth.module';
 import { CouponsModule } from '../coupons/coupons.module';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [NotificationsModule, SettingsModule, MarketingModule, AuthModule, CouponsModule],
+  imports: [
+    NotificationsModule,
+    SettingsModule,
+    MarketingModule,
+    AuthModule,
+    CouponsModule,
+    LoyaltyModule,
+  ],
   controllers: [OrdersController],
   providers: [OrdersService, OrdersGateway],
   exports: [OrdersService, OrdersGateway],
