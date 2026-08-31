@@ -8,7 +8,9 @@ export async function fetchInvoicePdf(id: string, inline = false): Promise<Blob>
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || 'Could not download invoice PDF');
+    throw new Error(
+      (typeof err.message === 'string' && err.message) || 'Could not download invoice PDF',
+    );
   }
   return res.blob();
 }

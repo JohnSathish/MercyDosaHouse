@@ -68,12 +68,25 @@ export type InvoicePdfPayload = {
   logo?: Buffer | null;
 };
 
+/** Helvetica/WinAnsi cannot encode ₹ or emoji — that throws and returns HTTP 500. */
+function winAnsi(value: string): string {
+  return value.replace(/₹/g, 'Rs.').replace(/[^\t\n\r\u0020-\u007E\u00A0-\u00FF]/g, '');
+}
+
 function inr(n: number): string {
-  return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const amount = n.toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `Rs. ${amount}`;
 }
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  try {
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
 }
 
 function statusLabel(status: string): string {
@@ -91,7 +104,8 @@ function statusLabel(status: string): string {
 export class InvoicePdfService {
   private readonly logger = new Logger(InvoicePdfService.name);
 
-  async render(payload: InvoicePdfPayload): Promise<Buffer> {
+  async render(raw: InvoicePdfPayload): Promise<Buffer> {
+    const payload = this.sanitize(raw);
     const doc = new PDFDocument({
       size: 'A4',
       margin: 40,
@@ -108,18 +122,82 @@ export class InvoicePdfService {
       doc.on('error', reject);
     });
 
-    this.drawHeader(doc, payload);
-    let y = 168;
-    y = this.drawMetaAndParties(doc, payload, y);
-    y = this.drawItems(doc, payload, y);
-    y = this.drawTotals(doc, payload, y);
-    y = this.drawPaymentAndBank(doc, payload, y);
-    await this.drawUpiQr(doc, payload, y);
-    this.drawFooterCopy(doc, payload);
-    this.addPageNumbers(doc);
-
-    doc.end();
+    try {
+      this.drawHeader(doc, payload);
+      let y = 168;
+      y = this.drawMetaAndParties(doc, payload, y);
+      y = this.drawItems(doc, payload, y);
+      y = this.drawTotals(doc, payload, y);
+      y = this.drawPaymentAndBank(doc, payload, y);
+      await this.drawUpiQr(doc, payload, y);
+      this.drawFooterCopy(doc, payload);
+      this.addPageNumbers(doc);
+      doc.end();
+    } catch (err) {
+      doc.end();
+      throw err;
+    }
     return done;
+  }
+
+  private sanitize(payload: InvoicePdfPayload): InvoicePdfPayload {
+    const s = (value?: string | null) => (value == null ? value : winAnsi(value));
+    return {
+      ...payload,
+      invoiceNumber: winAnsi(payload.invoiceNumber),
+      customerType: winAnsi(payload.customerType),
+      customerName: winAnsi(payload.customerName),
+      contactPerson: s(payload.contactPerson),
+      phone: s(payload.phone),
+      email: s(payload.email),
+      billingAddress: s(payload.billingAddress),
+      deliveryAddress: s(payload.deliveryAddress),
+      gstin: s(payload.gstin),
+      pan: s(payload.pan),
+      referenceNumber: s(payload.referenceNumber),
+      paymentTerms: s(payload.paymentTerms),
+      notes: s(payload.notes),
+      discountLabel: s(payload.discountLabel),
+      otherChargesLabel: s(payload.otherChargesLabel),
+      status: winAnsi(payload.status),
+      items: payload.items.map((item) => ({
+        ...item,
+        description: winAnsi(item.description),
+        notes: s(item.notes),
+      })),
+      payments: payload.payments.map((p) => ({
+        ...p,
+        method: winAnsi(p.method),
+        reference: s(p.reference),
+      })),
+      business: {
+        name: winAnsi(payload.business.name || 'Mercy Dosa House'),
+        tagline: s(payload.business.tagline),
+        address: s(payload.business.address),
+        phone: s(payload.business.phone),
+        email: s(payload.business.email),
+        website: s(payload.business.website),
+        gstin: s(payload.business.gstin),
+        fssai: s(payload.business.fssai),
+        pan: s(payload.business.pan),
+      },
+      config: {
+        ...payload.config,
+        footer: winAnsi(payload.config.footer || ''),
+        termsAndConditions: winAnsi(payload.config.termsAndConditions || ''),
+        paymentInstructions: winAnsi(payload.config.paymentInstructions || ''),
+        pan: winAnsi(payload.config.pan || ''),
+        bank: {
+          ...payload.config.bank,
+          accountName: winAnsi(payload.config.bank.accountName || ''),
+          bankName: winAnsi(payload.config.bank.bankName || ''),
+          accountNumber: winAnsi(payload.config.bank.accountNumber || ''),
+          ifsc: winAnsi(payload.config.bank.ifsc || ''),
+          branch: winAnsi(payload.config.bank.branch || ''),
+          upiId: winAnsi(payload.config.bank.upiId || ''),
+        },
+      },
+    };
   }
 
   private drawHeader(doc: PDFKit.PDFDocument, payload: InvoicePdfPayload) {

@@ -35,7 +35,8 @@ export class InvoicesController {
     const { buffer, filename } = await this.invoices.pdfMine(req.user.id, id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(buffer);
+    res.setHeader('Content-Length', String(buffer.length));
+    res.end(buffer);
   }
 
   @ApiBearerAuth()
@@ -51,7 +52,8 @@ export class InvoicesController {
     const { buffer, filename } = await this.invoices.pdfFromShareToken(token);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    res.send(buffer);
+    res.setHeader('Content-Length', String(buffer.length));
+    res.end(buffer);
   }
 
   @ApiBearerAuth()
@@ -95,7 +97,8 @@ export class InvoicesController {
     const disposition = download === '0' ? 'inline' : 'attachment';
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
-    res.send(buffer);
+    res.setHeader('Content-Length', String(buffer.length));
+    res.end(buffer);
   }
 
   @ApiBearerAuth()

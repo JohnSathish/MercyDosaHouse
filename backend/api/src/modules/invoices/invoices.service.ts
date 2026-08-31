@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -516,15 +517,19 @@ export class InvoicesService {
     if (!invoice) throw new NotFoundException('Invoice not found');
     const buffer = await this.buildPdf(invoice);
     if (actor) {
-      await this.prisma.invoiceEvent.create({
-        data: {
-          invoiceId: id,
-          action: 'PDF_GENERATED',
-          userId: actor.id,
-          userName: actor.name || actor.email || 'Admin',
-          detail: 'PDF generated',
-        },
-      });
+      try {
+        await this.prisma.invoiceEvent.create({
+          data: {
+            invoiceId: id,
+            action: 'PDF_GENERATED',
+            userId: actor.id,
+            userName: actor.name || actor.email || 'Admin',
+            detail: 'PDF generated',
+          },
+        });
+      } catch {
+        /* download should still succeed */
+      }
     }
     return { buffer, filename: `${invoice.invoiceNumber}.pdf` };
   }
@@ -762,69 +767,77 @@ Mercy Dosa House`;
       this.config.get('STORAGE_PUBLIC_URL'),
     );
     const logo = await fetchBuffer(logoUrl);
-    return this.pdf.render({
-      invoiceNumber: invoice.invoiceNumber,
-      invoiceDate: invoice.invoiceDate,
-      dueDate: invoice.dueDate,
-      customerType: invoice.customerType,
-      customerName: invoice.customerName,
-      contactPerson: invoice.contactPerson,
-      phone: invoice.phone,
-      email: invoice.email,
-      billingAddress: invoice.billingAddress,
-      deliveryAddress: invoice.deliveryAddress,
-      gstin: invoice.gstin,
-      pan: invoice.pan,
-      referenceNumber: invoice.referenceNumber,
-      paymentTerms: invoice.paymentTerms,
-      notes: invoice.notes,
-      items: invoice.items
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((item) => ({
-          description: item.description,
-          notes: item.notes,
-          quantity: Number(item.quantity),
-          unitPrice: Number(item.unitPrice),
-          amount: Number(item.amount),
+    try {
+      return await this.pdf.render({
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.invoiceDate,
+        dueDate: invoice.dueDate,
+        customerType: invoice.customerType,
+        customerName: invoice.customerName,
+        contactPerson: invoice.contactPerson,
+        phone: invoice.phone,
+        email: invoice.email,
+        billingAddress: invoice.billingAddress,
+        deliveryAddress: invoice.deliveryAddress,
+        gstin: invoice.gstin,
+        pan: invoice.pan,
+        referenceNumber: invoice.referenceNumber,
+        paymentTerms: invoice.paymentTerms,
+        notes: invoice.notes,
+        items: invoice.items
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((item) => ({
+            description: item.description,
+            notes: item.notes,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            amount: Number(item.amount),
+          })),
+        subtotal: Number(invoice.subtotal),
+        discountAmount: Number(invoice.discountAmount),
+        discountLabel: invoice.discountLabel,
+        deliveryCharge: Number(invoice.deliveryCharge),
+        packingCharge: Number(invoice.packingCharge),
+        otherCharges: Number(invoice.otherCharges),
+        otherChargesLabel: invoice.otherChargesLabel,
+        taxEnabled: invoice.taxEnabled,
+        taxType: invoice.taxType,
+        taxRate: Number(invoice.taxRate),
+        cgstAmount: Number(invoice.cgstAmount),
+        sgstAmount: Number(invoice.sgstAmount),
+        igstAmount: Number(invoice.igstAmount),
+        taxAmount: Number(invoice.taxAmount),
+        grandTotal: Number(invoice.grandTotal),
+        amountPaid: Number(invoice.amountPaid),
+        balanceDue: Number(invoice.balanceDue),
+        status: invoice.status,
+        payments: invoice.payments.map((p) => ({
+          method: p.method,
+          amount: Number(p.amount),
+          paidAt: p.paidAt,
+          reference: p.reference,
         })),
-      subtotal: Number(invoice.subtotal),
-      discountAmount: Number(invoice.discountAmount),
-      discountLabel: invoice.discountLabel,
-      deliveryCharge: Number(invoice.deliveryCharge),
-      packingCharge: Number(invoice.packingCharge),
-      otherCharges: Number(invoice.otherCharges),
-      otherChargesLabel: invoice.otherChargesLabel,
-      taxEnabled: invoice.taxEnabled,
-      taxType: invoice.taxType,
-      taxRate: Number(invoice.taxRate),
-      cgstAmount: Number(invoice.cgstAmount),
-      sgstAmount: Number(invoice.sgstAmount),
-      igstAmount: Number(invoice.igstAmount),
-      taxAmount: Number(invoice.taxAmount),
-      grandTotal: Number(invoice.grandTotal),
-      amountPaid: Number(invoice.amountPaid),
-      balanceDue: Number(invoice.balanceDue),
-      status: invoice.status,
-      payments: invoice.payments.map((p) => ({
-        method: p.method,
-        amount: Number(p.amount),
-        paidAt: p.paidAt,
-        reference: p.reference,
-      })),
-      business: {
-        name: settings.businessName,
-        tagline: settings.tagline,
-        address: settings.address,
-        phone: settings.phone,
-        email: settings.email,
-        website: settings.websiteUrl,
-        gstin: settings.gstNumber,
-        fssai: settings.fssaiEnabled ? settings.fssaiRegistrationNumber : null,
-        pan: cfg.pan || null,
-      },
-      config: cfg,
-      logo,
-    });
+        business: {
+          name: settings.businessName,
+          tagline: settings.tagline,
+          address: settings.address,
+          phone: settings.phone,
+          email: settings.email,
+          website: settings.websiteUrl,
+          gstin: settings.gstNumber,
+          fssai: settings.fssaiEnabled ? settings.fssaiRegistrationNumber : null,
+          pan: cfg.pan || null,
+        },
+        config: cfg,
+        logo,
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(
+        err instanceof Error
+          ? `Could not generate invoice PDF: ${err.message}`
+          : 'Could not generate invoice PDF',
+      );
+    }
   }
 
   private async publicApiBase(): Promise<string> {
