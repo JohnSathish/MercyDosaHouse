@@ -33,6 +33,11 @@ const PERMISSIONS = [
   'pos.refund',
   'pos.shift',
   'pos.price_override',
+  'invoices.read',
+  'invoices.write',
+  'invoices.pay',
+  'invoices.send',
+  'invoices.cancel',
 ];
 
 const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -47,6 +52,10 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'pos.read',
     'pos.manage',
     'pos.discount',
+    'invoices.read',
+    'invoices.write',
+    'invoices.pay',
+    'invoices.send',
   ],
   CUSTOMER: [],
 };
@@ -985,7 +994,7 @@ async function main() {
   await prisma.businessSettings.update({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     data: {
-      announcementBar: '🎉 5% OFF on Orders Above ₹299',
+      announcementBar: '🎉 5% OFF on Orders Above {freeDeliveryLimit}',
       freeDeliveryLimit: 299,
       footerCopyright: `© ${new Date().getFullYear()} Mercy Dosa House. All rights reserved.`,
     },
@@ -1098,7 +1107,7 @@ async function main() {
     },
     {
       title: '5% Off 299',
-      message: '🎉 5% OFF on Orders Above ₹299',
+      message: '🎉 5% OFF on Orders Above {freeDeliveryLimit}',
       icon: '🎉',
       type: 'BAR' as const,
       priorityLevel: 'PROMOTION' as const,
@@ -1573,6 +1582,24 @@ async function main() {
       create: { method, isEnabled: true },
     });
   }
+
+  await prisma.coupon.upsert({
+    where: { code: 'APPFIRST10' },
+    update: {},
+    create: {
+      code: 'APPFIRST10',
+      name: 'App Exclusive 10% OFF',
+      description:
+        '10% OFF your first order on the Mercy Dosa House Android app. Min ₹299, max ₹100.',
+      type: 'PERCENTAGE',
+      value: 10,
+      minOrderAmount: 299,
+      maxDiscount: 100,
+      appliesTo: 'ANDROID',
+      usageMode: 'FIRST_APP_ORDER',
+      isActive: true,
+    },
+  });
 
   console.log('Seed completed successfully');
   console.log(`Admin login: ${adminEmail} / ${adminPassword}`);

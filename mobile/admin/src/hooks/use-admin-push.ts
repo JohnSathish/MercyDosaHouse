@@ -16,18 +16,22 @@ import { playNewOrderRingtone } from '@/lib/new-order-ringtone';
 
 const NEW_ORDERS_CHANNEL = 'new_orders';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => {
-    const prefs = await loadNotificationPrefs();
-    return {
-      shouldShowAlert: prefs.enabled,
-      shouldPlaySound: prefs.enabled && prefs.ringtoneEnabled,
-      shouldSetBadge: true,
-      shouldShowBanner: prefs.enabled,
-      shouldShowList: prefs.enabled,
-    };
-  },
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => {
+      const prefs = await loadNotificationPrefs();
+      return {
+        shouldShowAlert: prefs.enabled,
+        shouldPlaySound: prefs.enabled && prefs.ringtoneEnabled,
+        shouldSetBadge: true,
+        shouldShowBanner: prefs.enabled,
+        shouldShowList: prefs.enabled,
+      };
+    },
+  });
+} catch {
+  /* Native notifications module may be unavailable on first paint. */
+}
 
 function getProjectId(): string | undefined {
   return (
@@ -128,19 +132,25 @@ export function useAdminPushRegistration(enabled: boolean) {
         if (status !== 'granted' || cancelled) return;
 
         const projectId = getProjectId();
-        const tokenData =
-          Platform.OS === 'android'
-            ? await Notifications.getDevicePushTokenAsync()
-            : projectId
-              ? await Notifications.getExpoPushTokenAsync({ projectId })
-              : await Notifications.getExpoPushTokenAsync();
-        const token = tokenData.data;
-        if (!token || cancelled) return;
-
-        await api.post('/notifications/device-token', {
-          token,
-          platform: Platform.OS,
-        });
+        const expoToken = projectId
+          ? await Notifications.getExpoPushTokenAsync({ projectId })
+          : await Notifications.getExpoPushTokenAsync();
+        let nativeData: string | undefined;
+        try {
+          if (Platform.OS === 'android') {
+            nativeData = (await Notifications.getDevicePushTokenAsync()).data;
+          }
+        } catch {
+          /* google-services.json missing — Expo token still delivers */
+        }
+        const tokens = [...new Set([expoToken.data, nativeData].filter(Boolean))];
+        if (!tokens.length || cancelled) return;
+        for (const pushToken of tokens) {
+          await api.post('/notifications/device-token', {
+            token: pushToken,
+            platform: Platform.OS,
+          });
+        }
         registered.current = true;
       } catch {
         /* Push may fail on emulator — ignore */

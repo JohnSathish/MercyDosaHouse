@@ -1,10 +1,11 @@
 import type { AuthTokens, AuthUser } from '@mdh/types';
 import { API_URL, STAFF_ROLES } from './constants';
 import { clearAuth, getRefreshToken, storeAuth } from './auth-storage';
+import { notifySessionInvalidated } from './auth-events';
 
 function assertStaff(user: AuthUser) {
-  const ok =
-    user.isSuperAdmin || user.roles.some((r) => (STAFF_ROLES as readonly string[]).includes(r));
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  const ok = user.isSuperAdmin || roles.some((r) => (STAFF_ROLES as readonly string[]).includes(r));
   if (!ok) {
     throw new Error('This account is not authorized for the Admin app.');
   }
@@ -66,6 +67,7 @@ export async function refreshTokens(): Promise<AuthTokens | null> {
   });
   if (!res.ok) {
     await clearAuth();
+    notifySessionInvalidated();
     return null;
   }
   const data = (await res.json()) as { tokens: AuthTokens; user: AuthUser };

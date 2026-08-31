@@ -58,7 +58,9 @@ export function CategoryChip({
           !active && compact ? { borderWidth: 1.5, borderColor: COLORS.border } : null,
         ]}
       >
-        <Text style={[styles.icon, compact && styles.iconCompact]}>{icon ?? '🍽️'}</Text>
+        <Text style={[styles.icon, compact && styles.iconCompact]}>
+          {icon && icon.length <= 4 && !icon.includes('/') ? icon : '🍽️'}
+        </Text>
       </View>
       <Text
         style={[styles.chipLabel, compact && styles.chipLabelCompact, active && { color: '#fff' }]}

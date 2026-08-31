@@ -13,11 +13,19 @@ import {
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CouponsService } from './coupons.service';
 import { Public, RequirePermissions } from '../../common/guards';
+import { orderChannelOf, type ChannelRequest } from '../../common/app-channel.interceptor';
 
 @ApiTags('coupons')
 @Controller('coupons')
 export class CouponsController {
   constructor(private couponsService: CouponsService) {}
+
+  @ApiBearerAuth()
+  @RequirePermissions('coupons.read')
+  @Get('admin/app-performance')
+  appPerformance() {
+    return this.couponsService.appPerformance();
+  }
 
   @ApiBearerAuth()
   @RequirePermissions('coupons.read')
@@ -35,13 +43,14 @@ export class CouponsController {
       subtotal: number;
       items?: { productId: string; categoryId?: string; totalPrice: number }[];
     },
-    @Req() req: { user?: { id?: string; sub?: string } },
+    @Req() req: { user?: { id?: string; sub?: string }; orderChannel?: 'WEBSITE' | 'ANDROID' },
   ) {
     const result = await this.couponsService.calculate(
       body.code,
       body.subtotal,
       body.items ?? [],
       req.user?.id ?? req.user?.sub,
+      orderChannelOf(req),
     );
     if (!result) throw new BadRequestException('Discount not found');
     return {
@@ -63,7 +72,7 @@ export class CouponsController {
     @Query('subtotal') subtotal?: string,
     @Query('productIds') productIds?: string,
     @Query('items') items?: string,
-    @Req() req?: { user?: { id?: string; sub?: string } },
+    @Req() req?: ChannelRequest & { user?: { id?: string; sub?: string } },
   ) {
     let cartItems: { productId: string; variantId?: string; quantity: number }[] = [];
     try {
@@ -77,6 +86,7 @@ export class CouponsController {
       productIds?.split(',').filter(Boolean) ?? [],
       req?.user?.id ?? req?.user?.sub,
       cartItems,
+      orderChannelOf(req),
     );
   }
 

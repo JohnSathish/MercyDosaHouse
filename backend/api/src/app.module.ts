@@ -17,6 +17,8 @@ import { DeliveryModule } from './modules/delivery/delivery.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { AppChannelModule } from './common/app-channel.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { CmsModule } from './modules/cms/cms.module';
 import { OffersModule } from './modules/offers/offers.module';
@@ -36,6 +38,7 @@ import { JwtAuthGuard, PermissionsGuard } from './common/guards';
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
+    AppChannelModule,
     AuthModule,
     AuditModule,
     CategoriesModule,
@@ -50,6 +53,7 @@ import { JwtAuthGuard, PermissionsGuard } from './common/guards';
     CouponsModule,
     NotificationsModule,
     ReviewsModule,
+    InvoicesModule,
     ReportsModule,
     CmsModule,
     OffersModule,

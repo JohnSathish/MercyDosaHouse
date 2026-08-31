@@ -93,19 +93,26 @@ export function useCustomerPush() {
         }
         if (status !== 'granted' || cancelled) return;
         const projectId = getProjectId();
-        const tokenData =
-          Platform.OS === 'android'
-            ? await Notifications.getDevicePushTokenAsync()
-            : projectId
-              ? await Notifications.getExpoPushTokenAsync({ projectId })
-              : await Notifications.getExpoPushTokenAsync();
-        if (!tokenData.data || cancelled) return;
-        await api.post('/notifications/device-token', {
-          token: tokenData.data,
-          platform: Platform.OS,
-        });
+        const expoToken = projectId
+          ? await Notifications.getExpoPushTokenAsync({ projectId })
+          : await Notifications.getExpoPushTokenAsync();
+        let nativeData: string | undefined;
+        try {
+          if (Platform.OS === 'android') {
+            nativeData = (await Notifications.getDevicePushTokenAsync()).data;
+          }
+        } catch {
+          /* google-services.json missing — Expo token still delivers */
+        }
+        const tokens = [...new Set([expoToken.data, nativeData].filter(Boolean))];
+        for (const pushToken of tokens) {
+          await api.post('/notifications/device-token', {
+            token: pushToken,
+            platform: Platform.OS,
+          });
+        }
         registeredAuthToken.current = token;
-        await storePushToken(tokenData.data);
+        await storePushToken(expoToken.data);
       } catch {
         /* emulator / permission / missing native module */
       } finally {

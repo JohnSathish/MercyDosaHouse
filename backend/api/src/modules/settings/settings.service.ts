@@ -2,7 +2,15 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
+import { applyChargePlaceholders } from '@mdh/utils';
 import { DEFAULT_AUTH_CONFIG, parseAuthConfig, type AuthConfig } from './auth-config';
+import {
+  DEFAULT_FEEDBACK_CONFIG,
+  parseFeedbackConfig,
+  type FeedbackConfig,
+} from './feedback-config';
+import { DEFAULT_INVOICE_CONFIG, parseInvoiceConfig } from './invoice-config';
+import { DEFAULT_APP_PROMO_CONFIG, parseAppPromoConfig } from './app-promo-config';
 import { resolvePublicAssetUrl, resolveWebsiteUrl } from '../notifications/email-branding';
 
 @Injectable()
@@ -141,6 +149,10 @@ export class SettingsService {
 
   private mapSettings(s: Record<string, unknown>) {
     const n = (v: unknown) => (typeof v === 'number' ? v : Number(v));
+    const deliveryCharge = n(s.deliveryCharge);
+    const packingCharge = n(s.packingCharge);
+    const freeDeliveryLimit = n(s.freeDeliveryLimit ?? 299);
+    const charges = { deliveryCharge, packingCharge, freeDeliveryLimit };
     return {
       businessName: String(s.businessName ?? 'Mercy Dosa House'),
       tagline: String(s.tagline ?? ''),
@@ -148,10 +160,10 @@ export class SettingsService {
       whatsapp: String(s.whatsapp ?? ''),
       email: String(s.email ?? ''),
       address: String(s.address ?? ''),
-      deliveryCharge: n(s.deliveryCharge),
-      packingCharge: n(s.packingCharge),
+      deliveryCharge,
+      packingCharge,
       minOrderAmount: n(s.minOrderAmount),
-      freeDeliveryLimit: n(s.freeDeliveryLimit ?? 299),
+      freeDeliveryLimit,
       deliveryRadiusKm: n(s.deliveryRadiusKm ?? 10),
       estimatedDeliveryMinutes:
         typeof s.estimatedDeliveryMinutes === 'number'
@@ -159,6 +171,8 @@ export class SettingsService {
           : Number(s.estimatedDeliveryMinutes ?? 30),
       openingHours: String(s.openingHours ?? ''),
       deliveryHours: (s.deliveryHours as string | null) ?? null,
+      announcementBar:
+        applyChargePlaceholders((s.announcementBar as string | null) ?? null, charges) || null,
       upiId: s.upiId as string | null,
       upiQrUrl: s.upiQrUrl as string | null,
       googleMapsEmbed: s.googleMapsEmbed as string | null,
@@ -209,6 +223,7 @@ export class SettingsService {
         : null,
       storeStatusChangedByName: null,
       operatingSchedule: (s.operatingSchedule as Record<string, unknown> | null) ?? null,
+      feedback: parseFeedbackConfig(s.feedbackConfig),
     };
   }
 
@@ -262,6 +277,94 @@ export class SettingsService {
     await this.prisma.businessSettings.update({
       where: { id: settings.id },
       data: { authConfig: next as Prisma.InputJsonValue },
+    });
+    return next;
+  }
+
+  async getFeedbackConfig(): Promise<FeedbackConfig> {
+    const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      await this.prisma.businessSettings.create({
+        data: { feedbackConfig: DEFAULT_FEEDBACK_CONFIG },
+      });
+      return { ...DEFAULT_FEEDBACK_CONFIG };
+    }
+    return parseFeedbackConfig(settings.feedbackConfig);
+  }
+
+  async updateFeedbackConfig(patch: Record<string, unknown>): Promise<FeedbackConfig> {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      settings = await this.prisma.businessSettings.create({ data: {} });
+    }
+    const next = parseFeedbackConfig({
+      ...parseFeedbackConfig(settings.feedbackConfig),
+      ...patch,
+    });
+    await this.prisma.businessSettings.update({
+      where: { id: settings.id },
+      data: { feedbackConfig: next as Prisma.InputJsonValue },
+    });
+    return next;
+  }
+
+  async getInvoiceConfig() {
+    const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      await this.prisma.businessSettings.create({
+        data: { invoiceConfig: DEFAULT_INVOICE_CONFIG as Prisma.InputJsonValue },
+      });
+      return { ...DEFAULT_INVOICE_CONFIG };
+    }
+    const parsed = parseInvoiceConfig(settings.invoiceConfig);
+    if (!parsed.bank.upiId && settings.upiId) {
+      parsed.bank.upiId = settings.upiId;
+    }
+    return parsed;
+  }
+
+  async updateInvoiceConfig(patch: Record<string, unknown>) {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) settings = await this.prisma.businessSettings.create({ data: {} });
+    const current = parseInvoiceConfig(settings.invoiceConfig);
+    const next = parseInvoiceConfig({
+      ...current,
+      ...patch,
+      bank: {
+        ...current.bank,
+        ...(patch.bank && typeof patch.bank === 'object'
+          ? (patch.bank as Record<string, unknown>)
+          : {}),
+      },
+    });
+    await this.prisma.businessSettings.update({
+      where: { id: settings.id },
+      data: { invoiceConfig: next as Prisma.InputJsonValue },
+    });
+    return next;
+  }
+
+  async getAppPromoConfig() {
+    const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      await this.prisma.businessSettings.create({
+        data: { appPromoConfig: DEFAULT_APP_PROMO_CONFIG as Prisma.InputJsonValue },
+      });
+      return { ...DEFAULT_APP_PROMO_CONFIG };
+    }
+    return parseAppPromoConfig(settings.appPromoConfig);
+  }
+
+  async updateAppPromoConfig(patch: Record<string, unknown>) {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) settings = await this.prisma.businessSettings.create({ data: {} });
+    const next = parseAppPromoConfig({
+      ...parseAppPromoConfig(settings.appPromoConfig),
+      ...patch,
+    });
+    await this.prisma.businessSettings.update({
+      where: { id: settings.id },
+      data: { appPromoConfig: next as Prisma.InputJsonValue },
     });
     return next;
   }

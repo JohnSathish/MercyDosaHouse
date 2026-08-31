@@ -79,6 +79,11 @@ export default function SettingsNotificationsPage() {
                 {diagnostics ? (diagnostics.fcmConfigured ? 'Configured' : 'Missing') : 'Checking…'}
               </span>
             </p>
+            <p className="sm:col-span-2 text-xs text-muted-foreground">
+              Apps now register Expo tokens so order alerts work without a Firebase JSON. Add{' '}
+              <code>FIREBASE_SERVICE_ACCOUNT_JSON</code> on the VPS only if you also store native
+              FCM device tokens.
+            </p>
             <p>Expo tokens: {diagnostics?.expoTokens ?? '—'}</p>
             <p>Native FCM tokens: {diagnostics?.nativeTokens ?? '—'}</p>
             <p>Pending customer pushes: {diagnostics?.pendingCustomerDispatches ?? '—'}</p>

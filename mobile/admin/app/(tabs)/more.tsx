@@ -19,6 +19,7 @@ export default function MoreScreen() {
     ['Mobile App Config', '/mobile-config', canManageMenu(user)],
     ['Website CMS', '/cms', canManageMenu(user)],
     ['Reports', '/reports', true],
+    ['Billing & Invoices', '/invoices', true],
     ['Order Emails', '/emails', canManageMenu(user)],
     ['Notifications', '/notification-settings', true],
     ['Settings', '/settings', canManageMenu(user)],

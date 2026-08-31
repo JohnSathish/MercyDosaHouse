@@ -28,6 +28,7 @@ services:
       DATABASE_URL: postgresql://mdh:mdhsecret@postgres:5432/mdh?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: mdh-local-development-access-secret-2026-only
+      ANDROID_APP_CHANNEL_SECRET: mdh-dev-android-channel
       JWT_REFRESH_SECRET: mdh-local-development-refresh-secret-2026-only
       API_PORT: 3001
       UPLOAD_DIR: /app/uploads

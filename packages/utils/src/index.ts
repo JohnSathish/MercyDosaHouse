@@ -16,6 +16,25 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function applyChargePlaceholders(
+  text: string | null | undefined,
+  charges: { deliveryCharge: number; packingCharge: number; freeDeliveryLimit: number },
+): string {
+  if (!text) return '';
+  return text
+    .replaceAll('{packingCharge}', formatCurrency(charges.packingCharge))
+    .replaceAll('{deliveryCharge}', formatCurrency(charges.deliveryCharge))
+    .replaceAll('{freeDeliveryLimit}', formatCurrency(charges.freeDeliveryLimit));
+}
+
+export function liveChargesBannerMessage(charges: {
+  deliveryCharge: number;
+  packingCharge: number;
+  freeDeliveryLimit: number;
+}): string {
+  return `🍱 Packing ${formatCurrency(charges.packingCharge)} / item · 🛵 Delivery ${formatCurrency(charges.deliveryCharge)} · Free delivery above ${formatCurrency(charges.freeDeliveryLimit)}`;
+}
+
 export function formatOrderNumber(dateKey: number | string, sequence: number): string {
   return `MDH-${dateKey}-${String(sequence).padStart(6, '0')}`;
 }
@@ -125,6 +144,7 @@ export * from './billing';
 export * from './pre-order';
 export * from './promotion-schedule';
 export * from './upi-qr';
+export * from './media-url';
 
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   COD: 'Cash on Delivery',

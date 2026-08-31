@@ -119,6 +119,7 @@ export function CartContent({ onCheckout, compact }: CartContentProps) {
       <div className="px-1 mt-3">
         <OrderChargesInfoCard
           compact
+          packingPerOrder={charges.settings?.packingCharge}
           baseDeliveryCharge={charges.baseDeliveryCharge}
           deliveryIsFree={charges.deliveryIsFree}
           freeDeliveryLimit={charges.freeDeliveryLimit}

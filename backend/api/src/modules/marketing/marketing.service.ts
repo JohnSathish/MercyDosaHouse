@@ -7,7 +7,7 @@ import {
   OrderStatus,
   Prisma,
 } from '@prisma/client';
-import { nextPromotionDate } from '@mdh/utils';
+import { nextPromotionDate, applyChargePlaceholders } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const PRIORITY_WEIGHT: Record<string, number> = {
@@ -62,9 +62,11 @@ export class MarketingService {
         return item;
       }),
     );
-    const byPlacement: Record<string, typeof mapped> = {};
+    const charges = await this.getChargeCopy();
+    const interpolated = mapped.map((item) => this.interpolateAnnouncement(item, charges));
+    const byPlacement: Record<string, typeof interpolated> = {};
 
-    for (const item of mapped) {
+    for (const item of interpolated) {
       for (const placement of item.placements) {
         if (!byPlacement[placement]) byPlacement[placement] = [];
         byPlacement[placement].push(item);
@@ -83,11 +85,13 @@ export class MarketingService {
     return {
       version: this.configVersion,
       updatedAt: new Date().toISOString(),
-      announcements: mapped,
+      announcements: interpolated,
       byPlacement,
       promotionalPopup:
         byPlacement.POPUP?.find((item) => item.type === AnnouncementType.POPUP) ?? null,
-      delivery: delivery ? this.mapDeliveryConfig(delivery) : null,
+      delivery: delivery
+        ? this.interpolateDelivery(this.mapDeliveryConfig(delivery), charges)
+        : null,
     };
   }
 
@@ -281,8 +285,8 @@ export class MarketingService {
   }
 
   async getDeliveryConfigPublic() {
-    const config = await this.getDeliveryConfig();
-    return config ? this.mapDeliveryConfig(config) : null;
+    const [config, charges] = await Promise.all([this.getDeliveryConfig(), this.getChargeCopy()]);
+    return config ? this.interpolateDelivery(this.mapDeliveryConfig(config), charges) : null;
   }
 
   private async getDeliveryConfig() {
@@ -1034,6 +1038,56 @@ export class MarketingService {
       isActive: c.isActive,
       orderWindow: this.formatWindow(c.orderStartTime, c.orderEndTime),
       deliveryWindow: this.formatWindow(c.deliveryStartTime, c.deliveryEndTime),
+    };
+  }
+
+  private async getChargeCopy() {
+    const settings = await this.prisma.businessSettings.findFirst();
+    return {
+      deliveryCharge: Number(settings?.deliveryCharge ?? 30),
+      packingCharge: Number(settings?.packingCharge ?? 20),
+      freeDeliveryLimit: Number(settings?.freeDeliveryLimit ?? 299),
+    };
+  }
+
+  private interpolateAnnouncement<
+    T extends {
+      title?: string;
+      message?: string;
+      shortMessage?: string | null;
+      headline?: string | null;
+      subheadline?: string | null;
+    },
+  >(
+    item: T,
+    charges: { deliveryCharge: number; packingCharge: number; freeDeliveryLimit: number },
+  ): T {
+    return {
+      ...item,
+      title: applyChargePlaceholders(item.title, charges),
+      message: applyChargePlaceholders(item.message, charges),
+      shortMessage: item.shortMessage
+        ? applyChargePlaceholders(item.shortMessage, charges)
+        : item.shortMessage,
+      headline: item.headline ? applyChargePlaceholders(item.headline, charges) : item.headline,
+      subheadline: item.subheadline
+        ? applyChargePlaceholders(item.subheadline, charges)
+        : item.subheadline,
+    };
+  }
+
+  private interpolateDelivery<
+    T extends { message?: string | null; expansionMessage?: string | null },
+  >(
+    config: T,
+    charges: { deliveryCharge: number; packingCharge: number; freeDeliveryLimit: number },
+  ): T {
+    return {
+      ...config,
+      message: config.message ? applyChargePlaceholders(config.message, charges) : config.message,
+      expansionMessage: config.expansionMessage
+        ? applyChargePlaceholders(config.expansionMessage, charges)
+        : config.expansionMessage,
     };
   }
 }

@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { OrderDto } from '@mdh/types';
+import type { FeedbackConfigDto } from '@mdh/types';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { useCartStore } from '@/stores/cart-store';
 import { useThemeColors } from '@/providers/config-context';
+import { RateOrderSheet } from '@/components/review-sheet';
 import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
 
 export default function OrdersScreen() {
@@ -15,6 +17,7 @@ export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const addItem = useCartStore((s) => s.addItem);
   const [reorderMsg, setReorderMsg] = useState<string | null>(null);
+  const [rateOrder, setRateOrder] = useState<OrderDto | null>(null);
 
   const {
     data: orders = [],
@@ -24,6 +27,11 @@ export default function OrdersScreen() {
     queryKey: ['orders'],
     queryFn: () => api.get<OrderDto[]>('/users/me/orders'),
     retry: false,
+  });
+  const { data: feedbackConfig } = useQuery({
+    queryKey: ['settings-feedback'],
+    queryFn: () => api.get<FeedbackConfigDto>('/settings/feedback'),
+    staleTime: 60_000,
   });
 
   async function reorder(order: OrderDto) {
@@ -116,6 +124,16 @@ export default function OrdersScreen() {
               >
                 <Text style={[styles.actionText, { color: colors.primary }]}>Track</Text>
               </Pressable>
+              {order.status === 'DELIVERED' && feedbackConfig?.enabled !== false ? (
+                <Pressable
+                  style={[styles.actionBtn, { borderColor: colors.primary }]}
+                  onPress={() => setRateOrder(order)}
+                >
+                  <Text style={[styles.actionText, { color: colors.primary }]}>
+                    {order.reviewId ? 'Edit Review' : 'Rate & Review'}
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={[styles.actionBtn, { backgroundColor: colors.secondary, borderWidth: 0 }]}
                 onPress={() => void reorder(order)}
@@ -126,6 +144,9 @@ export default function OrdersScreen() {
           </View>
         ))}
       </ScrollView>
+      {rateOrder ? (
+        <RateOrderSheet order={rateOrder} visible onClose={() => setRateOrder(null)} />
+      ) : null}
     </View>
   );
 }

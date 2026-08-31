@@ -12,6 +12,8 @@ import { PwaRegister } from './mobile/pwa-register';
 import { AnnouncementBar } from '@/components/marketing/announcement-bar';
 import { DeliveryPopup } from '@/components/marketing/delivery-popup';
 import { PromotionalPopup } from '@/components/marketing/promotional-popup';
+import { AppPromoPopup } from '@/components/marketing/app-promo-popup';
+import { AppPromoBanner } from '@/components/marketing/app-promo-banner';
 import { RestaurantClosedBanner } from '@/components/restaurant/restaurant-closed-banner';
 
 interface SiteShellProps {
@@ -44,6 +46,7 @@ export function SiteShell({
       <PwaRegister />
       <DeliveryPopup />
       <PromotionalPopup />
+      <AppPromoPopup />
 
       {/* Fixed top stack: announcement + nav — always visible, never overlapped */}
       <div className="fixed top-0 left-0 right-0 z-50">
@@ -58,7 +61,12 @@ export function SiteShell({
       <MobileDrawer />
       <CartSheet />
 
-      <main className={`flex-1 ${mainOffset} pb-16 lg:pb-0 mobile-main`}>{children}</main>
+      <main className={`flex-1 ${mainOffset} pb-16 lg:pb-0 mobile-main`}>
+        <div className="container mx-auto px-4 pt-2">
+          <AppPromoBanner placement="site" />
+        </div>
+        {children}
+      </main>
 
       <div className="hidden lg:block">
         <SiteFooter

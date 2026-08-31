@@ -73,6 +73,11 @@ MDH = """
     ssl_certificate     /etc/letsencrypt/live/mercydosahouse.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/mercydosahouse.com/privkey.pem;
     client_max_body_size 10M;
+    location ^~ /uploads/ {
+      proxy_pass http://172.17.0.1:13001/uploads/;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-Proto https;
+    }
     location / {
       proxy_pass http://172.17.0.1:13002;
       proxy_http_version 1.1;

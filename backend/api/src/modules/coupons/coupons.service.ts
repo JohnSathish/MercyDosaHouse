@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { CouponAppliesTo, CouponUsageMode } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -32,6 +33,8 @@ export class CouponsService {
     endTime?: string;
     usageLimit?: number;
     perCustomerUsageLimit?: number;
+    appliesTo?: 'ALL' | 'WEBSITE' | 'ANDROID' | 'SPECIFIC_CUSTOMER';
+    usageMode?: 'EVERY_ORDER' | 'FIRST_ORDER' | 'FIRST_APP_ORDER';
     productIds?: string[];
     categoryIds?: string[];
     customerIds?: string[];
@@ -53,6 +56,8 @@ export class CouponsService {
         endTime: data.endTime || null,
         usageLimit: this.optionalInt(data.usageLimit),
         perCustomerUsageLimit: this.optionalInt(data.perCustomerUsageLimit),
+        appliesTo: this.appliesTo(data.appliesTo),
+        usageMode: this.usageMode(data.usageMode),
         isActive: data.isActive !== false,
         products: this.productConnections(data.productIds),
         categories: this.categoryConnections(data.categoryIds),
@@ -91,6 +96,8 @@ export class CouponsService {
     if (data.perCustomerUsageLimit !== undefined) {
       updateData.perCustomerUsageLimit = this.optionalInt(data.perCustomerUsageLimit);
     }
+    if (data.appliesTo !== undefined) updateData.appliesTo = this.appliesTo(data.appliesTo);
+    if (data.usageMode !== undefined) updateData.usageMode = this.usageMode(data.usageMode);
     if (typeof data.isActive === 'boolean') updateData.isActive = data.isActive;
 
     await this.prisma.$transaction(async (tx) => {
@@ -165,6 +172,8 @@ export class CouponsService {
       endTime: discount.endTime ?? undefined,
       usageLimit: discount.usageLimit ?? undefined,
       perCustomerUsageLimit: discount.perCustomerUsageLimit ?? undefined,
+      appliesTo: discount.appliesTo,
+      usageMode: discount.usageMode,
       productIds: discount.products.map((item) => item.productId),
       categoryIds: discount.categories.map((item) => item.categoryId),
       customerIds: discount.customers.map((item) => item.userId),
@@ -177,6 +186,8 @@ export class CouponsService {
     subtotal: number,
     items: { productId: string; categoryId?: string; totalPrice: number }[],
     userId?: string,
+    channel: 'WEBSITE' | 'ANDROID' = 'WEBSITE',
+    customerPhone?: string,
   ) {
     const categoryByProduct = new Map(
       (
@@ -197,7 +208,14 @@ export class CouponsService {
     });
     const eligible: Array<{ discount: any; amount: number }> = [];
     for (const discount of discounts) {
-      const amount = await this.getEligibleAmount(discount, subtotal, resolvedItems, userId);
+      const amount = await this.getEligibleAmount(
+        discount,
+        subtotal,
+        resolvedItems,
+        userId,
+        channel,
+        customerPhone,
+      );
       if (amount > 0) eligible.push({ discount, amount });
     }
     if (code && !eligible.length) throw new BadRequestException('Invalid or ineligible discount');
@@ -209,6 +227,7 @@ export class CouponsService {
     productIds: string[] = [],
     userId?: string,
     cartItems: { productId: string; variantId?: string; quantity: number }[] = [],
+    channel: 'WEBSITE' | 'ANDROID' = 'WEBSITE',
   ) {
     const now = new Date();
     const products = productIds.length
@@ -257,9 +276,11 @@ export class CouponsService {
       discount: number;
       startsAt: string | null;
       endsAt: string | null;
+      appliesTo: string;
+      usageMode: string;
     }> = [];
     for (const coupon of coupons) {
-      const amount = await this.getEligibleAmount(coupon, subtotal, itemProducts, userId);
+      const amount = await this.getEligibleAmount(coupon, subtotal, itemProducts, userId, channel);
       if (amount <= 0) continue;
       eligible.push({
         id: coupon.id,
@@ -273,6 +294,8 @@ export class CouponsService {
         discount: amount,
         startsAt: coupon.startsAt?.toISOString() ?? null,
         endsAt: coupon.endsAt?.toISOString() ?? coupon.expiresAt?.toISOString() ?? null,
+        appliesTo: coupon.appliesTo,
+        usageMode: coupon.usageMode,
       });
     }
     return eligible.sort((a, b) => b.discount - a.discount);
@@ -293,6 +316,8 @@ export class CouponsService {
       endTime: string | null;
       expiresAt: Date | null;
       perCustomerUsageLimit: number | null;
+      appliesTo?: string;
+      usageMode?: string;
       products: { productId: string }[];
       categories: { categoryId: string }[];
       customers: { userId: string }[];
@@ -301,6 +326,8 @@ export class CouponsService {
     subtotal: number,
     items: { productId: string; categoryId: string; totalPrice: number }[],
     userId?: string,
+    channel: 'WEBSITE' | 'ANDROID' = 'WEBSITE',
+    customerPhone?: string,
   ) {
     const now = new Date();
     if (!coupon.isActive || (coupon.startsAt && coupon.startsAt > now)) return 0;
@@ -308,8 +335,13 @@ export class CouponsService {
     if (coupon.usageLimit != null && coupon.usageCount >= coupon.usageLimit) return 0;
     if (subtotal < Number(coupon.minOrderAmount)) return 0;
     if (!this.matchesTimeWindow(coupon.startTime, coupon.endTime, now)) return 0;
+
+    const appliesTo = coupon.appliesTo || 'ALL';
+    if (appliesTo === 'ANDROID' && channel !== 'ANDROID') return 0;
+    if (appliesTo === 'WEBSITE' && channel !== 'WEBSITE') return 0;
+
     if (
-      coupon.customers.length &&
+      (appliesTo === 'SPECIFIC_CUSTOMER' || coupon.customers.length) &&
       (!userId || !coupon.customers.some((c) => c.userId === userId))
     ) {
       const assigned = userId
@@ -324,6 +356,27 @@ export class CouponsService {
         where: { couponId: coupon.id, userId, status: { not: 'CANCELLED' } },
       });
       if (used >= coupon.perCustomerUsageLimit) return 0;
+    }
+
+    const usageMode = coupon.usageMode || 'EVERY_ORDER';
+    if (usageMode === 'FIRST_ORDER' || usageMode === 'FIRST_APP_ORDER') {
+      const where =
+        usageMode === 'FIRST_APP_ORDER'
+          ? {
+              status: { not: 'CANCELLED' as const },
+              orderSource: 'ANDROID' as const,
+              ...(userId ? { userId } : customerPhone ? { customerPhone } : { id: '__none__' }),
+            }
+          : {
+              status: { not: 'CANCELLED' as const },
+              ...(userId ? { userId } : customerPhone ? { customerPhone } : { id: '__none__' }),
+            };
+      if (!userId && !customerPhone) {
+        if (channel !== 'ANDROID' || usageMode !== 'FIRST_APP_ORDER') return 0;
+      } else {
+        const prior = await this.prisma.order.count({ where });
+        if (prior > 0) return 0;
+      }
     }
 
     const productIds = new Set(coupon.products.map((item) => item.productId));
@@ -376,6 +429,77 @@ export class CouponsService {
       productIds: discount.products?.map((item: any) => item.productId) ?? [],
       categoryIds: discount.categories?.map((item: any) => item.categoryId) ?? [],
       customerIds: discount.customers?.map((item: any) => item.userId) ?? [],
+      appliesTo: discount.appliesTo ?? 'ALL',
+      usageMode: discount.usageMode ?? 'EVERY_ORDER',
+    };
+  }
+
+  private appliesTo(value: unknown): CouponAppliesTo {
+    const allowed = Object.values(CouponAppliesTo) as string[];
+    return allowed.includes(String(value)) ? (value as CouponAppliesTo) : CouponAppliesTo.ALL;
+  }
+
+  private usageMode(value: unknown): CouponUsageMode {
+    const allowed = Object.values(CouponUsageMode) as string[];
+    return allowed.includes(String(value))
+      ? (value as CouponUsageMode)
+      : CouponUsageMode.EVERY_ORDER;
+  }
+
+  async appPerformance() {
+    const notCancelled = { status: { not: 'CANCELLED' as const } };
+    const appWhere = { ...notCancelled, orderSource: 'ANDROID' as const };
+    const websiteWhere = { ...notCancelled, orderSource: 'WEBSITE' as const };
+
+    const appCouponWhere = {
+      ...appWhere,
+      coupon: { appliesTo: 'ANDROID' as const },
+      discountAmount: { gt: 0 },
+    };
+    const [
+      appOrders,
+      websiteOrders,
+      appTotals,
+      appDiscountTotals,
+      appDiscountOrders,
+      newAppCustomers,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: appWhere }),
+      this.prisma.order.count({ where: websiteWhere }),
+      this.prisma.order.aggregate({
+        where: appWhere,
+        _sum: { grandTotal: true },
+      }),
+      this.prisma.order.aggregate({
+        where: appCouponWhere,
+        _sum: { discountAmount: true },
+      }),
+      this.prisma.order.count({ where: appCouponWhere }),
+      this.prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*)::bigint AS count
+          FROM (
+            SELECT DISTINCT o."userId"
+            FROM orders o
+            INNER JOIN (
+              SELECT "userId", MIN("createdAt") AS first_at
+              FROM orders
+              WHERE status <> 'CANCELLED' AND "userId" IS NOT NULL
+              GROUP BY "userId"
+            ) first_order ON first_order."userId" = o."userId" AND first_order.first_at = o."createdAt"
+            WHERE o."orderSource" = 'ANDROID'
+          ) t
+        `,
+    ]);
+
+    const online = appOrders + websiteOrders;
+    return {
+      appOrders,
+      websiteOrders,
+      appDiscountOrders,
+      discountGiven: Number(appDiscountTotals._sum.discountAmount ?? 0),
+      appRevenue: Number(appTotals._sum.grandTotal ?? 0),
+      newAppCustomers: Number(newAppCustomers[0]?.count ?? 0),
+      appConversion: online > 0 ? Math.round((appOrders / online) * 1000) / 10 : 0,
     };
   }
 

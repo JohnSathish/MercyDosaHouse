@@ -2,14 +2,20 @@ import {
   Injectable,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   OnModuleInit,
   Logger,
 } from '@nestjs/common';
+import { createHash, timingSafeEqual } from 'crypto';
+import Redis from 'ioredis';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import {
   ContentStatus,
   DeliveryAssignmentStatus,
   OrderStatus,
+  OrderSource,
   PaymentMethod,
   PaymentStatus,
   TrackingStatus,
@@ -32,6 +38,9 @@ import { SettingsService } from '../settings/settings.service';
 import { isValidOrderStatusTransition, getForwardStatusPath } from './order-status-transitions';
 import { MarketingService } from '../marketing/marketing.service';
 import { CouponsService } from '../coupons/coupons.service';
+import { EmailService } from '../notifications/email.service';
+import { SmsService } from '../notifications/sms.service';
+import { RequestUser } from '../../common/guards';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -45,7 +54,19 @@ export class OrdersService implements OnModuleInit {
     private settingsService: SettingsService,
     private marketingService: MarketingService,
     private couponsService: CouponsService,
-  ) {}
+    private jwt: JwtService,
+    private email: EmailService,
+    private sms: SmsService,
+    private config: ConfigService,
+  ) {
+    const redisUrl = this.config.get<string>('REDIS_URL');
+    if (redisUrl) {
+      this.redis = new Redis(redisUrl, { maxRetriesPerRequest: 3, lazyConnect: true });
+      this.redis.connect().catch(() => undefined);
+    }
+  }
+
+  private redis: Redis | null = null;
 
   async onModuleInit() {
     await this.linkOrphanOrdersByPhone();
@@ -89,7 +110,7 @@ export class OrdersService implements OnModuleInit {
 
     const orders = await this.prisma.order.findMany({
       where: { userId },
-      include: { items: true, payment: true },
+      include: { items: true, payment: true, review: { select: { id: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -103,6 +124,8 @@ export class OrdersService implements OnModuleInit {
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
     orderType?: 'DELIVERY' | 'ONLINE_PICKUP' | 'TAKEAWAY' | 'DINE_IN';
+    orderSource?: 'WEBSITE' | 'ANDROID';
+    customerPhone?: string;
   }) {
     await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Cart is empty');
@@ -150,6 +173,7 @@ export class OrdersService implements OnModuleInit {
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
     orderType?: 'DELIVERY' | 'ONLINE_PICKUP' | 'TAKEAWAY' | 'DINE_IN';
+    orderSource?: 'WEBSITE' | 'ANDROID';
   }) {
     await this.settingsService.assertAcceptingOnlineOrders();
     if (!data.items.length) throw new BadRequestException('Order must have items');
@@ -205,6 +229,7 @@ export class OrdersService implements OnModuleInit {
           rewardPointsUsed: pricing.rewardPointsUsed,
           deliveryInstructions: data.deliveryInstructions,
           orderType,
+          orderSource: data.orderSource === 'ANDROID' ? OrderSource.ANDROID : OrderSource.WEBSITE,
           subtotal: pricing.subtotal,
           deliveryCharge: pricing.deliveryCharge,
           packingCharge: pricing.packingCharge,
@@ -296,7 +321,8 @@ export class OrdersService implements OnModuleInit {
       void this.notificationsService.notifyStaffNewOrder(order.id);
     }
     await this.notificationsService.notifyCustomerOrderPlaced(order.id);
-    return this.findOne(order.id);
+    const mapped = await this.findOne(order.id);
+    return { ...mapped, trackToken: this.signTrackToken(order.id, order.orderNumber) };
   }
 
   private async computePricing(data: {
@@ -306,6 +332,8 @@ export class OrdersService implements OnModuleInit {
     scheduledDeliveryAt?: Date;
     rewardPointsUsed?: number;
     orderType?: 'DELIVERY' | 'ONLINE_PICKUP' | 'TAKEAWAY' | 'DINE_IN';
+    orderSource?: 'WEBSITE' | 'ANDROID';
+    customerPhone?: string;
   }) {
     const settings = await this.prisma.businessSettings.findFirst();
     const minOrder = Number(settings?.minOrderAmount || 100);
@@ -479,6 +507,8 @@ export class OrdersService implements OnModuleInit {
         };
       }),
       data.userId,
+      data.orderSource === 'ANDROID' ? 'ANDROID' : 'WEBSITE',
+      data.customerPhone,
     );
     const couponDiscount = discountResult?.amount ?? 0;
     const couponId = discountResult?.discount.id;
@@ -570,7 +600,10 @@ export class OrdersService implements OnModuleInit {
     return this.mapOrder(order);
   }
 
-  async findByOrderNumber(orderNumber: string) {
+  async findByOrderNumber(
+    orderNumber: string,
+    access?: { user?: RequestUser; trackToken?: string },
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { orderNumber },
       include: {
@@ -583,12 +616,112 @@ export class OrdersService implements OnModuleInit {
       },
     });
     if (!order) throw new NotFoundException('Order not found');
+    if (!(await this.canViewTrackedOrder(order, access))) {
+      return this.lockedTrackPayload(order);
+    }
     const settings = await this.prisma.businessSettings.findFirst({
       select: { estimatedDeliveryMinutes: true },
     });
     return {
       ...this.mapOrder(order),
       estimatedDeliveryMinutes: settings?.estimatedDeliveryMinutes ?? 30,
+      trackToken: this.signTrackToken(order.id, order.orderNumber),
+    };
+  }
+
+  async requestTrackOtp(orderNumber: string, phone: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: { user: { select: { email: true } } },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    this.assertPhoneMatches(order.customerPhone, phone);
+
+    if (!this.redis) {
+      return {
+        sent: true,
+        channel: 'DELIVERY_CODE' as const,
+        destination: this.maskPhone(order.customerPhone),
+        hint: 'Enter the 4-digit delivery code from your order confirmation.',
+      };
+    }
+
+    const cooldownKey = `track-otp:cooldown:${orderNumber}`;
+    if (this.redis) {
+      const wait = await this.redis.ttl(cooldownKey);
+      if (wait > 0) {
+        throw new BadRequestException(
+          `Please wait ${wait} seconds before requesting another code.`,
+        );
+      }
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    if (this.redis) {
+      await this.redis.setex(`track-otp:${orderNumber}`, 600, this.hashOtp(otp));
+      await this.redis.setex(cooldownKey, 60, '1');
+    }
+
+    const sms = await this.sms.sendOtp(order.customerPhone, otp);
+    if (sms.sent) {
+      return {
+        sent: true,
+        channel: 'SMS' as const,
+        destination: this.maskPhone(order.customerPhone),
+      };
+    }
+
+    const emailTo = order.user?.email;
+    if (emailTo && this.email.isConfigured()) {
+      await this.email.send({
+        to: emailTo,
+        subject: `Your Mercy Dosa House tracking code for ${order.orderNumber}`,
+        text: `Your order tracking code is ${otp}. It expires in 10 minutes. Do not share this code.`,
+      });
+      return { sent: true, channel: 'EMAIL' as const, destination: this.maskEmail(emailTo) };
+    }
+
+    return {
+      sent: true,
+      channel: 'DELIVERY_CODE' as const,
+      destination: this.maskPhone(order.customerPhone),
+      hint: 'Enter the 4-digit delivery code from your order confirmation.',
+    };
+  }
+
+  async verifyTrackOtp(orderNumber: string, phone: string, otp: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { orderNumber },
+      include: {
+        items: true,
+        payment: true,
+        statusHistory: {
+          include: { updatedBy: { select: { name: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    this.assertPhoneMatches(order.customerPhone, phone);
+
+    const code = otp.replace(/\D/g, '');
+    let ok = false;
+    if (this.redis) {
+      const stored = await this.redis.get(`track-otp:${orderNumber}`);
+      if (stored && this.verifyOtpHash(code, stored)) ok = true;
+    }
+    if (!ok && order.deliveryOtp && code === order.deliveryOtp) ok = true;
+    if (!ok) throw new ForbiddenException('Invalid verification code');
+
+    if (this.redis) await this.redis.del(`track-otp:${orderNumber}`);
+
+    const settings = await this.prisma.businessSettings.findFirst({
+      select: { estimatedDeliveryMinutes: true },
+    });
+    return {
+      ...this.mapOrder(order),
+      estimatedDeliveryMinutes: settings?.estimatedDeliveryMinutes ?? 30,
+      trackToken: this.signTrackToken(order.id, order.orderNumber),
     };
   }
 
@@ -837,6 +970,99 @@ export class OrdersService implements OnModuleInit {
     return `MDH-${dateStr}-${String(seq).padStart(6, '0')}`;
   }
 
+  private signTrackToken(orderId: string, orderNumber: string) {
+    return this.jwt.sign({ typ: 'order-track', orderId, orderNumber }, { expiresIn: '7d' });
+  }
+
+  private readTrackToken(token?: string): { orderId: string; orderNumber: string } | null {
+    if (!token?.trim()) return null;
+    try {
+      const payload = this.jwt.verify<{ typ?: string; orderId?: string; orderNumber?: string }>(
+        token,
+      );
+      if (payload.typ !== 'order-track' || !payload.orderId || !payload.orderNumber) return null;
+      return { orderId: payload.orderId, orderNumber: payload.orderNumber };
+    } catch {
+      return null;
+    }
+  }
+
+  private async canViewTrackedOrder(
+    order: { id: string; orderNumber: string; userId?: string | null },
+    access?: { user?: RequestUser; trackToken?: string },
+  ) {
+    const token = this.readTrackToken(access?.trackToken);
+    if (token && token.orderId === order.id && token.orderNumber === order.orderNumber) return true;
+    const user = access?.user;
+    if (!user) return false;
+    if (
+      user.isSuperAdmin ||
+      user.permissions?.includes('orders.read') ||
+      user.permissions?.includes('*')
+    ) {
+      return true;
+    }
+    return Boolean(order.userId && order.userId === user.id);
+  }
+
+  private lockedTrackPayload(order: {
+    orderNumber: string;
+    customerPhone: string;
+    status: OrderStatus;
+  }) {
+    return {
+      locked: true as const,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      customerPhone: this.maskPhone(order.customerPhone),
+      customerName: '',
+      deliveryAddress: '',
+      items: [],
+      subtotal: 0,
+      deliveryCharge: 0,
+      packingCharge: 0,
+      discount: 0,
+      grandTotal: 0,
+      paymentMethod: 'COD',
+      paymentStatus: 'PENDING',
+      id: '',
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    };
+  }
+
+  private digits(phone: string) {
+    return phone.replace(/\D/g, '').slice(-10);
+  }
+
+  private assertPhoneMatches(stored: string, provided: string) {
+    if (this.digits(stored) !== this.digits(provided || '')) {
+      throw new ForbiddenException('Phone number does not match this order');
+    }
+  }
+
+  private maskPhone(phone: string) {
+    const d = this.digits(phone);
+    if (d.length < 4) return '****';
+    return `******${d.slice(-4)}`;
+  }
+
+  private maskEmail(email: string) {
+    const [user, domain] = email.split('@');
+    if (!domain) return '***';
+    return `${user.slice(0, 1)}***@${domain}`;
+  }
+
+  private hashOtp(otp: string) {
+    return createHash('sha256').update(otp).digest('hex');
+  }
+
+  private verifyOtpHash(otp: string, hash: string) {
+    const computed = Buffer.from(this.hashOtp(otp));
+    const stored = Buffer.from(hash);
+    return computed.length === stored.length && timingSafeEqual(computed, stored);
+  }
+
   private mapOrder(order: {
     id: string;
     orderNumber: string;
@@ -865,6 +1091,8 @@ export class OrdersService implements OnModuleInit {
     paymentStatus: PaymentStatus;
     couponId?: string | null;
     discountId?: string | null;
+    orderType?: string;
+    userId?: string | null;
     items: {
       id: string;
       productId: string;
@@ -895,6 +1123,7 @@ export class OrdersService implements OnModuleInit {
     }[];
     createdAt: Date;
     updatedAt: Date;
+    review?: { id: string } | null;
   }) {
     const toNum = (v: { toNumber?: () => number } | number) =>
       typeof v === 'number' ? v : Number(v);
@@ -904,6 +1133,7 @@ export class OrdersService implements OnModuleInit {
       orderNumber: order.orderNumber,
       status: order.status,
       trackingStatus: order.trackingStatus,
+      orderType: order.orderType,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       deliveryAddress: order.deliveryAddress ?? '',
@@ -950,6 +1180,7 @@ export class OrdersService implements OnModuleInit {
         order.emailNotifications?.[0] ?? null,
       ),
       statusMessage: this.statusMessage(order.status),
+      reviewId: order.review?.id ?? null,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
     };

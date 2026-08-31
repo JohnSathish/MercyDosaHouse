@@ -17,6 +17,7 @@ import {
   Tag,
   Image,
   MessageSquare,
+  Receipt,
   FileText,
   FolderOpen,
   Navigation,
@@ -67,6 +68,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: '/inventory', label: 'Inventory', icon: Package },
       { href: '/kitchen', label: 'KOT / Kitchen Display', icon: ChefHat },
       { href: '/customers', label: 'Customers', icon: Users },
+      { href: '/feedback', label: 'Feedback & Reviews', icon: MessageSquare },
+      { href: '/billing', label: 'Billing & Invoices', icon: Receipt },
       { href: '/delivery', label: 'Delivery Management', icon: Truck },
       { href: '/categories', label: 'Categories', icon: Layers },
       { href: '/offers-discounts', label: 'Offers & Discounts', icon: Ticket },
@@ -121,5 +124,5 @@ export const QUICK_ACTIONS = [
   { href: '/menu', label: 'Add Menu Item', icon: UtensilsCrossed },
   { href: '/cms/offers', label: 'Create Offer', icon: Tag },
   { href: '/orders', label: 'View Orders', icon: ShoppingBag },
-  { href: '/pos', label: 'Open POS', icon: Monitor },
+  { href: '/billing', label: 'Create Invoice', icon: Receipt },
 ] as const;

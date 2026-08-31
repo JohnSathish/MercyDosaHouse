@@ -145,11 +145,15 @@ export class ReportsService {
     const [current, previous, reviews, liveStats] = await Promise.all([
       this.aggregatePeriod(range, filters),
       this.aggregatePeriod(prevRange, filters),
-      this.prisma.review.aggregate({ _avg: { rating: true }, _count: true }),
+      this.prisma.review.aggregate({
+        where: { visibility: 'VISIBLE', orderId: { not: null } },
+        _avg: { rating: true },
+        _count: true,
+      }),
       this.getLiveStats(),
     ]);
 
-    const satisfaction = reviews._avg.rating ? Number(reviews._avg.rating.toFixed(1)) : 4.8;
+    const satisfaction = reviews._avg.rating ? Number(reviews._avg.rating.toFixed(1)) : 0;
 
     return {
       period: filters.period ?? 'today',

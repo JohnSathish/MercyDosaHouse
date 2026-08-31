@@ -47,6 +47,7 @@ import type {
   AvailableCouponDto,
   OrderDto,
 } from '@mdh/types';
+import { AppPromoBanner } from '@/components/marketing/app-promo-banner';
 import {
   isAuthenticated,
   getStoredUser,
@@ -1007,6 +1008,7 @@ export function CheckoutPageClient() {
         </CheckoutSection>
 
         {/* Coupons */}
+        <AppPromoBanner placement="checkout" />
         <CheckoutSection
           title="Offers & Discounts"
           icon={Tag}

@@ -2,8 +2,10 @@ import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { IsEmail, IsString, MinLength } from 'class-validator';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from '../../common/guards';
+import { AppChannelService } from '../../common/app-channel.service';
 
 class LoginDto {
   @IsEmail()
@@ -58,7 +60,10 @@ class RefreshDto {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private appChannel: AppChannelService,
+  ) {}
 
   @Public()
   @SkipThrottle()
@@ -134,5 +139,12 @@ export class AuthController {
   @Post('logout')
   logout(@Body() dto: RefreshDto) {
     return this.authService.logout(dto.refreshToken);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Post('app-channel')
+  issueAppChannel(@Req() req: Request) {
+    return this.appChannel.issueAppToken(req);
   }
 }

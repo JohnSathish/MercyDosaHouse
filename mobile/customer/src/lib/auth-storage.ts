@@ -53,6 +53,14 @@ export async function storePushToken(token: string): Promise<void> {
   await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
 }
 
+export async function saveTrackToken(orderNumber: string, token: string): Promise<void> {
+  await AsyncStorage.setItem(`mdh_track_token:${orderNumber}`, token);
+}
+
+export async function loadTrackToken(orderNumber: string): Promise<string | null> {
+  return AsyncStorage.getItem(`mdh_track_token:${orderNumber}`);
+}
+
 export async function isAuthenticated(): Promise<boolean> {
   const token = await getAccessToken();
   return !!token;

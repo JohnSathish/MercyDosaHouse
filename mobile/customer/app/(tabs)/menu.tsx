@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FoodCard, FoodCardSkeleton, SearchBar, type FoodCardProduct } from '@/ui';
 import { OrderChargesCard } from '@/components/order-charges-card';
+import { AppExclusiveBadge } from '@/components/app-exclusive-badge';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
 import { useCartStore } from '@/stores/cart-store';
@@ -13,8 +14,25 @@ import { COLORS, RADIUS } from '@/ui/theme';
 
 interface Category {
   id: string;
-  name: string;
+  name?: string | null;
+  slug?: string | null;
   icon?: string | null;
+}
+
+function asCategoryList(raw: unknown): Category[] {
+  if (Array.isArray(raw)) return raw as Category[];
+  if (raw && typeof raw === 'object') {
+    const obj = raw as { data?: unknown; items?: unknown; categories?: unknown };
+    const list = obj.data ?? obj.items ?? obj.categories;
+    if (Array.isArray(list)) return list as Category[];
+  }
+  return [];
+}
+
+function categoryLabel(cat: Category): string {
+  const name = (cat.name || cat.slug || '').trim();
+  const icon = cat.icon && cat.icon.length <= 4 && !cat.icon.includes('/') ? cat.icon : '';
+  return `${icon ? `${icon} ` : ''}${name || 'Category'}`;
 }
 
 type FoodFilter = 'ALL' | 'VEG' | 'NON_VEG';
@@ -31,10 +49,20 @@ export default function MenuScreen() {
   );
   const [foodFilter, setFoodFilter] = useState<FoodFilter>('ALL');
 
-  const { data: categories = [] } = useQuery({
+  useEffect(() => {
+    if (typeof params.categoryId === 'string' && params.categoryId) {
+      setCategoryId(params.categoryId);
+    }
+  }, [params.categoryId]);
+
+  const { data: categoriesRaw } = useQuery({
     queryKey: ['categories', 'mobile'],
-    queryFn: () => api.get<Category[]>('/categories?active=true&channel=mobile'),
+    queryFn: () => api.get<unknown>('/categories?active=true&channel=mobile'),
   });
+  const categories = useMemo(
+    () => asCategoryList(categoriesRaw).filter((c) => c.id),
+    [categoriesRaw],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', categoryId, search, foodFilter],
@@ -57,10 +85,16 @@ export default function MenuScreen() {
       </View>
 
       <View style={styles.chargesWrap}>
+        <AppExclusiveBadge />
         <OrderChargesCard deliveryIsFree={subtotal > 0 ? pricing.deliveryIsFree : false} compact />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filters}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filtersContent}
+        style={styles.filters}
+      >
         <Pressable
           onPress={() => setCategoryId(undefined)}
           style={[styles.filterChip, !categoryId && { backgroundColor: colors.primary }]}
@@ -76,9 +110,11 @@ export default function MenuScreen() {
               categoryId === cat.id && { backgroundColor: colors.primary },
             ]}
           >
-            <Text style={[styles.filterText, categoryId === cat.id && styles.filterTextActive]}>
-              {cat.icon ? `${cat.icon} ` : ''}
-              {cat.name}
+            <Text
+              style={[styles.filterText, categoryId === cat.id && styles.filterTextActive]}
+              numberOfLines={1}
+            >
+              {categoryLabel(cat)}
             </Text>
           </Pressable>
         ))}
@@ -124,7 +160,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingBottom: 8, gap: 10 },
   chargesWrap: { paddingHorizontal: 16, marginBottom: 4 },
   title: { fontSize: 22, fontWeight: '800' },
-  filters: { paddingHorizontal: 16, maxHeight: 44, marginBottom: 8 },
+  filters: { flexGrow: 0, flexShrink: 0, marginBottom: 8 },
+  filtersContent: { paddingHorizontal: 16, alignItems: 'center', paddingVertical: 2 },
   filterChip: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.full,
@@ -133,8 +170,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
+    flexShrink: 0,
   },
-  filterText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
+  filterText: { fontSize: 13, fontWeight: '600', color: COLORS.text, flexShrink: 0 },
   filterTextActive: { color: '#fff' },
   vegRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 8 },
   vegChip: {

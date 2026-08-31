@@ -4,7 +4,8 @@ import { ADMIN_ROLES, STAFF_ROLES } from './constants';
 export function userHasRole(user: AuthUser | null, roles: readonly string[]): boolean {
   if (!user) return false;
   if (user.isSuperAdmin) return true;
-  return user.roles.some((r) => roles.includes(r));
+  const assigned = Array.isArray(user.roles) ? user.roles : [];
+  return assigned.some((r) => roles.includes(r));
 }
 
 export function isStaffUser(user: AuthUser | null): boolean {

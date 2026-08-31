@@ -37,7 +37,7 @@ export function OrderChargesInfoCard({
           <span>🍱</span>
           <span>
             Packing: <strong className="text-[#1F2937]">{formatCurrency(packingPerOrder)}</strong>
-            <span className="text-gray-500 font-normal"> / item (typical)</span>
+            <span className="text-gray-500 font-normal"> / item</span>
           </span>
         </p>
         <p className="flex items-center gap-2 text-gray-700">

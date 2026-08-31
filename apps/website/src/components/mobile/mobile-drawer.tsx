@@ -13,6 +13,7 @@ import {
   Truck,
   Info,
   Phone,
+  Star,
   LogOut,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/#offers', label: 'Offers', icon: Tag },
   { href: '/gallery', label: 'Gallery', icon: ImageIcon },
   { href: '/profile?tab=orders', label: 'Track Order', icon: Truck, matchPrefix: '/profile' },
+  { href: '/profile?tab=feedback', label: 'My Feedback', icon: Star },
   { href: '/about', label: 'About', icon: Info },
   { href: '/contact', label: 'Contact', icon: Phone },
 ];

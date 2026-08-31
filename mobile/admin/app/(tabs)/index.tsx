@@ -225,6 +225,20 @@ export default function DashboardScreen() {
 
         {stats.isLoading ? (
           <LoadingBlock />
+        ) : stats.isError ? (
+          <Card>
+            <Text style={styles.heading}>Could not load live stats</Text>
+            <Text style={styles.muted}>
+              {stats.error instanceof Error
+                ? stats.error.message
+                : 'Check your connection and pull to refresh.'}
+            </Text>
+            <PrimaryButton
+              title="Retry"
+              onPress={() => void stats.refetch()}
+              style={{ marginTop: 12 }}
+            />
+          </Card>
         ) : (
           <View style={styles.grid}>
             <KpiCard

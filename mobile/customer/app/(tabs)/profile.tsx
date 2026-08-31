@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { type Href, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { logout } from '@/lib/auth-api';
@@ -92,6 +92,16 @@ export default function ProfileScreen() {
                   onPress={() => router.push('/notifications')}
                 />
               ) : null}
+              <MenuLink
+                icon="⭐"
+                label="My Feedback"
+                onPress={() => router.push('/feedback' as Href)}
+              />
+              <MenuLink
+                icon="🧾"
+                label="Invoices"
+                onPress={() => router.push('/invoices' as Href)}
+              />
             </>
           ) : (
             <Pressable

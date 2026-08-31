@@ -8,7 +8,8 @@ import { ArrowRight, X } from 'lucide-react';
 import type { MarketingAnnouncementDto } from '@mdh/types';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { dismissAnnouncement, trackMarketingEvent } from '@/lib/marketing-content';
-import { API_URL } from '@/lib/api';
+import { APP_URLS } from '@/lib/app-urls';
+import { resolvePublicMediaUrl } from '@mdh/utils';
 
 const SESSION_KEY = 'mdh_promotional_popup_seen_v2';
 const DAY_KEY = 'mdh_promotional_popup_day';
@@ -51,32 +52,7 @@ function whatsappDestination(item: MarketingAnnouncementDto) {
 }
 
 function resolveMediaUrl(value?: string | null) {
-  if (!value) return '';
-  const raw = value.trim();
-  let publicOrigin = process.env.NEXT_PUBLIC_WEBSITE_URL || window.location.origin;
-  try {
-    publicOrigin = new URL(API_URL).origin;
-    if (
-      ['localhost', '127.0.0.1'].includes(new URL(API_URL).hostname) &&
-      !['localhost', '127.0.0.1'].includes(window.location.hostname)
-    ) {
-      publicOrigin = process.env.NEXT_PUBLIC_WEBSITE_URL || window.location.origin;
-    }
-  } catch {
-    /* use the current website origin */
-  }
-  if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
-    return `${publicOrigin}/${raw.replace(/^\/+/, '')}`;
-  }
-  try {
-    const parsed = new URL(raw, window.location.origin);
-    if (['localhost', '127.0.0.1', 'api'].includes(parsed.hostname)) {
-      return `${publicOrigin}${parsed.pathname}${parsed.search}`;
-    }
-    return parsed.toString();
-  } catch {
-    return raw;
-  }
+  return resolvePublicMediaUrl(value, APP_URLS.website);
 }
 
 export function PromotionalPopup() {

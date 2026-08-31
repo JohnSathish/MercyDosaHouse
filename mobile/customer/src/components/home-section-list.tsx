@@ -20,6 +20,7 @@ import { isAuthenticated } from '@/lib/auth-storage';
 import { WEBSITE_URL } from '@/lib/constants';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import { AnnouncementBar, HomeDeliverySection } from './announcement-bar';
+import { AppExclusiveBadge } from './app-exclusive-badge';
 import {
   CategoryChip,
   FoodCard,
@@ -610,6 +611,7 @@ export function HomeSectionList() {
       keyboardShouldPersistTaps="handled"
     >
       <AnnouncementBar />
+      <AppExclusiveBadge />
       <StoreStatusCard />
       <HomeDeliverySection />
       <FssaiTrustCard />

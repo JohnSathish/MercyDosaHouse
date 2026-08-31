@@ -9,6 +9,7 @@ import { Badge, Card, CardContent } from '@mdh/ui';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@mdh/auth-client';
+import { loadTrackToken, saveTrackToken } from '@/lib/last-order';
 import type { LiveDeliveryLocationDto, OrderDto } from '@mdh/types';
 import { io } from 'socket.io-client';
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
@@ -38,13 +39,24 @@ export default function TrackOrderPage() {
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
 
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpHint, setOtpHint] = useState<string | null>(null);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+
   const {
     data: order,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['order', orderNumber],
-    queryFn: () => api.get<OrderDto>(`/orders/track/${orderNumber}`),
+    queryFn: () => {
+      const token = loadTrackToken(orderNumber);
+      const q = token ? `?trackToken=${encodeURIComponent(token)}` : '';
+      return api.get<OrderDto>(`/orders/track/${orderNumber}${q}`);
+    },
     enabled: !!orderNumber,
     retry: 1,
     refetchInterval: 30_000,
@@ -97,7 +109,7 @@ export default function TrackOrderPage() {
     );
   }
 
-  if (isError || !order) {
+  if (isError || (!order && !isLoading)) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-lg text-center">
         <p className="text-muted-foreground mb-4">Order not found or unavailable.</p>
@@ -107,6 +119,95 @@ export default function TrackOrderPage() {
       </div>
     );
   }
+
+  if (order?.locked) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg">
+        <h1 className="text-2xl font-bold text-[#14532D]">Verify to track</h1>
+        <p className="text-muted-foreground mt-2 mb-6">
+          Order {order.orderNumber} is protected. Enter the phone number used at checkout, then
+          request a code.
+        </p>
+        <Card>
+          <CardContent className="p-6 space-y-3">
+            <label className="text-sm font-medium">Phone</label>
+            <input
+              className="w-full h-11 rounded-xl border px-3"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="10-digit mobile"
+              inputMode="tel"
+            />
+            <button
+              type="button"
+              className="text-sm font-semibold text-[#14532D]"
+              disabled={unlocking}
+              onClick={async () => {
+                setUnlockError(null);
+                setUnlocking(true);
+                try {
+                  const res = await api.post<{
+                    channel: string;
+                    hint?: string;
+                    destination?: string;
+                  }>(`/orders/track/${orderNumber}/otp`, { phone });
+                  setOtpHint(
+                    res.hint ||
+                      (res.channel === 'EMAIL'
+                        ? `Code sent to ${res.destination}`
+                        : res.channel === 'SMS'
+                          ? `Code sent to ${res.destination}`
+                          : 'Enter the 4-digit delivery code from your confirmation.'),
+                  );
+                } catch (err) {
+                  setUnlockError(err instanceof Error ? err.message : 'Could not send code.');
+                } finally {
+                  setUnlocking(false);
+                }
+              }}
+            >
+              Send code
+            </button>
+            <label className="text-sm font-medium">Verification code</label>
+            <input
+              className="w-full h-11 rounded-xl border px-3"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="OTP"
+              inputMode="numeric"
+            />
+            {otpHint ? <p className="text-sm text-amber-700">{otpHint}</p> : null}
+            {unlockError ? <p className="text-sm text-red-600">{unlockError}</p> : null}
+            <button
+              type="button"
+              className="w-full h-11 rounded-xl bg-[#14532D] text-white font-semibold"
+              disabled={unlocking}
+              onClick={async () => {
+                setUnlockError(null);
+                setUnlocking(true);
+                try {
+                  const unlocked = await api.post<OrderDto>(`/orders/track/${orderNumber}/verify`, {
+                    phone,
+                    otp,
+                  });
+                  if (unlocked.trackToken) saveTrackToken(orderNumber, unlocked.trackToken);
+                  await refetch();
+                } catch (err) {
+                  setUnlockError(err instanceof Error ? err.message : 'Invalid code.');
+                } finally {
+                  setUnlocking(false);
+                }
+              }}
+            >
+              Unlock order
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!order) return null;
 
   const status = liveStatus || order.status;
   const currentIdx = TRACK_STEPS.findIndex((s) => s.key === status);

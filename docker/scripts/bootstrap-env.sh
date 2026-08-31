@@ -11,6 +11,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
+ANDROID_APP_CHANNEL_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
 POSTGRES_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)"
 
 cat > "$ENV_FILE" <<EOF
@@ -24,6 +25,7 @@ DATABASE_URL=postgresql://mdh:${POSTGRES_PASSWORD}@postgres:5432/mdh?schema=publ
 REDIS_URL=redis://redis:6379
 
 JWT_SECRET=${JWT_SECRET}
+ANDROID_APP_CHANNEL_SECRET=${ANDROID_APP_CHANNEL_SECRET}
 JWT_ACCESS_EXPIRES=15m
 JWT_REFRESH_EXPIRES=7d
 

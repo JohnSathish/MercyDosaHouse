@@ -20,6 +20,11 @@ export default function DeliveryChargesPage() {
     queryKey: ['delivery-zones'],
     queryFn: () => api.get<DeliveryZoneDto[]>('/delivery/zones'),
   });
+  const { data: settings } = useQuery({
+    queryKey: ['business-settings'],
+    queryFn: () => api.get<{ freeDeliveryLimit?: number }>('/settings/business'),
+  });
+  const freeDeliveryLimit = settings?.freeDeliveryLimit ?? 299;
 
   async function calculate() {
     const res = await api.get<{
@@ -86,7 +91,7 @@ export default function DeliveryChargesPage() {
               </Badge>
             </li>
             <li className="flex justify-between py-2 border-b">
-              <span>Free delivery above ₹299</span>
+              <span>Free delivery above {formatCurrency(freeDeliveryLimit)}</span>
               <Badge variant="outline" className="text-[10px]">
                 Active
               </Badge>

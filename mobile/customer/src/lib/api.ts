@@ -2,6 +2,7 @@ import type { PaginatedResult } from '@mdh/types';
 import { API_URL } from './constants';
 import { clearAuth, getAccessToken } from './auth-storage';
 import { refreshTokens } from './auth-api';
+import { getAppChannelToken } from './app-channel';
 
 export class ApiClient {
   private async request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
@@ -13,6 +14,10 @@ export class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (!path.startsWith('/auth/app-channel')) {
+      const appToken = await getAppChannelToken();
+      if (appToken) headers['X-MDH-App-Token'] = appToken;
+    }
 
     let res: Response;
     try {

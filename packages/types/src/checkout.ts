@@ -36,6 +36,8 @@ export interface AvailableCouponDto {
   startsAt?: string | null;
   endsAt?: string | null;
   description?: string | null;
+  appliesTo?: 'ALL' | 'WEBSITE' | 'ANDROID' | 'SPECIFIC_CUSTOMER';
+  usageMode?: 'EVERY_ORDER' | 'FIRST_ORDER' | 'FIRST_APP_ORDER';
 }
 
 export interface CheckoutSessionState {

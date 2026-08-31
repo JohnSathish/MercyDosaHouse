@@ -25,6 +25,7 @@ import {
   DashboardHeader,
   DashboardOverview,
   OrdersPanel,
+  InvoicesPanel,
   FavoritesPanel,
   AddressesPanel,
   CouponsPanel,
@@ -32,11 +33,14 @@ import {
   SettingsPanel,
 } from './dashboard-panels';
 import type { DashboardSection, UserProfile } from './types';
+import { FeedbackPanel } from '@/components/reviews/feedback-panel';
 
 const SECTION_TITLES: Record<DashboardSection, string> = {
   dashboard: 'Dashboard',
   orders: 'My Orders',
+  invoices: 'Invoices',
   favorites: 'Favorites',
+  feedback: 'My Feedback',
   addresses: 'Saved Addresses',
   coupons: 'Coupons',
   notifications: 'Notifications',
@@ -141,8 +145,12 @@ function DashboardInner() {
     switch (section) {
       case 'orders':
         return <OrdersPanel orders={orders} />;
+      case 'invoices':
+        return <InvoicesPanel />;
       case 'favorites':
         return <FavoritesPanel favorites={favorites} />;
+      case 'feedback':
+        return <FeedbackPanel />;
       case 'addresses':
         return (
           <AddressesPanel

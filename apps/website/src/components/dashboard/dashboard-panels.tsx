@@ -8,16 +8,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Heart, MapPin, Plus, Trash2, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { Button, Card, CardContent, Badge } from '@mdh/ui';
 import { formatCurrency, formatDate } from '@mdh/utils';
-import type { OrderDto, ProductDto, AddressDto } from '@mdh/types';
+import type { InvoiceListItemDto, OrderDto, ProductDto, AddressDto } from '@mdh/types';
+import { INVOICE_STATUS_LABELS } from '@mdh/types';
 import { EmptyState } from './empty-state';
 import { AddressFormDialog } from './address-form-dialog';
 import { StatCard } from './stat-card';
 import { getProductImage } from '@/lib/product-images';
-import { getHeaderDisplayName, getLoyaltyTier, getRewardPoints } from './types';
+import {
+  getHeaderDisplayName,
+  getLoyaltyTier,
+  getRewardPoints,
+  type DashboardSection,
+} from './types';
+import { RateOrderButton } from '@/components/reviews/review-form';
 import { useCartStore } from '@/lib/cart-store';
-import { api } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
+import { getAccessToken } from '@mdh/auth-client';
 import { useToastStore } from '@/lib/toast-store';
-import type { DashboardSection } from './types';
+import { useRouter } from 'next/navigation';
 
 interface DashboardContentProps {
   section: DashboardSection;
@@ -160,6 +168,9 @@ export function DashboardOverview({
 
 function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
   const addItem = useCartStore((s) => s.addItem);
+  const toast = useToastStore((s) => s.show);
+  const router = useRouter();
+  const [reordering, setReordering] = useState(false);
   const firstItem = order.items[0];
   const statusColor =
     order.status === 'DELIVERED'
@@ -167,6 +178,36 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
       : order.status === 'CANCELLED'
         ? 'destructive'
         : 'secondary';
+
+  async function reorderAll() {
+    setReordering(true);
+    let added = 0;
+    const skipped: string[] = [];
+    try {
+      for (const item of order.items) {
+        try {
+          const product = await api.get<ProductDto>(`/products/${item.productId}`);
+          if (product.isAvailable === false) {
+            skipped.push(item.productName);
+            continue;
+          }
+          addItem(product, item.variantId ?? undefined, item.quantity);
+          added += 1;
+        } catch {
+          skipped.push(item.productName);
+        }
+      }
+      if (added > 0) {
+        if (skipped.length) toast(`${skipped.length} item(s) unavailable and were skipped.`);
+        else toast('Items added to your cart.');
+        router.push('/cart');
+      } else {
+        toast('None of the items from this order are available right now.');
+      }
+    } finally {
+      setReordering(false);
+    }
+  }
 
   return (
     <div className="flex items-center gap-4 p-3 rounded-xl bg-[#FFF8E8]/60 hover:bg-[#FFF8E8] transition-colors">
@@ -183,6 +224,7 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
       <Badge variant={statusColor as 'success' | 'destructive' | 'secondary'}>
         {order.status.replace('_', ' ')}
       </Badge>
+      {!compact && <RateOrderButton order={order} />}
       {!compact && (
         <Link href={`/track/${order.orderNumber}`}>
           <Button size="sm" variant="outline" className="shrink-0">
@@ -193,24 +235,10 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
       <Button
         size="sm"
         className="shrink-0 bg-primary gap-1"
-        onClick={() => {
-          if (firstItem) {
-            addItem({
-              id: firstItem.productId,
-              name: firstItem.productName,
-              slug: '',
-              price: firstItem.unitPrice,
-              categoryId: '',
-              foodType: 'VEG',
-              spiceLevel: 'MILD',
-              prepTimeMinutes: 10,
-              isAvailable: true,
-              isPopular: false,
-            } as ProductDto);
-          }
-        }}
+        disabled={reordering || !order.items.length}
+        onClick={() => void reorderAll()}
       >
-        <RotateCcw className="w-3 h-3" /> Reorder
+        <RotateCcw className="w-3 h-3" /> {reordering ? 'Adding…' : 'Reorder'}
       </Button>
     </div>
   );
@@ -260,6 +288,72 @@ export function OrdersPanel({ orders }: { orders: OrderDto[] }) {
         <Card key={order.id} className="rounded-2xl shadow-md border-0 card-lift">
           <CardContent className="p-4">
             <OrderRow order={order} />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function InvoicesPanel() {
+  const toast = useToastStore((s) => s.show);
+  const { data: invoices = [], isLoading } = useQuery({
+    queryKey: ['my-invoices'],
+    queryFn: () => api.get<InvoiceListItemDto[]>('/invoices/mine'),
+  });
+
+  async function download(id: string, number: string) {
+    try {
+      const token = getAccessToken();
+      const res = await fetch(`${API_URL}/invoices/mine/${id}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error('Could not download invoice');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Download failed');
+    }
+  }
+
+  if (isLoading) return <p className="text-sm text-gray-500">Loading invoices…</p>;
+  if (!invoices.length) {
+    return (
+      <EmptyState
+        emoji="🧾"
+        title="No invoices yet"
+        description="Invoices linked to your account will appear here."
+        actionLabel="My Orders"
+        actionHref="/dashboard?tab=orders"
+      />
+    );
+  }
+  return (
+    <div className="space-y-3">
+      {invoices.map((inv) => (
+        <Card key={inv.id} className="rounded-2xl shadow-md border-0">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-[#14532D]">{inv.invoiceNumber}</p>
+              <p className="text-sm text-gray-500">{formatDate(inv.invoiceDate)}</p>
+              <p className="text-xs mt-1">{INVOICE_STATUS_LABELS[inv.status]}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold">{formatCurrency(inv.grandTotal)}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => void download(inv.id, inv.invoiceNumber)}
+              >
+                Download Invoice
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ))}

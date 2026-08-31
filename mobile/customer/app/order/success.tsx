@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { OrderDto } from '@mdh/types';
 import { formatCurrency, ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
+import { loadTrackToken } from '@/lib/auth-storage';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
 
@@ -46,7 +47,11 @@ export default function OrderSuccessScreen() {
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['order-receipt', orderNumber],
-    queryFn: () => api.get<OrderDto>(`/orders/track/${encodeURIComponent(orderNumber!)}`),
+    queryFn: async () => {
+      const token = await loadTrackToken(orderNumber!);
+      const q = token ? `?trackToken=${encodeURIComponent(token)}` : '';
+      return api.get<OrderDto>(`/orders/track/${encodeURIComponent(orderNumber!)}${q}`);
+    },
     enabled: !!orderNumber,
     retry: 1,
   });

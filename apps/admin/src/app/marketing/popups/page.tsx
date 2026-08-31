@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, CardContent, Input, Label, Textarea } from '@mdh/ui';
 import type {
@@ -11,8 +11,10 @@ import type {
 } from '@mdh/types';
 import { Copy, Eye, ImagePlus, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { API_URL, api } from '@/lib/api';
+import { APP_URLS } from '@/lib/app-urls';
 import { getAccessToken } from '@mdh/auth-client';
 import { useToastStore } from '@/lib/toast-store';
+import { resolvePublicMediaUrl, toStoredUploadPath } from '@mdh/utils';
 
 type LifecycleFilter = 'ALL' | 'ACTIVE' | 'SCHEDULED' | 'EXPIRED' | 'DISABLED';
 
@@ -79,31 +81,31 @@ function formatFrequency(value?: string | null) {
 }
 
 function resolveMediaUrl(value?: string | null) {
-  if (!value) return '';
-  const raw = value.trim();
-  const apiOrigin = (() => {
-    try {
-      return new URL(API_URL).origin;
-    } catch {
-      return window.location.origin;
-    }
-  })();
-  const websiteOrigin = process.env.NEXT_PUBLIC_WEBSITE_URL || window.location.origin;
-  const browserIsRemote = !['localhost', '127.0.0.1'].includes(window.location.hostname);
-  const publicOrigin =
-    browserIsRemote && apiOrigin.includes('localhost') ? websiteOrigin : apiOrigin;
-  if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
-    return `${publicOrigin}/${raw.replace(/^\/+/, '')}`;
+  return resolvePublicMediaUrl(value, APP_URLS.website);
+}
+
+function PopupImage({
+  src,
+  className,
+  alt = '',
+}: {
+  src?: string | null;
+  className?: string;
+  alt?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const resolved = src?.startsWith('blob:') ? src : resolveMediaUrl(src);
+  useEffect(() => {
+    setFailed(false);
+  }, [resolved]);
+  if (!resolved || failed) {
+    return (
+      <div className="flex h-full min-h-16 items-center justify-center text-xs text-muted-foreground">
+        {failed ? 'Image unavailable' : 'No image'}
+      </div>
+    );
   }
-  try {
-    const parsed = new URL(raw, window.location.origin);
-    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
-      return `${publicOrigin}${parsed.pathname}${parsed.search}`;
-    }
-    return parsed.toString();
-  } catch {
-    return raw;
-  }
+  return <img src={resolved} alt={alt} className={className} onError={() => setFailed(true)} />;
 }
 
 export default function PopupManagementPage() {
@@ -116,6 +118,7 @@ export default function PopupManagementPage() {
   const [previewMobile, setPreviewMobile] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
 
   const { data: popups = [], isLoading } = useQuery({
     queryKey: ['marketing-popups'],
@@ -147,6 +150,12 @@ export default function PopupManagementPage() {
         platform: 'WEBSITE',
         status: data.isActive ? 'PUBLISHED' : 'DRAFT',
         publishedAt: data.isActive ? (data.publishedAt ?? new Date().toISOString()) : null,
+        bannerImageUrl: data.bannerImageUrl
+          ? toStoredUploadPath(data.bannerImageUrl)
+          : data.bannerImageUrl,
+        heroBannerImageUrl: data.heroBannerImageUrl
+          ? toStoredUploadPath(data.heroBannerImageUrl)
+          : data.heroBannerImageUrl,
       };
       delete payload.id;
       delete payload.analytics;
@@ -194,6 +203,11 @@ export default function PopupManagementPage() {
   async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !form) return;
+    const blobUrl = URL.createObjectURL(file);
+    setLocalPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return blobUrl;
+    });
     setUploading(true);
     try {
       const body = new FormData();
@@ -207,8 +221,10 @@ export default function PopupManagementPage() {
       if (!response.ok) throw new Error('upload failed');
       const result = (await response.json()) as { url?: string };
       if (!result.url) throw new Error('missing URL');
-      const mediaUrl = resolveMediaUrl(result.url);
-      setForm({ ...form, bannerImageUrl: mediaUrl, heroBannerImageUrl: mediaUrl });
+      const mediaUrl = toStoredUploadPath(result.url);
+      setForm((current) =>
+        current ? { ...current, bannerImageUrl: mediaUrl, heroBannerImageUrl: mediaUrl } : current,
+      );
       toast('Popup image uploaded.');
     } catch {
       toast('Image upload failed.');
@@ -233,7 +249,13 @@ export default function PopupManagementPage() {
             Publish one prioritized, database-driven promotion to the customer homepage.
           </p>
         </div>
-        <Button className="gap-2 bg-[#14532D]" onClick={() => setForm(emptyPopup())}>
+        <Button
+          className="gap-2 bg-[#14532D]"
+          onClick={() => {
+            setLocalPreview(null);
+            setForm(emptyPopup());
+          }}
+        >
           <Plus className="h-4 w-4" /> New Popup
         </Button>
       </div>
@@ -279,17 +301,10 @@ export default function PopupManagementPage() {
               {visiblePopups.map((item) => (
                 <div key={item.id} className="flex flex-wrap items-center gap-4 p-4">
                   <div className="h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-[#FFF8E8]">
-                    {item.bannerImageUrl || item.heroBannerImageUrl ? (
-                      <img
-                        src={resolveMediaUrl(item.bannerImageUrl ?? item.heroBannerImageUrl)}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                        No image
-                      </div>
-                    )}
+                    <PopupImage
+                      src={item.bannerImageUrl ?? item.heroBannerImageUrl}
+                      className="h-full w-full object-contain"
+                    />
                   </div>
                   <div className="min-w-[180px] flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -312,7 +327,14 @@ export default function PopupManagementPage() {
                     <Button size="sm" variant="outline" onClick={() => setPreview(item)}>
                       <Eye className="mr-1 h-4 w-4" /> Preview
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setForm(item)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setLocalPreview(null);
+                        setForm(item);
+                      }}
+                    >
                       <Pencil className="mr-1 h-4 w-4" /> Edit
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => duplicate.mutate(item.id)}>
@@ -390,7 +412,14 @@ export default function PopupManagementPage() {
                     Changes are saved to the marketing database.
                   </p>
                 </div>
-                <Button variant="ghost" onClick={() => setForm(null)}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (localPreview) URL.revokeObjectURL(localPreview);
+                    setLocalPreview(null);
+                    setForm(null);
+                  }}
+                >
                   <X className="h-5 w-5" />
                 </Button>
               </div>
@@ -596,15 +625,22 @@ export default function PopupManagementPage() {
                   Active immediately
                 </label>
               </div>
-              {(form.bannerImageUrl || form.heroBannerImageUrl) && (
-                <img
-                  src={resolveMediaUrl(form.bannerImageUrl ?? form.heroBannerImageUrl)}
+              {(localPreview || form.bannerImageUrl || form.heroBannerImageUrl) && (
+                <PopupImage
+                  src={localPreview || form.bannerImageUrl || form.heroBannerImageUrl}
                   alt="Popup preview"
                   className="max-h-48 w-full rounded-lg bg-[#FFF8E8] object-contain"
                 />
               )}
               <div className="flex justify-end gap-2 border-t pt-4">
-                <Button variant="outline" onClick={() => setForm(null)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (localPreview) URL.revokeObjectURL(localPreview);
+                    setLocalPreview(null);
+                    setForm(null);
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -638,8 +674,8 @@ export default function PopupManagementPage() {
               <X className="h-4 w-4" />
             </button>
             {preview.bannerImageUrl || preview.heroBannerImageUrl ? (
-              <img
-                src={resolveMediaUrl(preview.bannerImageUrl ?? preview.heroBannerImageUrl)}
+              <PopupImage
+                src={preview.bannerImageUrl ?? preview.heroBannerImageUrl}
                 alt=""
                 className="max-h-[55vh] w-full object-contain"
               />

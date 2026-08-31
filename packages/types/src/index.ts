@@ -143,6 +143,10 @@ export interface OrderDto {
   orderNumber: string;
   status: OrderStatus;
   trackingStatus?: TrackingStatus | null;
+  orderType?: string;
+  locked?: boolean;
+  trackToken?: string;
+  otpChannel?: 'SMS' | 'EMAIL' | 'DELIVERY_CODE';
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
@@ -166,6 +170,7 @@ export interface OrderDto {
   paymentStatus: PaymentStatus;
   rejectReason?: string | null;
   items: OrderItemDto[];
+  reviewId?: string | null;
   statusHistory?: OrderStatusHistoryDto[];
   emailNotification?: OrderEmailNotificationDto;
   estimatedDeliveryMinutes?: number;
@@ -228,6 +233,7 @@ export interface BusinessSettingsDto {
   storeStatusChangedAt?: string | null;
   storeStatusChangedByName?: string | null;
   operatingSchedule?: import('./restaurant-status').OperatingScheduleDto | null;
+  feedback?: import('./reviews').FeedbackConfigDto;
 }
 
 export interface DashboardStatsDto {
@@ -244,18 +250,6 @@ export interface DashboardStatsDto {
   deliveredToday: number;
   cancelledOrders: number;
   popularItems: { name: string; count: number }[];
-}
-
-export interface ReviewDto {
-  id: string;
-  productId?: string | null;
-  userId: string;
-  userName: string;
-  rating: number;
-  comment?: string | null;
-  photos?: string[];
-  ownerReply?: string | null;
-  createdAt: string;
 }
 
 export interface CouponDto {
@@ -293,3 +287,6 @@ export * from './checkout';
 export * from './pos';
 export * from './marketing';
 export * from './notifications';
+export * from './reviews';
+export * from './invoices';
+export * from './app-promo';

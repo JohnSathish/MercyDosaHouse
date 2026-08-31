@@ -170,6 +170,10 @@ export class EmailService implements OnModuleInit {
         text: options.text,
         html: options.html,
         reply_to: options.replyTo,
+        attachments: options.attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content.toString('base64'),
+        })),
       }),
     });
     if (!res.ok) {
@@ -196,6 +200,11 @@ export class EmailService implements OnModuleInit {
           subject: options.subject,
           text: options.text,
           html: options.html,
+          attachments: options.attachments?.map((a) => ({
+            filename: a.filename,
+            content: a.content.toString('base64'),
+            contentType: a.contentType,
+          })),
         }),
       });
       if (!res.ok) throw new Error(`SMTP relay HTTP ${res.status}`);

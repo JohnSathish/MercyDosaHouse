@@ -2,6 +2,7 @@ import type { PaginatedResult } from '@mdh/types';
 import { API_URL } from './constants';
 import { clearAuth, getAccessToken } from './auth-storage';
 import { refreshTokens } from './auth-api';
+import { notifySessionInvalidated } from './auth-events';
 
 export class ApiClient {
   private async request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
@@ -25,6 +26,7 @@ export class ApiClient {
       const refreshed = await refreshTokens();
       if (refreshed) return this.request<T>(path, options, true);
       await clearAuth();
+      notifySessionInvalidated();
     }
 
     if (!res.ok) {

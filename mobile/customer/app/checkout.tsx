@@ -32,7 +32,7 @@ import {
   isChickenDumBiryaniProduct,
 } from '@mdh/utils';
 import { api } from '@/lib/api';
-import { getStoredUser, isAuthenticated } from '@/lib/auth-storage';
+import { getStoredUser, isAuthenticated, saveTrackToken } from '@/lib/auth-storage';
 import { useCartStore } from '@/stores/cart-store';
 import { useCheckoutStore } from '@/stores/checkout-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
@@ -340,6 +340,7 @@ function CheckoutScreenBody() {
       }
 
       const order = await api.post<OrderDto>('/orders', payload);
+      if (order.trackToken) await saveTrackToken(order.orderNumber, order.trackToken);
       clearCart();
       session.resetSession();
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -516,6 +517,19 @@ function CheckoutScreenBody() {
         {/* Admin-controlled discounts */}
         {couponsEnabled ? (
           <Section title="Offers & Discounts">
+            {availableCoupons.some((c) => c.appliesTo === 'ANDROID') ? (
+              <View style={styles.appExclusive}>
+                <Text style={styles.appExclusiveText}>
+                  📱 APP EXCLUSIVE
+                  {availableCoupons
+                    .filter((c) => c.appliesTo === 'ANDROID')
+                    .map((c) =>
+                      c.type === 'PERCENTAGE' ? ` — ${c.value}% OFF` : ` — ₹${c.value} OFF`,
+                    )
+                    .join('')}
+                </Text>
+              </View>
+            ) : null}
             {availableCoupons.length ? (
               <View style={styles.availableList}>
                 {availableCoupons.map((c) => {
@@ -527,6 +541,7 @@ function CheckoutScreenBody() {
                       onPress={() => void applyCoupon(c.code)}
                     >
                       <Text style={[styles.couponChipCode, selected && { color: '#fff' }]}>
+                        {c.appliesTo === 'ANDROID' ? '📱 APP EXCLUSIVE — ' : ''}
                         {c.name ?? c.code}
                       </Text>
                       <Text style={[styles.couponChipSave, selected && { color: '#FDE68A' }]}>
@@ -903,6 +918,13 @@ const styles = StyleSheet.create({
   couponChipActive: { borderColor: '#14532D', backgroundColor: '#14532D' },
   couponChipCode: { fontWeight: '800', color: '#14532D', fontSize: 14 },
   couponChipSave: { color: '#059669', fontWeight: '600', fontSize: 12, marginTop: 2 },
+  appExclusive: {
+    backgroundColor: '#14532D',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+  },
+  appExclusiveText: { color: '#FDE68A', fontWeight: '800', fontSize: 13 },
   appliedRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

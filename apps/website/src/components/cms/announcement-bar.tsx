@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
+import { useBusinessSettings } from '@/hooks/use-order-charges';
+import { liveChargesBannerMessage } from '@mdh/utils';
 
 const ROTATE_MS = 4500;
 
@@ -21,10 +23,24 @@ export const DEFAULT_BAR_ANNOUNCEMENTS: {
 
 export function AnnouncementBar() {
   const cms = useCmsContent();
+  const { data: settings } = useBusinessSettings();
   const reducedMotion = useReducedMotion();
   const [index, setIndex] = useState(0);
 
   const items = useMemo(() => {
+    const liveCharges = settings
+      ? [
+          {
+            id: 'bar-charges',
+            message: liveChargesBannerMessage({
+              packingCharge: settings.packingCharge,
+              deliveryCharge: settings.deliveryCharge,
+              freeDeliveryLimit: settings.freeDeliveryLimit ?? 299,
+            }),
+            linkUrl: '/menu',
+          },
+        ]
+      : [];
     const bars = cms?.announcements
       .filter((a) => a.type === 'BAR' && a.isActive)
       .sort((a, b) => a.title.localeCompare(b.title))
@@ -33,8 +49,9 @@ export function AnnouncementBar() {
         message: a.message,
         linkUrl: a.linkUrl ?? undefined,
       }));
-    return bars?.length ? bars : DEFAULT_BAR_ANNOUNCEMENTS;
-  }, [cms]);
+    const rest = bars?.length ? bars : DEFAULT_BAR_ANNOUNCEMENTS;
+    return [...liveCharges, ...rest];
+  }, [cms, settings]);
 
   useEffect(() => {
     setIndex(0);

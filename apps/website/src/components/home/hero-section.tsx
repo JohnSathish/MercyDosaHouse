@@ -12,6 +12,9 @@ import { HeroOrderNotification } from './hero-order-notification';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import { getHeroContent } from '@/lib/cms-content';
 import type { HeroSectionContent } from '@mdh/types';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type { ReviewSummaryDto } from '@mdh/types';
 
 const DEFAULT_HERO: HeroSectionContent = {
   badge: 'Authentic South Indian Flavours',
@@ -65,6 +68,20 @@ function HeroLeftContent({ compact = false }: { compact?: boolean }) {
   const cms = useCmsContent();
   const hero = (cms ? getHeroContent(cms) : null) ?? DEFAULT_HERO;
   const stats = hero.stats ?? HERO_STATS;
+  const { data: summary } = useQuery({
+    queryKey: ['review-summary'],
+    queryFn: () => api.get<ReviewSummaryDto>('/reviews/summary'),
+    staleTime: 60_000,
+  });
+  const hasRating = Boolean(summary && summary.totalReviews > 0);
+  const ratingLabel = hasRating ? `${summary!.averageRating} Rating` : null;
+  const liveStats = stats
+    .filter((stat) => !stat.label.toLowerCase().includes('rating') || hasRating)
+    .map((stat) =>
+      stat.label.toLowerCase().includes('rating') && summary
+        ? { ...stat, value: summary.averageRating }
+        : stat,
+    );
 
   return (
     <motion.div
@@ -89,17 +106,19 @@ function HeroLeftContent({ compact = false }: { compact?: boolean }) {
         {hero.subtitle}
       </p>
 
-      <div className={`flex items-center gap-2 mb-5 sm:mb-6 ${compact ? 'justify-center' : ''}`}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <FiStar key={i} className="w-4 h-4 sm:w-5 sm:h-5 fill-[#F59E0B] text-[#F59E0B]" />
-        ))}
-        <span className="text-white/90 font-medium ml-1 text-sm sm:text-base">4.9 Rating</span>
-      </div>
+      {ratingLabel ? (
+        <div className={`flex items-center gap-2 mb-5 sm:mb-6 ${compact ? 'justify-center' : ''}`}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <FiStar key={i} className="w-4 h-4 sm:w-5 sm:h-5 fill-[#F59E0B] text-[#F59E0B]" />
+          ))}
+          <span className="text-white/90 font-medium ml-1 text-sm sm:text-base">{ratingLabel}</span>
+        </div>
+      ) : null}
 
       <div
         className={`grid grid-cols-3 gap-2 sm:gap-3 mb-6 sm:mb-8 max-w-md ${compact ? 'mx-auto' : ''}`}
       >
-        {stats.map((stat, i) => (
+        {liveStats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 12 }}

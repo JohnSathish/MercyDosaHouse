@@ -5,6 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, CardContent, Input, Label } from '@mdh/ui';
 import { Check, Copy, Pencil, Plus, Power, Trash2, X } from 'lucide-react';
 import { api } from '@/lib/api';
+import type { AppDiscountPerformanceDto } from '@mdh/types';
+import { formatCurrency } from '@mdh/utils';
+import Link from 'next/link';
 
 type Discount = {
   id: string;
@@ -25,6 +28,8 @@ type Discount = {
   productIds: string[];
   categoryIds: string[];
   customerIds: string[];
+  appliesTo: 'ALL' | 'WEBSITE' | 'ANDROID' | 'SPECIFIC_CUSTOMER';
+  usageMode: 'EVERY_ORDER' | 'FIRST_ORDER' | 'FIRST_APP_ORDER';
 };
 
 type Option = { id: string; name: string };
@@ -66,6 +71,8 @@ const EMPTY: Draft = {
   productIds: [],
   categoryIds: [],
   customerIds: [],
+  appliesTo: 'ALL',
+  usageMode: 'EVERY_ORDER',
 };
 
 function rows<T>(value: T[] | { data?: T[] } | undefined): T[] {
@@ -104,6 +111,10 @@ export default function OffersDiscountsPage() {
     queryKey: ['discount-customers'],
     queryFn: () => api.get<{ data: Option[] }>('/customers?limit=500'),
   });
+  const { data: performance } = useQuery({
+    queryKey: ['app-discount-performance'],
+    queryFn: () => api.get<AppDiscountPerformanceDto>('/coupons/admin/app-performance'),
+  });
 
   const products = rows(productResponse);
   const categories = rows(categoriesResponse);
@@ -114,6 +125,7 @@ export default function OffersDiscountsPage() {
       editingId ? api.patch(`/coupons/${editingId}`, draft) : api.post('/coupons', draft),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['app-discount-performance'] });
       setFormOpen(false);
       setEditingId(null);
       setDraft(EMPTY);
@@ -122,15 +134,24 @@ export default function OffersDiscountsPage() {
   const toggle = useMutation({
     mutationFn: (discount: Discount) =>
       api.patch(`/coupons/${discount.id}`, { isActive: !discount.isActive }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['app-discount-performance'] });
+    },
   });
   const duplicate = useMutation({
     mutationFn: (id: string) => api.post(`/coupons/${id}/duplicate`, {}),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['app-discount-performance'] });
+    },
   });
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/coupons/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-discounts'] });
+      void queryClient.invalidateQueries({ queryKey: ['app-discount-performance'] });
+    },
   });
 
   const sortedDiscounts = useMemo(
@@ -154,6 +175,8 @@ export default function OffersDiscountsPage() {
       endsAt: discount.endsAt?.slice(0, 16) ?? '',
       startTime: discount.startTime ?? '',
       endTime: discount.endTime ?? '',
+      appliesTo: discount.appliesTo ?? 'ALL',
+      usageMode: discount.usageMode ?? 'EVERY_ORDER',
     });
     setFormOpen(true);
   }
@@ -182,12 +205,27 @@ export default function OffersDiscountsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#C17A08]">Marketing</p>
           <h1 className="text-2xl font-bold text-[#14532D]">Offers & Discounts</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create server-validated offers for products, categories, and customers.
+            Create server-validated offers for products, categories, customers, and the Android app.
           </p>
         </div>
-        <Button onClick={openCreate} className="bg-[#14532D]">
-          <Plus className="mr-2 h-4 w-4" /> Create Discount
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/settings/app-promo">
+            <Button variant="outline">App promotion</Button>
+          </Link>
+          <Button onClick={openCreate} className="bg-[#14532D]">
+            <Plus className="mr-2 h-4 w-4" /> Create Discount
+          </Button>
+        </div>
+      </div>
+
+      <h2 className="text-sm font-bold uppercase tracking-wide text-[#14532D]">Performance</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <Perf label="App Orders" value={String(performance?.appOrders ?? 0)} />
+        <Perf label="App Discount Orders" value={String(performance?.appDiscountOrders ?? 0)} />
+        <Perf label="Discount Given" value={formatCurrency(performance?.discountGiven ?? 0)} />
+        <Perf label="App Revenue" value={formatCurrency(performance?.appRevenue ?? 0)} />
+        <Perf label="New App Customers" value={String(performance?.newAppCustomers ?? 0)} />
+        <Perf label="App Conversion" value={`${performance?.appConversion ?? 0}%`} />
       </div>
 
       {formOpen ? (
@@ -296,6 +334,50 @@ export default function OffersDiscountsPage() {
                   onChange={(e) => setNumber('perCustomerUsageLimit', e.target.value)}
                 />
               </Field>
+              <Field label="Discount Applies To">
+                <div className="space-y-1.5 text-sm pt-1">
+                  {(
+                    [
+                      ['ALL', 'All Customers'],
+                      ['WEBSITE', 'Website Only'],
+                      ['ANDROID', 'Android App Only'],
+                      ['SPECIFIC_CUSTOMER', 'Specific Customer'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="appliesTo"
+                        checked={draft.appliesTo === value}
+                        onChange={() =>
+                          setDraft({
+                            ...draft,
+                            appliesTo: value,
+                            usageMode:
+                              value === 'ANDROID' && draft.usageMode === 'EVERY_ORDER'
+                                ? 'FIRST_APP_ORDER'
+                                : draft.usageMode,
+                          })
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Usage">
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={draft.usageMode}
+                  onChange={(e) =>
+                    setDraft({ ...draft, usageMode: e.target.value as Draft['usageMode'] })
+                  }
+                >
+                  <option value="EVERY_ORDER">Every eligible order</option>
+                  <option value="FIRST_APP_ORDER">First app order</option>
+                  <option value="FIRST_ORDER">First order (any channel)</option>
+                </select>
+              </Field>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <MultiField
@@ -385,11 +467,16 @@ export default function OffersDiscountsPage() {
                       {discount.type === 'PERCENTAGE' ? `${discount.value}%` : `₹${discount.value}`}
                     </td>
                     <td className="p-4">
-                      {discount.productIds.length ||
-                      discount.categoryIds.length ||
-                      discount.customerIds.length
-                        ? `${discount.productIds.length} products · ${discount.categoryIds.length} categories · ${discount.customerIds.length} customers`
-                        : 'All eligible orders'}
+                      {discount.appliesTo === 'ANDROID'
+                        ? 'Android App Only'
+                        : discount.appliesTo === 'WEBSITE'
+                          ? 'Website Only'
+                          : discount.appliesTo === 'SPECIFIC_CUSTOMER' ||
+                              discount.productIds.length ||
+                              discount.categoryIds.length ||
+                              discount.customerIds.length
+                            ? `${discount.productIds.length} products · ${discount.categoryIds.length} categories · ${discount.customerIds.length} customers`
+                            : 'All eligible orders'}
                     </td>
                     <td className="p-4">
                       {dateLabel(discount.startsAt)} – {dateLabel(discount.endsAt)}
@@ -434,6 +521,17 @@ export default function OffersDiscountsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function Perf({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <p className="text-[11px] text-muted-foreground">{label}</p>
+        <p className="text-lg font-bold text-[#14532D] mt-1">{value}</p>
+      </CardContent>
+    </Card>
   );
 }
 

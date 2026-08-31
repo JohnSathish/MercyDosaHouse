@@ -58,7 +58,7 @@ export default function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      await loginOtp(phone.trim(), otp.trim());
+      await loginOtp(phone.trim(), otp.trim(), remember);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Invalid OTP');
     } finally {

@@ -14,8 +14,10 @@ import { OrderStatus, TrackingStatus } from '@prisma/client';
 import { OrdersService } from './orders.service';
 import { Public, RequirePermissions, RequestUser } from '../../common/guards';
 import { PrismaService } from '../../prisma/prisma.service';
+import { orderChannelOf } from '../../common/app-channel.interceptor';
+import type { OrderChannel } from '../../common/app-channel.service';
 
-type AuthRequest = { user?: RequestUser };
+type AuthRequest = { user?: RequestUser; orderChannel?: OrderChannel };
 
 @ApiTags('orders')
 @Controller('orders')
@@ -27,7 +29,7 @@ export class OrdersController {
 
   @Public()
   @Post('quote')
-  quote(@Body() body: Record<string, unknown>, @Req() req: { user?: RequestUser }) {
+  quote(@Body() body: Record<string, unknown>, @Req() req: AuthRequest) {
     const items = body.items as { productId: string; variantId?: string; quantity: number }[];
     const scheduledAt = body.scheduledDeliveryAt as string | undefined;
     return this.ordersService.quote({
@@ -37,12 +39,14 @@ export class OrdersController {
       scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
       rewardPointsUsed: body.rewardPointsUsed as number | undefined,
       orderType: (body.orderType as 'DELIVERY' | 'ONLINE_PICKUP' | undefined) ?? 'DELIVERY',
+      orderSource: orderChannelOf(req),
+      customerPhone: body.customerPhone as string | undefined,
     });
   }
 
   @Public()
   @Post()
-  async create(@Body() body: Record<string, unknown>, @Req() req: { user?: RequestUser }) {
+  async create(@Body() body: Record<string, unknown>, @Req() req: AuthRequest) {
     const items = body.items as { productId: string; variantId?: string; quantity: number }[];
     const addressId = body.addressId as string | undefined;
     let address = body.address as
@@ -118,13 +122,40 @@ export class OrdersController {
       scheduledDeliveryAt: scheduledAt ? new Date(scheduledAt) : undefined,
       rewardPointsUsed: body.rewardPointsUsed as number | undefined,
       orderType: (body.orderType as 'DELIVERY' | 'ONLINE_PICKUP' | undefined) ?? 'DELIVERY',
+      orderSource: orderChannelOf(req),
     });
   }
 
   @Public()
   @Get('track/:orderNumber')
-  track(@Param('orderNumber') orderNumber: string) {
-    return this.ordersService.findByOrderNumber(orderNumber);
+  track(
+    @Param('orderNumber') orderNumber: string,
+    @Query('trackToken') trackToken: string | undefined,
+    @Req() req: AuthRequest,
+  ) {
+    return this.ordersService.findByOrderNumber(orderNumber, {
+      user: req.user,
+      trackToken,
+    });
+  }
+
+  @Public()
+  @Post('track/:orderNumber/otp')
+  requestTrackOtp(@Param('orderNumber') orderNumber: string, @Body() body: { phone?: string }) {
+    if (!body.phone?.trim()) throw new BadRequestException('Phone number is required');
+    return this.ordersService.requestTrackOtp(orderNumber, body.phone);
+  }
+
+  @Public()
+  @Post('track/:orderNumber/verify')
+  verifyTrackOtp(
+    @Param('orderNumber') orderNumber: string,
+    @Body() body: { phone?: string; otp?: string },
+  ) {
+    if (!body.phone?.trim() || !body.otp?.trim()) {
+      throw new BadRequestException('Phone number and code are required');
+    }
+    return this.ordersService.verifyTrackOtp(orderNumber, body.phone, body.otp);
   }
 
   @ApiBearerAuth()

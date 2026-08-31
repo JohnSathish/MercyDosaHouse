@@ -13,6 +13,22 @@ import { useDeliveryLocationSharing } from '@/hooks/use-delivery-location';
 
 const OSMWebView = WebView as unknown as ComponentType<any>;
 
+function nextOrderActions(status: string, orderType?: string) {
+  const pickup =
+    orderType === 'ONLINE_PICKUP' || orderType === 'TAKEAWAY' || orderType === 'DINE_IN';
+  const chain: { s: string; title: string }[] = [
+    { s: 'ACCEPTED', title: 'Confirm Order' },
+    { s: 'PREPARING', title: 'Start Cooking' },
+    { s: 'READY', title: 'Mark Ready' },
+  ];
+  if (!pickup) chain.push({ s: 'OUT_FOR_DELIVERY', title: '🛵 Start Delivery' });
+  chain.push({ s: 'DELIVERED', title: pickup ? 'Mark Collected' : 'Mark Delivered' });
+  const idx = chain.findIndex((step) => step.s === status);
+  if (status === 'CANCELLED' || status === 'DELIVERED' || status === 'SERVED') return [];
+  if (idx < 0) return [chain[0]];
+  return chain.slice(idx + 1, idx + 2);
+}
+
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -164,13 +180,7 @@ export default function OrderDetailScreen() {
         <Card>
           <Text style={styles.heading}>Update order</Text>
           <View style={styles.actions}>
-            {[
-              { s: 'ACCEPTED', title: 'Confirm Order' },
-              { s: 'PREPARING', title: 'Start Cooking' },
-              { s: 'READY', title: 'Mark Ready' },
-              { s: 'OUT_FOR_DELIVERY', title: '🛵 Start Delivery' },
-              { s: 'DELIVERED', title: 'Mark Delivered' },
-            ].map(({ s, title }) => (
+            {nextOrderActions(o.status, o.orderType).map(({ s, title }) => (
               <PrimaryButton
                 key={s}
                 title={title}
@@ -180,28 +190,32 @@ export default function OrderDetailScreen() {
               />
             ))}
           </View>
-          <TextInput
-            style={styles.input}
-            placeholder="Cancellation reason"
-            value={reason}
-            onChangeText={setReason}
-            placeholderTextColor={theme.colors.muted}
-          />
-          <PrimaryButton
-            title="Cancel Order"
-            variant="danger"
-            onPress={() =>
-              Alert.alert('Cancel order?', 'This action updates the customer order.', [
-                { text: 'Keep' },
-                {
-                  text: 'Cancel order',
-                  style: 'destructive',
-                  onPress: () => action.mutate({ status: 'CANCELLED' }),
-                },
-              ])
-            }
-            loading={action.isPending && action.variables?.status === 'CANCELLED'}
-          />
+          {['CANCELLED', 'DELIVERED'].includes(String(o.status)) ? null : (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Cancellation reason"
+                value={reason}
+                onChangeText={setReason}
+                placeholderTextColor={theme.colors.muted}
+              />
+              <PrimaryButton
+                title="Cancel Order"
+                variant="danger"
+                onPress={() =>
+                  Alert.alert('Cancel order?', 'This action updates the customer order.', [
+                    { text: 'Keep' },
+                    {
+                      text: 'Cancel order',
+                      style: 'destructive',
+                      onPress: () => action.mutate({ status: 'CANCELLED' }),
+                    },
+                  ])
+                }
+                loading={action.isPending && action.variables?.status === 'CANCELLED'}
+              />
+            </>
+          )}
         </Card>
         <PrimaryButton
           title="Resend Order Email"

@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 import { Leaf, ShieldCheck, Clock, Award, Star, Users, Flame } from 'lucide-react';
 import { BRAND } from '@mdh/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import type { ReviewSummaryDto } from '@mdh/types';
 
 const SHOWCASE_ITEMS = [
   { src: '/images/idli-4-pieces.png', label: 'Soft Idli', tag: '4 pcs' },
@@ -32,6 +35,17 @@ const VALUE_PROPS = [
 
 export function LoginBrandingPanel() {
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+  const { data: summary } = useQuery({
+    queryKey: ['review-summary'],
+    queryFn: () => api.get<ReviewSummaryDto>('/reviews/summary'),
+    staleTime: 60_000,
+  });
+  const trustStats =
+    summary && summary.totalReviews > 0
+      ? TRUST_STATS.map((s) =>
+          s.label === 'Average Rating' ? { ...s, value: `${summary.averageRating}★` } : s,
+        )
+      : TRUST_STATS.filter((s) => s.label !== 'Average Rating');
 
   return (
     <div className="relative hidden lg:grid lg:grid-cols-2 min-h-[calc(100vh-4.5rem)] overflow-hidden bg-[#0f3d24]">
@@ -74,7 +88,7 @@ export function LoginBrandingPanel() {
           </p>
 
           <div className="grid grid-cols-3 gap-3 mt-8">
-            {TRUST_STATS.map(({ icon: Icon, value, label }) => (
+            {trustStats.map(({ icon: Icon, value, label }) => (
               <div
                 key={label}
                 className="rounded-xl bg-white/10 border border-white/12 px-2 py-3 text-center"

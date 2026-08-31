@@ -14,6 +14,7 @@ import { useCartStore } from '@/lib/cart-store';
 import { useUiStore } from '@/lib/ui-store';
 import type { ProductDto, CategoryDto } from '@mdh/types';
 import { FoodType } from '@mdh/types';
+import { AppPromoBanner } from '@/components/marketing/app-promo-banner';
 
 const CATEGORY_EMOJI: Record<string, string> = {
   dosa: '🥞',
@@ -104,6 +105,9 @@ export function MenuPageClient() {
           <p className="text-gray-500 mt-2">
             Authentic South Indian flavours — dosas, biryani, idly & more
           </p>
+          <div className="mt-4">
+            <AppPromoBanner placement="menu" />
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -164,6 +168,7 @@ export function MenuPageClient() {
             <div className="lg:hidden mb-6">
               <OrderChargesInfoCard
                 compact
+                packingPerOrder={charges.settings?.packingCharge}
                 baseDeliveryCharge={charges.baseDeliveryCharge}
                 deliveryIsFree={charges.deliveryIsFree}
                 freeDeliveryLimit={charges.freeDeliveryLimit}
@@ -211,6 +216,7 @@ export function MenuPageClient() {
           <aside className="hidden lg:block w-80 shrink-0">
             <div className="sticky top-24 space-y-4">
               <OrderChargesInfoCard
+                packingPerOrder={charges.settings?.packingCharge}
                 baseDeliveryCharge={charges.baseDeliveryCharge}
                 deliveryIsFree={charges.deliveryIsFree}
                 freeDeliveryLimit={charges.freeDeliveryLimit}

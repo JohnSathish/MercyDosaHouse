@@ -3,11 +3,15 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useQuery } from '@tanstack/react-query';
 import { FiTruck, FiShield, FiHeart, FiStar, FiCoffee, FiChevronDown } from 'react-icons/fi';
 import { AnimatedCounter } from './hero-animated-counter';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import { getSectionContent } from '@/lib/cms-content';
 import { BRAND } from '@mdh/utils';
+import { api } from '@/lib/api';
+import { GALLERY_PREVIEW_ITEMS } from '@/lib/gallery-images';
+import type { ReviewDto, ReviewSummaryDto } from '@mdh/types';
 
 const WHY_ITEMS = [
   {
@@ -18,7 +22,7 @@ const WHY_ITEMS = [
   { icon: FiTruck, title: 'Fast Delivery', desc: 'Hot food at your door in 25–30 minutes' },
   { icon: FiShield, title: 'Hygienic Kitchen', desc: 'Clean, safe & certified food preparation' },
   { icon: FiHeart, title: 'Homemade Taste', desc: 'Traditional recipes with love' },
-  { icon: FiStar, title: 'Customer Favourite', desc: '4.9 rating from happy customers' },
+  { icon: FiStar, title: 'Customer Favourite', desc: 'Loved by our guests in Tura' },
 ];
 
 export function WhyChooseUsSection() {
@@ -65,48 +69,69 @@ export function WhyChooseUsSection() {
   );
 }
 
-const TESTIMONIALS = [
-  { name: 'John', text: 'The best dosa in Tura. Crispy, fresh and always on time!' },
-  { name: 'Mary', text: 'Crispy and delicious. The masala dosa is my favourite!' },
-  { name: 'Priya', text: 'Chicken biryani is amazing. Highly recommend Mercy Dosa House.' },
-];
-
 export function TestimonialsSection() {
-  const cms = useCmsContent();
-  const testimonials = cms?.testimonials?.length
-    ? cms.testimonials.map((t) => ({ name: t.customerName, text: t.comment }))
-    : TESTIMONIALS;
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['public-reviews-home'],
+    queryFn: () => api.get<ReviewDto[]>('/reviews?limit=6'),
+    staleTime: 60_000,
+  });
+  const { data: summary } = useQuery({
+    queryKey: ['review-summary'],
+    queryFn: () => api.get<ReviewSummaryDto>('/reviews/summary'),
+    staleTime: 60_000,
+  });
+
+  if (!reviews.length) return null;
 
   return (
     <section className="py-16 bg-[#FFF8E8]">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-[#14532D] text-center mb-10">Customer Reviews</h2>
+        <h2 className="text-3xl font-bold text-[#14532D] text-center mb-3">
+          ❤️ What Our Customers Say
+        </h2>
+        {summary && summary.totalReviews > 0 ? (
+          <p className="text-center text-gray-600 mb-10">
+            ⭐ {summary.averageRating}/5 · Based on {summary.totalReviews} customer reviews
+          </p>
+        ) : (
+          <div className="mb-10" />
+        )}
         <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((t, i) => (
+          {reviews.slice(0, 3).map((t) => (
             <motion.div
-              key={t.name}
+              key={t.id}
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
               className="bg-white rounded-2xl p-6 shadow-md card-lift"
             >
               <div className="flex gap-0.5 text-secondary mb-3">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <FiStar key={s} className="w-4 h-4 fill-current" />
+                  <FiStar
+                    key={s}
+                    className={`w-4 h-4 ${s <= t.rating ? 'fill-current' : 'text-gray-200'}`}
+                  />
                 ))}
               </div>
-              <p className="text-gray-600 italic mb-4">&ldquo;{t.text}&rdquo;</p>
-              <p className="font-semibold text-[#14532D]">— {t.name}</p>
+              <p className="text-gray-600 italic mb-4">
+                &ldquo;{t.comment || 'Great food and service.'}&rdquo;
+              </p>
+              <p className="font-semibold text-[#14532D]">— {t.customerName}</p>
+              {t.verified ? (
+                <p className="text-[11px] font-bold text-emerald-700 mt-1">✓ Verified Order</p>
+              ) : null}
             </motion.div>
           ))}
+        </div>
+        <div className="text-center mt-8">
+          <Link href="/reviews" className="text-primary font-semibold hover:underline">
+            View All Reviews
+          </Link>
         </div>
       </div>
     </section>
   );
 }
-
-import { GALLERY_PREVIEW_ITEMS } from '@/lib/gallery-images';
 
 export function GalleryPreviewSection() {
   return (

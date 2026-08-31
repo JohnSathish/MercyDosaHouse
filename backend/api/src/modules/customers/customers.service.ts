@@ -560,7 +560,7 @@ export class CustomersService {
   async replyReview(reviewId: string, reply: string) {
     return this.prisma.review.update({
       where: { id: reviewId },
-      data: { ownerReply: reply },
+      data: { ownerReply: reply, ownerRepliedAt: new Date() },
     });
   }
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
+import { liveChargesBannerMessage } from '@mdh/utils';
 import type { MarketingAnnouncementDto } from '@mdh/types';
 import { isHomeDeliveryActive } from '@mdh/types';
 import { WEBSITE_URL } from '@/lib/constants';
@@ -20,8 +21,12 @@ function topBarAnnouncement(
 export function AnnouncementBar() {
   const config = useAppConfig();
   const item = topBarAnnouncement(config);
-  const message = item ? (item.icon ? `${item.icon} ${item.message}` : item.message) : null;
-  if (!message) return null;
+  const charges = liveChargesBannerMessage({
+    packingCharge: config.delivery.packingCharge ?? 20,
+    deliveryCharge: config.delivery.deliveryCharge,
+    freeDeliveryLimit: config.delivery.freeDeliveryLimit ?? 299,
+  });
+  const message = item ? (item.icon ? `${item.icon} ${item.message}` : item.message) : charges;
 
   return (
     <View style={styles.bar}>

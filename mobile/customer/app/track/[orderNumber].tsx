@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -18,7 +19,7 @@ import type { LiveDeliveryLocationDto, OrderDto } from '@mdh/types';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { buildOsmMapHtml } from '@mdh/mobile-shared';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth-storage';
+import { getAccessToken, loadTrackToken, saveTrackToken } from '@/lib/auth-storage';
 import { SOCKET_URL } from '@/lib/constants';
 import { OrderTimeline } from '@/components/order-timeline';
 import { SupportLinks } from '@/components/support-links';
@@ -34,13 +35,24 @@ export default function TrackOrderScreen() {
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
 
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpHint, setOtpHint] = useState<string | null>(null);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+
   const {
     data: order,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['order', orderNumber],
-    queryFn: () => api.get<OrderDto>(`/orders/track/${encodeURIComponent(orderNumber)}`),
+    queryFn: async () => {
+      const token = orderNumber ? await loadTrackToken(orderNumber) : null;
+      const q = token ? `?trackToken=${encodeURIComponent(token)}` : '';
+      return api.get<OrderDto>(`/orders/track/${encodeURIComponent(orderNumber)}${q}`);
+    },
     enabled: !!orderNumber,
     retry: 1,
     refetchInterval: 30_000,
@@ -102,6 +114,86 @@ export default function TrackOrderScreen() {
             <Text style={styles.link}>View My Orders</Text>
           </Pressable>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (order.locked) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={[styles.title, { color: colors.primary }]}>Verify to track</Text>
+          <Text style={styles.message}>
+            Enter the phone number used for {order.orderNumber}, then request a code.
+          </Text>
+          <TextInput
+            style={styles.unlockInput}
+            placeholder="10-digit mobile"
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+          />
+          <Pressable
+            disabled={unlocking}
+            onPress={async () => {
+              setUnlockError(null);
+              setUnlocking(true);
+              try {
+                const res = await api.post<{
+                  channel: string;
+                  hint?: string;
+                  destination?: string;
+                }>(`/orders/track/${encodeURIComponent(orderNumber!)}/otp`, { phone });
+                setOtpHint(
+                  res.hint ||
+                    (res.channel === 'DELIVERY_CODE'
+                      ? 'Enter the 4-digit delivery code from your confirmation.'
+                      : `Code sent to ${res.destination}`),
+                );
+              } catch (err) {
+                setUnlockError(err instanceof Error ? err.message : 'Could not send code.');
+              } finally {
+                setUnlocking(false);
+              }
+            }}
+          >
+            <Text style={[styles.link, { color: colors.primary }]}>Send code</Text>
+          </Pressable>
+          <TextInput
+            style={styles.unlockInput}
+            placeholder="Verification code"
+            keyboardType="number-pad"
+            value={otp}
+            onChangeText={setOtp}
+          />
+          {otpHint ? <Text style={styles.eta}>{otpHint}</Text> : null}
+          {unlockError ? <Text style={styles.errorTitle}>{unlockError}</Text> : null}
+          <Pressable
+            disabled={unlocking}
+            onPress={async () => {
+              setUnlockError(null);
+              setUnlocking(true);
+              try {
+                const unlocked = await api.post<OrderDto>(
+                  `/orders/track/${encodeURIComponent(orderNumber!)}/verify`,
+                  { phone, otp },
+                );
+                if (unlocked.trackToken && orderNumber) {
+                  await saveTrackToken(orderNumber, unlocked.trackToken);
+                }
+                await refetch();
+              } catch (err) {
+                setUnlockError(err instanceof Error ? err.message : 'Invalid code.');
+              } finally {
+                setUnlocking(false);
+              }
+            }}
+          >
+            <Text style={[styles.statusBadgeText, { color: colors.primary, fontWeight: '800' }]}>
+              Unlock order
+            </Text>
+          </Pressable>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -348,5 +440,13 @@ const styles = StyleSheet.create({
   muted: { color: '#6B7280', fontSize: 13 },
   supportTitle: { fontWeight: '700', color: '#14532D', marginVertical: 12 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#14532D' },
+  unlockInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    color: '#1F2937',
+  },
   link: { color: '#14532D', fontWeight: '600', marginTop: 12 },
 });

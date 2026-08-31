@@ -1,5 +1,13 @@
 export type DashboardSection =
-  'dashboard' | 'orders' | 'favorites' | 'addresses' | 'coupons' | 'notifications' | 'settings';
+  | 'dashboard'
+  | 'orders'
+  | 'invoices'
+  | 'favorites'
+  | 'feedback'
+  | 'addresses'
+  | 'coupons'
+  | 'notifications'
+  | 'settings';
 
 export interface UserProfile {
   id: string;

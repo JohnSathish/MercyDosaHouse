@@ -11,7 +11,7 @@ import type { OrderDto, BusinessSettingsDto } from '@mdh/types';
 import { CheckCircle2, Download, ExternalLink, Home, Printer, Share2, Truck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { OrderReceipt } from '@/components/receipt/order-receipt';
-import { loadLastOrder } from '@/lib/last-order';
+import { loadLastOrder, loadTrackToken } from '@/lib/last-order';
 import {
   downloadReceiptPdf,
   openReceiptPdf,
@@ -57,7 +57,11 @@ function OrderSuccessContent() {
 
   const { data: fetchedOrder, isLoading } = useQuery({
     queryKey: ['order-success', orderNumber],
-    queryFn: () => api.get<OrderDto>(`/orders/track/${orderNumber}`),
+    queryFn: () => {
+      const token = loadTrackToken(orderNumber!);
+      const q = token ? `?trackToken=${encodeURIComponent(token)}` : '';
+      return api.get<OrderDto>(`/orders/track/${orderNumber}${q}`);
+    },
     enabled:
       !!orderNumber && cacheReady && (!cachedOrder || cachedOrder.orderNumber !== orderNumber),
   });

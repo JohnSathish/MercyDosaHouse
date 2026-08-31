@@ -78,6 +78,8 @@ export default function RootLayout() {
               <Stack.Screen name="settings" />
               <Stack.Screen name="help" />
               <Stack.Screen name="favorites" />
+              <Stack.Screen name="feedback" />
+              <Stack.Screen name="invoices" />
               <Stack.Screen name="search" />
               <Stack.Screen name="maintenance" options={{ gestureEnabled: false }} />
               <Stack.Screen name="force-update" options={{ gestureEnabled: false }} />

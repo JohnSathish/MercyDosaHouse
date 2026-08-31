@@ -87,6 +87,7 @@ module.exports = ({ config }) => ({
     eas: { projectId: '7c4ea25c-3039-4162-af72-fcca67b623de' },
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? PRODUCTION_API,
     websiteUrl: process.env.EXPO_PUBLIC_WEBSITE_URL ?? PRODUCTION_WEBSITE,
+    appChannelSecret: process.env.ANDROID_APP_CHANNEL_SECRET || '',
   },
   owner: 'johnsathish',
 });

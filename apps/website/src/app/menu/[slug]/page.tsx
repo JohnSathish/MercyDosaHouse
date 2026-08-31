@@ -11,7 +11,7 @@ import { api } from '@/lib/api';
 import { getProductImage } from '@/lib/product-images';
 import { useCartStore } from '@/lib/cart-store';
 import { ProductDetailSkeleton } from '@/components/skeletons/product-detail-skeleton';
-import type { ProductDto } from '@mdh/types';
+import type { ProductDto, ReviewSummaryDto } from '@mdh/types';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -22,6 +22,11 @@ export default function ProductDetailPage() {
     queryKey: ['product', slug],
     queryFn: () => api.get<ProductDto>(`/products/slug/${slug}`),
     enabled: !!slug,
+  });
+  const { data: productRating } = useQuery({
+    queryKey: ['review-summary', product?.id],
+    queryFn: () => api.get<ReviewSummaryDto>(`/reviews/summary?productId=${product!.id}`),
+    enabled: Boolean(product?.id),
   });
 
   if (isLoading) return <ProductDetailSkeleton />;
@@ -92,9 +97,20 @@ export default function ProductDetailPage() {
 
             <div className="flex items-center gap-1 text-secondary mb-4">
               {[1, 2, 3, 4, 5].map((i) => (
-                <FiStar key={i} className="w-4 h-4 fill-current" />
+                <FiStar
+                  key={i}
+                  className={`w-4 h-4 ${
+                    productRating && i <= Math.round(productRating.averageRating)
+                      ? 'fill-current'
+                      : 'text-gray-200'
+                  }`}
+                />
               ))}
-              <span className="text-gray-500 text-sm ml-1">(120 reviews)</span>
+              <span className="text-gray-500 text-sm ml-1">
+                {productRating && productRating.totalReviews > 0
+                  ? `${productRating.averageRating}/5 (${productRating.totalReviews} reviews)`
+                  : 'No reviews yet'}
+              </span>
             </div>
 
             <p className="text-3xl font-bold text-primary mb-4">{formatCurrency(product.price)}</p>

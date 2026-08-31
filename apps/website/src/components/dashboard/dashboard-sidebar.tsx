@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
-import { LayoutDashboard, ShoppingBag, Heart, MapPin, Ticket, Bell, Settings } from 'lucide-react';
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Heart,
+  MapPin,
+  Ticket,
+  Bell,
+  Settings,
+  Star,
+  FileText,
+} from 'lucide-react';
 import { Badge } from '@mdh/ui';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { DashboardSection, UserProfile } from './types';
@@ -15,7 +25,9 @@ const NAV: {
 }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'orders', label: 'My Orders', icon: ShoppingBag },
+  { id: 'invoices', label: 'Invoices', icon: FileText },
   { id: 'favorites', label: 'Favorites', icon: Heart },
+  { id: 'feedback', label: 'My Feedback', icon: Star },
   { id: 'addresses', label: 'Saved Addresses', icon: MapPin },
   { id: 'coupons', label: 'Coupons', icon: Ticket },
   { id: 'notifications', label: 'Notifications', icon: Bell },

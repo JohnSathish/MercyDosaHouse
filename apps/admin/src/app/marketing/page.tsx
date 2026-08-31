@@ -463,6 +463,10 @@ export default function MarketingHubPage() {
                   </div>
                   <div className="sm:col-span-2">
                     <Label>Message</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Use {'{packingCharge}'}, {'{deliveryCharge}'}, and {'{freeDeliveryLimit}'} to
+                      insert live Settings prices.
+                    </p>
                     <Textarea
                       value={form.message ?? ''}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}

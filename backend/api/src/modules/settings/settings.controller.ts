@@ -72,6 +72,46 @@ export class SettingsController {
   }
 
   @Public()
+  @Get('feedback')
+  getFeedbackConfig() {
+    return this.settingsService.getFeedbackConfig();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('feedback')
+  updateFeedbackConfig(@Body() body: Record<string, unknown>) {
+    return this.settingsService.updateFeedbackConfig(body);
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.read')
+  @Get('invoice')
+  getInvoiceConfig() {
+    return this.settingsService.getInvoiceConfig();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('invoice')
+  updateInvoiceConfig(@Body() body: Record<string, unknown>) {
+    return this.settingsService.updateInvoiceConfig(body);
+  }
+
+  @Public()
+  @Get('app-promo')
+  getAppPromo() {
+    return this.settingsService.getAppPromoConfig();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('app-promo')
+  updateAppPromo(@Body() body: Record<string, unknown>) {
+    return this.settingsService.updateAppPromoConfig(body);
+  }
+
+  @Public()
   @Get('banners')
   getBanners(@Query('all') all?: string) {
     return this.settingsService.getBanners(all !== 'true');
