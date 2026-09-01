@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { io, type Socket } from 'socket.io-client';
 import { SOCKET_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/auth-storage';
@@ -24,7 +25,7 @@ export function useOrdersSocket(enabled: boolean) {
         const token = await getAccessToken();
         if (cancelled) return;
         socket = io(`${SOCKET_URL}/orders`, {
-          transports: ['websocket', 'polling'],
+          ...SOCKET_IO_CLIENT_OPTIONS,
           auth: token ? { token } : undefined,
         });
         const invalidate = () => {

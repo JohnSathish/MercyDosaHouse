@@ -1,9 +1,14 @@
 import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { SOCKET_IO_PATH } from '@mdh/utils';
 import { getWebSocketCorsConfig } from '../../common/ws-cors';
 
-@WebSocketGateway({ namespace: '/notifications', cors: getWebSocketCorsConfig() })
+@WebSocketGateway({
+  namespace: '/notifications',
+  path: SOCKET_IO_PATH,
+  cors: getWebSocketCorsConfig(),
+})
 export class NotificationsGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;

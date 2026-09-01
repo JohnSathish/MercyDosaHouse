@@ -45,13 +45,15 @@ MDH = """
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto https;
     }
-    location ^~ /socket.io/ {
+    location ^~ /socket.io {
       proxy_pass http://172.17.0.1:13001;
       proxy_http_version 1.1;
       proxy_set_header Upgrade $http_upgrade;
       proxy_set_header Connection "upgrade";
       proxy_set_header Host $host;
       proxy_set_header X-Forwarded-Proto https;
+      proxy_read_timeout 86400;
+      proxy_send_timeout 86400;
     }
     location ^~ /uploads/ {
       proxy_pass http://172.17.0.1:13001/uploads/;

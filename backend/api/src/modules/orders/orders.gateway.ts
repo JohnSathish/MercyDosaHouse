@@ -5,11 +5,12 @@ import {
   OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { SOCKET_IO_PATH } from '@mdh/utils';
 import { getWebSocketCorsConfig } from '../../common/ws-cors';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 
-@WebSocketGateway({ namespace: '/orders', cors: getWebSocketCorsConfig() })
+@WebSocketGateway({ namespace: '/orders', path: SOCKET_IO_PATH, cors: getWebSocketCorsConfig() })
 export class OrdersGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;

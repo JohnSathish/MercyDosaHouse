@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { io, Socket } from 'socket.io-client';
 import { getAccessToken } from '@mdh/auth-client';
 import type { InboxListDto, InboxNotificationDto } from '@mdh/types';
@@ -35,7 +36,7 @@ export function useNotificationsSocket() {
   useEffect(() => {
     const token = getAccessToken();
     const socket = io(`${API_BASE}/notifications`, {
-      transports: ['websocket', 'polling'],
+      ...SOCKET_IO_CLIENT_OPTIONS,
       auth: token ? { token } : undefined,
     });
     socketRef.current = socket;

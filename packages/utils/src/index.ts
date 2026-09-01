@@ -1,3 +1,12 @@
+/** Engine.IO HTTP path. Must live under `/api` so production nginx already proxies it. */
+export const SOCKET_IO_PATH = '/api/socket.io';
+
+export const SOCKET_IO_CLIENT_OPTIONS = {
+  path: SOCKET_IO_PATH,
+  transports: ['polling', 'websocket'] as ('polling' | 'websocket')[],
+  timeout: 10_000,
+};
+
 export const BRAND = {
   name: 'Mercy Dosa House',
   tagline: 'Freshly Made. Delivered With Love.',

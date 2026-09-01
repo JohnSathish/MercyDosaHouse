@@ -16,7 +16,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { io, Socket } from 'socket.io-client';
 import type { LiveDeliveryLocationDto, OrderDto } from '@mdh/types';
-import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
+import { formatCurrency, ORDER_STATUS_LABELS, SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { buildOsmMapHtml } from '@mdh/mobile-shared';
 import { api } from '@/lib/api';
 import { getAccessToken, loadTrackToken, saveTrackToken } from '@/lib/auth-storage';
@@ -76,9 +76,8 @@ export default function TrackOrderScreen() {
     void getAccessToken().then((token) => {
       if (cancelled || !token) return;
       socket = io(`${SOCKET_URL}/orders`, {
+        ...SOCKET_IO_CLIENT_OPTIONS,
         auth: { token },
-        transports: ['websocket', 'polling'],
-        timeout: 10_000,
       });
       socket.emit('subscribe', order.id);
       const onUpdate = (data: { status: string; message?: string }) => {

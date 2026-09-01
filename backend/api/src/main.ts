@@ -8,12 +8,14 @@ import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { ProductionExceptionFilter } from './common/filters/http-exception.filter';
 import { assertProductionEnv } from './common/production-guard';
+import { AppIoAdapter } from './common/app-io.adapter';
 import { getAllowedCorsOrigins } from './common/ws-cors';
 
 async function bootstrap() {
   assertProductionEnv();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.useWebSocketAdapter(new AppIoAdapter(app));
   const isProduction = process.env.NODE_ENV === 'production';
 
   const uploadDir = process.env.UPLOAD_DIR || './uploads';

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
+import { SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { getAccessToken } from '@mdh/auth-client';
 import type { DeliveryDashboardDto, DeliveryOrderDto } from '@mdh/types';
 
@@ -64,8 +65,8 @@ export function useDeliveryLiveUpdates(orderIds: string[]) {
     const apiUrl =
       process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, '') || 'http://localhost:3001';
     const socket = io(`${apiUrl}/orders`, {
+      ...SOCKET_IO_CLIENT_OPTIONS,
       auth: { token },
-      transports: ['websocket', 'polling'],
       reconnection: true,
     });
 

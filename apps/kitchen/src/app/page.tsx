@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Badge } from '@mdh/ui';
-import { ORDER_STATUS_LABELS } from '@mdh/utils';
+import { SOCKET_IO_CLIENT_OPTIONS, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { OrderStatus, type KitchenDashboardDto, type KitchenOrderDto } from '@mdh/types';
 import { api } from '@/lib/api';
 import { io } from 'socket.io-client';
@@ -21,7 +21,7 @@ export default function KitchenPage() {
   });
 
   useEffect(() => {
-    const socket = io(`${API_BASE}/orders`, { transports: ['websocket', 'polling'] });
+    const socket = io(`${API_BASE}/orders`, SOCKET_IO_CLIENT_OPTIONS);
     socket.on('newOrder', () => {
       queryClient.invalidateQueries({ queryKey: ['kds-dashboard'] });
       if (!muted) {

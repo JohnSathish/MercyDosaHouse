@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { io, Socket } from 'socket.io-client';
 import { useToastStore } from '@/lib/toast-store';
 import { playKitchenSound } from '@/lib/kitchen-sounds';
@@ -19,10 +20,7 @@ export function useKitchenSocket(muted: boolean) {
   }, [muted]);
 
   useEffect(() => {
-    const socket = io(`${API_BASE}/orders`, {
-      transports: ['websocket', 'polling'],
-      timeout: 10_000,
-    });
+    const socket = io(`${API_BASE}/orders`, SOCKET_IO_CLIENT_OPTIONS);
     socketRef.current = socket;
 
     socket.on('newOrder', (order: { orderNumber?: string; priority?: string }) => {

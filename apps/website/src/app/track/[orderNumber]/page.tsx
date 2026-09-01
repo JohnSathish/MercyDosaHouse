@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Badge, Card, CardContent } from '@mdh/ui';
-import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
+import { formatCurrency, ORDER_STATUS_LABELS, SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@mdh/auth-client';
 import { loadTrackToken, saveTrackToken } from '@/lib/last-order';
@@ -81,9 +81,8 @@ export default function TrackOrderPage() {
     if (!token) return;
     {
       socket = io(`${API_BASE}/orders`, {
+        ...SOCKET_IO_CLIENT_OPTIONS,
         auth: { token },
-        transports: ['websocket', 'polling'],
-        timeout: 10_000,
       });
       socket.emit('subscribe', order.id);
       const onUpdate = (data: { status: string }) => setLiveStatus(data.status);

@@ -5,9 +5,10 @@ import {
   OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { SOCKET_IO_PATH } from '@mdh/utils';
 import { getWebSocketCorsConfig } from '../../common/ws-cors';
 
-@WebSocketGateway({ namespace: '/pos', cors: getWebSocketCorsConfig() })
+@WebSocketGateway({ namespace: '/pos', path: SOCKET_IO_PATH, cors: getWebSocketCorsConfig() })
 export class PosGateway implements OnGatewayConnection {
   @WebSocketServer()
   server: Server;

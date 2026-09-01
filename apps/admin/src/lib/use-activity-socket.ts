@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { SOCKET_IO_CLIENT_OPTIONS } from '@mdh/utils';
 import { io, Socket } from 'socket.io-client';
 import type { ActivityLogDto } from '@mdh/types';
 
@@ -29,10 +30,7 @@ export function useActivitySocket(onNewActivity?: (log: ActivityLogDto) => void)
   );
 
   useEffect(() => {
-    const socket = io(`${API_BASE}/activity`, {
-      transports: ['websocket', 'polling'],
-      timeout: 10_000,
-    });
+    const socket = io(`${API_BASE}/activity`, SOCKET_IO_CLIENT_OPTIONS);
     socketRef.current = socket;
 
     socket.on('connect', () => setConnected(true));
