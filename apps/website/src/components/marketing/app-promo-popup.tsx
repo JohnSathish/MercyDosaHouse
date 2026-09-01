@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AppPromoConfigDto } from '@mdh/types';
+import { X } from 'lucide-react';
 import { FaGooglePlay } from 'react-icons/fa';
 import { ANDROID_APP_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
@@ -34,10 +35,29 @@ export function AppPromoPopup() {
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      onClick={close}
+    >
+      <div
+        className="relative w-full max-w-md rounded-2xl bg-white p-5 pt-12 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app-promo-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={close}
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-[#14532D] transition hover:bg-[#14532D]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A000]"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" strokeWidth={2.5} />
+        </button>
         <p className="text-xs font-bold text-[#C17A08]">APP EXCLUSIVE</p>
-        <h2 className="text-xl font-bold text-[#14532D] mt-1">{data.title}</h2>
+        <h2 id="app-promo-title" className="mt-1 text-xl font-bold text-[#14532D]">
+          {data.title}
+        </h2>
         <p className="text-sm text-gray-600 mt-2">{data.body}</p>
         <p className="text-sm text-gray-500 mt-2">
           Download the Mercy Dosa House App to unlock exclusive offers. This discount is not applied
