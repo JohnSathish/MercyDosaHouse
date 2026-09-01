@@ -862,8 +862,22 @@ export default function MarketingHubPage() {
             <Eye className="w-4 h-4" /> Preview
           </p>
           <p className="mt-1">
-            Changes publish instantly to the website and Android app via API — no rebuild required.
+            Product promotions appear on the website homepage immediately after the hero when{' '}
+            <strong>Website enabled</strong> is on and the announcement is published. Open the live
+            site to preview before customers see a draft.
           </p>
+          {form?.promotionProductId ? (
+            <div className="mt-3 overflow-hidden rounded-2xl bg-[#14532D] p-4 text-white">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FBBF24]">
+                Sunday Special preview
+              </p>
+              <p className="mt-1 text-lg font-black">{form.title || 'CHICKEN DUM BIRYANI'}</p>
+              <p className="text-sm text-white/75">
+                {form.ctaText || 'PRE-BOOK YOUR BIRYANI'} · Ready{' '}
+                {form.promotionReadyTime || '13:00'}
+              </p>
+            </div>
+          ) : null}
           <Link
             href={APP_URLS.website}
             target="_blank"

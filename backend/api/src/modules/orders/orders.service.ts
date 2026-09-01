@@ -402,11 +402,41 @@ export class OrdersService implements OnModuleInit {
     const chickenBiryaniProducts = products.filter((product) =>
       isChickenDumBiryaniProduct(product),
     );
-    if (
-      chickenBiryaniProducts.length > 0 &&
-      !isChickenBiryaniScheduleMatch(data.scheduledDeliveryAt)
-    ) {
-      throw new BadRequestException(CHICKEN_BIRYANI_VALIDATION_MESSAGE);
+    const chickenPromotion =
+      chickenBiryaniProducts.length > 0
+        ? await this.prisma.announcement.findFirst({
+            where: {
+              promotionProductId: { in: chickenBiryaniProducts.map((product) => product.id) },
+              promotionPreOrderRequired: true,
+              isActive: true,
+              status: ContentStatus.PUBLISHED,
+              OR: [{ startsAt: null }, { startsAt: { lte: now } }],
+              AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+            },
+            orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+          })
+        : null;
+    if (chickenBiryaniProducts.length > 0) {
+      const chickenScheduleOk =
+        chickenPromotion?.promotionDayOfWeek != null && chickenPromotion.promotionReadyTime
+          ? isPromotionScheduleMatch(
+              data.scheduledDeliveryAt ?? '',
+              {
+                dayOfWeek: chickenPromotion.promotionDayOfWeek,
+                readyTime: chickenPromotion.promotionReadyTime,
+                preOrderRequired: chickenPromotion.promotionPreOrderRequired,
+                preOrderCutoffDay: chickenPromotion.promotionPreOrderCutoffDay,
+              },
+              now,
+            )
+          : isChickenBiryaniScheduleMatch(data.scheduledDeliveryAt);
+      if (!chickenScheduleOk) {
+        throw new BadRequestException(
+          chickenPromotion?.promotionReadyTime
+            ? `Chicken Dum Biryani is available only on the configured Sunday at ${formatPromotionTime(chickenPromotion.promotionReadyTime)}. Pre-order by Saturday.`
+            : CHICKEN_BIRYANI_VALIDATION_MESSAGE,
+        );
+      }
     }
     if (
       preOrderProducts.some(
@@ -422,9 +452,7 @@ export class OrdersService implements OnModuleInit {
       );
     }
 
-    const promotionProducts = preOrderProducts.filter(
-      (product) => !isChickenDumBiryaniProduct(product),
-    );
+    const promotionProducts = preOrderProducts;
     const promotion = promotionProducts.length
       ? await this.prisma.announcement.findFirst({
           where: {

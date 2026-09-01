@@ -26,16 +26,17 @@ import { Button, cn } from '@mdh/ui';
 import {
   formatCurrency,
   buildScheduledDeliveryIso,
-  CHICKEN_BIRYANI_TIME_SLOT,
   CHICKEN_BIRYANI_VALIDATION_MESSAGE,
   getChickenBiryaniScheduleOptions,
   getScheduleDateOptions,
   firstPreOrderDate,
   formatPromotionTime,
+  promotionDeliverySlot,
   formatPackingLabel,
   PAYMENT_METHOD_LABELS,
   isChickenBiryaniScheduleMatch,
   isChickenDumBiryaniProduct,
+  isPromotionScheduleMatch,
 } from '@mdh/utils';
 import { useOrderCharges } from '@/hooks/use-order-charges';
 import { AddressType, DELIVERY_TIME_SLOTS, PAYMENT_OPTIONS } from '@mdh/types';
@@ -228,7 +229,12 @@ export function CheckoutPageClient() {
     () => getScheduleDateOptions(7, new Date(), preOrderConfig),
     [preOrderConfig],
   );
-  const chickenScheduleDates = useMemo(() => getChickenBiryaniScheduleOptions(7), []);
+  const chickenScheduleDates = useMemo(
+    () =>
+      getChickenBiryaniScheduleOptions(7, new Date(), linkedPromotion?.promotionNextAvailableDate),
+    [linkedPromotion?.promotionNextAvailableDate],
+  );
+  const chickenSlot = promotionDeliverySlot(linkedPromotion?.promotionReadyTime);
 
   const promotionScheduleDates = useMemo(() => {
     if (!linkedPromotion?.promotionNextAvailableDate) return scheduleDates;
@@ -251,6 +257,10 @@ export function CheckoutPageClient() {
       (!linkedPromotion || item.productId === linkedPromotion.promotionProductId),
   );
   const hasChickenBiryani = items.some((item) => isChickenDumBiryaniProduct(item.product));
+  const chickenSoldOut =
+    hasChickenBiryani &&
+    linkedPromotion?.promotionRemainingQuantity != null &&
+    linkedPromotion.promotionRemainingQuantity <= 0;
   const mustSchedule = hasChickenBiryani || items.some((item) => item.product.isPreOrder);
   const availableScheduleDates = hasChickenBiryani
     ? chickenScheduleDates
@@ -407,13 +417,13 @@ export function CheckoutPageClient() {
       if (first) session.setScheduledDate(first);
       if (!session.scheduledSlot) {
         const readyTime = hasChickenBiryani
-          ? CHICKEN_BIRYANI_TIME_SLOT
+          ? chickenSlot
           : linkedPromotion?.promotionReadyTime
             ? formatPromotionTime(linkedPromotion.promotionReadyTime)
             : '8:00 AM';
         session.setScheduledSlot(
           hasChickenBiryani
-            ? CHICKEN_BIRYANI_TIME_SLOT
+            ? chickenSlot
             : (DELIVERY_TIME_SLOTS.find((slot) => slot.startsWith(readyTime)) ??
                 '8:00 AM - 9:00 AM'),
         );
@@ -423,6 +433,7 @@ export function CheckoutPageClient() {
     searchParams,
     availableScheduleDates,
     hasChickenBiryani,
+    chickenSlot,
     promotionScheduleDates,
     linkedPromotion,
     mustSchedule,
@@ -434,8 +445,8 @@ export function CheckoutPageClient() {
     if (!chickenScheduleDates.some((date) => date.value === session.scheduledDate)) {
       session.setScheduledDate(firstSunday);
     }
-    if (session.scheduledSlot !== CHICKEN_BIRYANI_TIME_SLOT) {
-      session.setScheduledSlot(CHICKEN_BIRYANI_TIME_SLOT);
+    if (session.scheduledSlot !== chickenSlot) {
+      session.setScheduledSlot(chickenSlot);
     }
     if (session.deliveryTiming !== 'scheduled') {
       session.setDeliveryTiming('scheduled');
@@ -443,6 +454,7 @@ export function CheckoutPageClient() {
   }, [
     hasChickenBiryani,
     chickenScheduleDates,
+    chickenSlot,
     session.deliveryTiming,
     session.scheduledDate,
     session.scheduledSlot,
@@ -562,6 +574,10 @@ export function CheckoutPageClient() {
       return;
     }
     if (!items.length) return;
+    if (chickenSoldOut) {
+      toast('Sold Out / Pre-orders Closed');
+      return;
+    }
 
     if (
       session.deliveryTiming === 'scheduled' &&
@@ -570,9 +586,25 @@ export function CheckoutPageClient() {
       toast('Please choose a delivery date and time slot');
       return;
     }
-    if (hasChickenBiryani && !isChickenBiryaniScheduleMatch(buildScheduledIso())) {
-      toast(CHICKEN_BIRYANI_VALIDATION_MESSAGE);
-      return;
+    if (hasChickenBiryani) {
+      const iso = buildScheduledIso();
+      const scheduleOk =
+        linkedPromotion?.promotionDayOfWeek != null && linkedPromotion.promotionReadyTime
+          ? isPromotionScheduleMatch(iso ?? '', {
+              dayOfWeek: linkedPromotion.promotionDayOfWeek,
+              readyTime: linkedPromotion.promotionReadyTime,
+              preOrderRequired: linkedPromotion.promotionPreOrderRequired ?? true,
+              preOrderCutoffDay: linkedPromotion.promotionPreOrderCutoffDay,
+            })
+          : isChickenBiryaniScheduleMatch(iso);
+      if (!scheduleOk) {
+        toast(
+          linkedPromotion
+            ? `Chicken Dum Biryani is available only on Sunday at ${formatPromotionTime(linkedPromotion.promotionReadyTime)}. Pre-order by Saturday.`
+            : CHICKEN_BIRYANI_VALIDATION_MESSAGE,
+        );
+        return;
+      }
     }
 
     const user = getStoredUser();
@@ -897,7 +929,7 @@ export function CheckoutPageClient() {
                     const first = firstPreOrderDate(availableScheduleDates);
                     if (first) session.setScheduledDate(first);
                     if (hasChickenBiryani) {
-                      session.setScheduledSlot(CHICKEN_BIRYANI_TIME_SLOT);
+                      session.setScheduledSlot(chickenSlot);
                     }
                   }
                 }}
@@ -928,16 +960,25 @@ export function CheckoutPageClient() {
             <div className="space-y-3">
               {hasChickenBiryani ? (
                 <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                  <p className="font-bold">🍗 Chicken Dum Biryani — Sunday Special</p>
+                  <p className="font-bold">Chicken Dum Biryani — Sunday Special</p>
                   <p>
-                    Available only on Sundays. Freshly prepared and ready for delivery between 1:00
-                    PM – 2:00 PM.
+                    Available only on Sundays. Ready for delivery {chickenSlot}. Pre-order by{' '}
+                    {linkedPromotion?.promotionPreOrderCutoffDay === 6 ||
+                    linkedPromotion?.promotionPreOrderCutoffDay == null
+                      ? 'Saturday'
+                      : 'the configured cut-off day'}
+                    .
                   </p>
-                  <p className="font-semibold">📅 Pre-order by Saturday</p>
-                  <p className="text-xs">
-                    Please place your order one day in advance so we can prepare your biryani fresh
-                    according to demand.
-                  </p>
+                  {chickenSoldOut ? (
+                    <p className="font-black text-red-800">Sold Out / Pre-orders Closed</p>
+                  ) : linkedPromotion?.promotionRemainingQuantity != null ? (
+                    <p className="font-semibold">
+                      Limited Sunday quantity · {linkedPromotion.promotionRemainingQuantity}{' '}
+                      remaining
+                    </p>
+                  ) : (
+                    <p className="font-semibold">Limited Sunday quantity — pre-book early</p>
+                  )}
                 </div>
               ) : hasPromotionItem && linkedPromotion ? (
                 <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
@@ -963,23 +1004,21 @@ export function CheckoutPageClient() {
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                {(hasChickenBiryani ? [CHICKEN_BIRYANI_TIME_SLOT] : DELIVERY_TIME_SLOTS).map(
-                  (slot) => (
-                    <button
-                      key={slot}
-                      type="button"
-                      onClick={() => session.setScheduledSlot(slot)}
-                      className={cn(
-                        'py-2 px-2 rounded-xl text-[11px] font-medium border',
-                        session.scheduledSlot === slot
-                          ? 'border-[#14532D] bg-[#14532D]/5 text-[#14532D]'
-                          : 'border-gray-100',
-                      )}
-                    >
-                      {slot}
-                    </button>
-                  ),
-                )}
+                {(hasChickenBiryani ? [chickenSlot] : DELIVERY_TIME_SLOTS).map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => session.setScheduledSlot(slot)}
+                    className={cn(
+                      'py-2 px-2 rounded-xl text-[11px] font-medium border',
+                      session.scheduledSlot === slot
+                        ? 'border-[#14532D] bg-[#14532D]/5 text-[#14532D]'
+                        : 'border-gray-100',
+                    )}
+                  >
+                    {slot}
+                  </button>
+                ))}
               </div>
             </div>
           )}
@@ -1205,13 +1244,21 @@ export function CheckoutPageClient() {
       {/* Desktop CTA */}
       <Button
         type="button"
-        onClick={() => (storeOpen ? setConfirmOpen(true) : toast(orderBlockedMessage))}
+        onClick={() => {
+          if (chickenSoldOut) {
+            toast('Sold Out / Pre-orders Closed');
+            return;
+          }
+          storeOpen ? setConfirmOpen(true) : toast(orderBlockedMessage);
+        }}
         className="w-full mt-6 h-14 rounded-2xl bg-[#14532D] hover:bg-[#14532D]/90 text-lg font-semibold hidden lg:flex"
-        disabled={placing || !storeOpen}
+        disabled={placing || !storeOpen || chickenSoldOut}
       >
-        {storeOpen
-          ? `Review & Place Order · ${formatCurrency(grandTotal)}`
-          : 'Restaurant Closed — Orders Paused'}
+        {chickenSoldOut
+          ? 'Sold Out / Pre-orders Closed'
+          : storeOpen
+            ? `Review & Place Order · ${formatCurrency(grandTotal)}`
+            : 'Restaurant Closed — Orders Paused'}
       </Button>
 
       {/* Mobile sticky bar */}
@@ -1225,12 +1272,20 @@ export function CheckoutPageClient() {
           </div>
           <Button
             type="button"
-            onClick={() => (storeOpen ? setConfirmOpen(true) : toast(orderBlockedMessage))}
-            disabled={placing || !storeOpen}
+            onClick={() => {
+              if (chickenSoldOut) {
+                toast('Sold Out / Pre-orders Closed');
+                return;
+              }
+              storeOpen ? setConfirmOpen(true) : toast(orderBlockedMessage);
+            }}
+            disabled={placing || !storeOpen || chickenSoldOut}
             className="flex-1 min-h-[52px] rounded-2xl bg-gradient-to-r from-[#14532D] to-[#1a6b3c] font-semibold"
           >
             {placing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : chickenSoldOut ? (
+              'Sold Out'
             ) : storeOpen ? (
               'Place Order'
             ) : (

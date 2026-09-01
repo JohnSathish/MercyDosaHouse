@@ -85,6 +85,19 @@ export function formatPromotionTime(value: string | null | undefined): string {
   return `${hour % 12 || 12}:${String(minutes % 60).padStart(2, '0')} ${suffix}`;
 }
 
+/** One-hour delivery window starting at the configured ready time (default 1:00 PM – 2:00 PM). */
+export function promotionDeliverySlot(readyTime: string | null | undefined): string {
+  const start = promotionTimeToMinutes(readyTime) ?? 13 * 60;
+  const end = start + 60;
+  const fmt = (total: number) => {
+    const hour = Math.floor(total / 60) % 24;
+    const minute = total % 60;
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${suffix}`;
+  };
+  return `${fmt(start)} - ${fmt(end)}`;
+}
+
 export function isPromotionScheduleMatch(
   scheduledAt: Date | string,
   schedule: PromotionSchedule,

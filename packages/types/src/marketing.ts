@@ -62,6 +62,7 @@ export interface MarketingPromotionProductDto {
   name: string;
   slug: string;
   price: number;
+  packingCharge?: number | null;
   imageUrl?: string | null;
   description?: string | null;
   ingredients?: string | null;

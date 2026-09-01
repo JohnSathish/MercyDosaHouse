@@ -857,6 +857,7 @@ export class MarketingService {
       name: string;
       slug: string;
       price: Prisma.Decimal;
+      packingCharge?: Prisma.Decimal | null;
       imageUrl: string | null;
       description: string | null;
       ingredients: string | null;
@@ -937,6 +938,7 @@ export class MarketingService {
             name: a.promotionProduct.name,
             slug: a.promotionProduct.slug,
             price: Number(a.promotionProduct.price),
+            packingCharge: Number(a.promotionProduct.packingCharge ?? 20),
             imageUrl: a.promotionProduct.imageUrl,
             description: a.promotionProduct.description,
             ingredients: a.promotionProduct.ingredients,

@@ -117,6 +117,7 @@ export function firstPreOrderDate(options: ScheduleDateOption[]): string | null 
 export function getChickenBiryaniScheduleOptions(
   count = 7,
   now = new Date(),
+  firstDate?: string | null,
 ): ScheduleDateOption[] {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: DEFAULT_TIMEZONE,
@@ -130,7 +131,7 @@ export function getChickenBiryaniScheduleOptions(
   const daysUntilSunday = weekday === 0 ? 7 : 7 - Math.max(0, weekday);
   const todayKey = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
 
-  return Array.from({ length: count }, (_, index) => {
+  const dates = Array.from({ length: count }, (_, index) => {
     const date = new Date(todayKey + (daysUntilSunday + index * 7) * 86_400_000);
     const value = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
     const label = new Intl.DateTimeFormat('en-IN', {
@@ -146,6 +147,9 @@ export function getChickenBiryaniScheduleOptions(
       qualifiesForPreOrder: true,
     };
   });
+  if (!firstDate) return dates;
+  const start = dates.findIndex((option) => option.value >= firstDate);
+  return start >= 0 ? dates.slice(start) : dates;
 }
 
 export function isChickenBiryaniScheduleMatch(
