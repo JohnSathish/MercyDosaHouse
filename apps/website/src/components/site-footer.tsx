@@ -4,6 +4,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { BRAND } from '@mdh/utils';
 import { SiteLogo } from '@/components/site-logo';
 import { LiveVisitorCounter } from '@/components/live-visitor-counter';
+import { FooterAppDownload } from '@/components/footer-app-download';
 
 const BASECODE_LABS_URL = 'https://basecodelabs.com';
 
@@ -67,6 +68,7 @@ export function SiteFooter({
 
   return (
     <footer className="bg-[#0B542F] text-white">
+      <FooterAppDownload />
       <div
         className={`container mx-auto px-4 ${compact ? 'py-10 grid grid-cols-1 gap-8' : 'py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4'}`}
       >

@@ -11,6 +11,7 @@ import { useCartStore } from '@/lib/cart-store';
 import { useUiStore } from '@/lib/ui-store';
 import { PRIMARY_NAV } from '@/lib/site-nav';
 import { formatCurrency } from '@mdh/utils';
+import { GooglePlayBadge } from '@/components/google-play-badge';
 
 interface SiteHeaderProps {
   /** When true, header is inside the fixed top stack (not independently fixed) */
@@ -58,7 +59,7 @@ export function SiteHeader({ embedded = false }: SiteHeaderProps) {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] ${
+                className={`rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] ${
                   active
                     ? 'bg-[#0B542F]/5 text-[#0B542F]'
                     : 'text-[#18352A]/75 hover:bg-[#0B542F]/5 hover:text-[#0B542F]'
@@ -71,6 +72,9 @@ export function SiteHeader({ embedded = false }: SiteHeaderProps) {
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
+          <div className="hidden lg:block">
+            <GooglePlayBadge size="sm" />
+          </div>
           <Link
             href="/cart"
             className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#0B542F]/15 bg-white px-3 py-2 text-sm font-semibold text-[#0B542F] shadow-sm transition hover:border-[#F5A000]/50 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A000]"

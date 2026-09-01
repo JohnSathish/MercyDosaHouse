@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AppPromoConfigDto } from '@mdh/types';
 import { FaGooglePlay } from 'react-icons/fa';
-import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
+import { ANDROID_APP_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
 
 const KEY = 'mdh_app_promo_popup_v1';
@@ -26,7 +26,7 @@ export function AppPromoPopup() {
 
   if (!open || !data) return null;
 
-  const playUrl = data.playStoreUrl || ANDROID_PLAY_STORE_URL;
+  const playUrl = ANDROID_APP_URL;
 
   function close() {
     sessionStorage.setItem(KEY, '1');

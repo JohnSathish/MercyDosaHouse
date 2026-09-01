@@ -1,15 +1,14 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { Menu, ShoppingCart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Menu, ShoppingCart, Smartphone } from 'lucide-react';
 import { SiteLogoMark } from '@/components/site-logo';
-import { BRAND, formatCurrency } from '@mdh/utils';
+import { ANDROID_APP_URL, BRAND, formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
 import { useUiStore } from '@/lib/ui-store';
 import { useEffect, useState } from 'react';
 
 export function MobileTopBar({ embedded = false }: { embedded?: boolean }) {
-  const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const items = useCartStore((s) => s.items);
@@ -34,6 +33,15 @@ export function MobileTopBar({ embedded = false }: { embedded?: boolean }) {
           <SiteLogoMark size="sm" showName />
         </button>
         <div className="flex items-center gap-0.5">
+          <a
+            href={ANDROID_APP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-11 min-w-11 items-center justify-center rounded-xl text-[#0B542F]"
+            aria-label="Download the Mercy Dosa House app"
+          >
+            <Smartphone className="h-5 w-5" />
+          </a>
           <button
             type="button"
             onClick={openCart}

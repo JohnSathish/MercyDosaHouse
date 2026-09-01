@@ -12,7 +12,7 @@ import type {
   ProductDto,
 } from '@mdh/types';
 import {
-  ANDROID_PLAY_STORE_URL,
+  ANDROID_APP_URL,
   calculateDeliveryCharge,
   calculatePackingTotal,
   formatCurrency,
@@ -109,7 +109,7 @@ export function ChickenDumBiryaniLanding({
     product.description?.trim() ||
     'Fragrant basmati rice, tender chicken and traditional dum-cooked flavour — freshly prepared for Sunday.';
   const appDiscount = liveAppDiscountPct(offers);
-  const playHref = appPromo?.playStoreUrl || ANDROID_PLAY_STORE_URL;
+  const playHref = ANDROID_APP_URL;
 
   const checkoutHref = `/checkout?product=${encodeURIComponent(product.slug)}${
     promotion?.id ? `&promotion=${encodeURIComponent(promotion.id)}` : ''

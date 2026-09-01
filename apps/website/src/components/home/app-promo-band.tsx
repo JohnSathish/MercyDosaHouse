@@ -2,34 +2,14 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
-import type { AppPromoConfigDto, OfferDto } from '@mdh/types';
-import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
+import type { AppPromoConfigDto } from '@mdh/types';
+import { ANDROID_APP_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { GooglePlayBadge } from '@/components/google-play-badge';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { trackMarketingEvent } from '@/lib/marketing-content';
-
-function liveAppOnlyDiscountPct(offers: OfferDto[]): number | null {
-  const now = Date.now();
-  for (const offer of offers) {
-    if (!offer.isActive) continue;
-    if (offer.startsAt && new Date(offer.startsAt).getTime() > now) continue;
-    if (offer.endsAt && new Date(offer.endsAt).getTime() < now) continue;
-    const blob =
-      `${offer.type} ${offer.title} ${offer.displayPosition ?? ''} ${offer.buttonUrl ?? ''} ${offer.description ?? ''}`.toLowerCase();
-    const isAppOnly =
-      blob.includes('android') ||
-      blob.includes('app-only') ||
-      blob.includes('app only') ||
-      offer.type.toUpperCase() === 'APP' ||
-      offer.type.toUpperCase() === 'ANDROID';
-    if (isAppOnly && offer.discountPct != null && offer.discountPct > 0) {
-      return offer.discountPct;
-    }
-  }
-  return null;
-}
+import { liveAppOnlyDiscountPct } from '@/lib/android-app';
 
 function PhoneFrame({ src, alt, className }: { src: string; alt: string; className?: string }) {
   return (
@@ -55,7 +35,7 @@ export function AppPromoBand() {
   if (!data?.enabled || !data.showOnWebsite) return null;
 
   const discountPct = liveAppOnlyDiscountPct(cms?.offers ?? []);
-  const playHref = data.playStoreUrl || ANDROID_PLAY_STORE_URL;
+  const playHref = ANDROID_APP_URL;
   const appAnnouncement =
     marketing?.announcements?.find((item) =>
       `${item.ctaUrl ?? ''} ${item.linkUrl ?? ''}`.toLowerCase().includes('play.google'),

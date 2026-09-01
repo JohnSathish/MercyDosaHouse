@@ -8,9 +8,12 @@ export const SOCKET_IO_CLIENT_OPTIONS = {
   timeout: 10_000,
 };
 
-/** Customer app on Google Play */
-export const ANDROID_PLAY_STORE_URL =
+/** Customer Android app. Change this once to update every website Play Store link. */
+export const ANDROID_APP_URL =
   'https://play.google.com/store/apps/details?id=com.mercydosahouse.customer&pcampaignid=web_share';
+
+/** @deprecated Use ANDROID_APP_URL */
+export const ANDROID_PLAY_STORE_URL = ANDROID_APP_URL;
 
 export const BRAND = {
   name: 'Mercy Dosa House',

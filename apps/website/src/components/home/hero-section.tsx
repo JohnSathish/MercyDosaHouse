@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check } from 'lucide-react';
-import { BRAND, isChickenDumBiryaniProduct } from '@mdh/utils';
-import { getProductImage, productImageAlt } from '@/lib/product-images';
+import { BRAND } from '@mdh/utils';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { trackMarketingEvent } from '@/lib/marketing-content';
 import type { HeroSectionContent, ProductDto } from '@mdh/types';
@@ -18,75 +17,26 @@ const DEFAULT_HERO: HeroSectionContent = {
   ctaSecondary: { label: 'View Menu', href: '/menu' },
 };
 
-function pick(products: ProductDto[], slugs: string[]) {
-  for (const slug of slugs) {
-    const found = products.find((p) => p.slug === slug);
-    if (found) return found;
-  }
-  return products.find((p) => !isChickenDumBiryaniProduct(p)) ?? products[0];
-}
+const HERO_FOOD_IMAGE = '/images/hero-dosa-biryani.jpg';
 
-function HeroFoodComposition({ products }: { products: ProductDto[] }) {
-  const dosa =
-    pick(products, ['ghee-roast-dosa', 'masala-dosa', 'plain-dosa', 'mysore-masala-dosa']) ?? null;
-  const biryani = products.find((p) => isChickenDumBiryaniProduct(p)) ?? null;
-  const idli = pick(products, ['idli-4-pieces', 'vada-4-pieces']);
-  const vada = products.find((p) => p.slug === 'vada-4-pieces' && p.id !== idli?.id) ?? idli;
-
-  const dosaSrc = dosa ? getProductImage(dosa) : '/images/hero-dosa.png';
-  const biryaniSrc = biryani ? getProductImage(biryani) : '/images/chicken-biryani.png';
-  const idliSrc = idli ? getProductImage(idli) : '/images/idli-4-pieces.png';
-  const vadaSrc = vada ? getProductImage(vada) : '/images/vada-4-pieces.png';
-
+function HeroFoodComposition() {
   return (
-    <div className="relative mx-auto h-[340px] w-full max-w-[560px] sm:h-[420px] lg:h-[500px]">
-      <div className="absolute left-[4%] top-[8%] z-20 h-[58%] w-[78%] overflow-hidden rounded-[2.5rem] border-[6px] border-white shadow-[0_24px_50px_rgba(11,84,47,0.18)] sm:rounded-[3rem]">
+    <div className="relative mx-auto w-full max-w-[640px]">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.75rem] sm:aspect-[5/4] lg:min-h-[460px] lg:h-[500px] lg:aspect-auto">
         <Image
-          src={dosaSrc}
-          alt={dosa ? productImageAlt(dosa) : 'Mercy Dosa House crispy dosa'}
+          src={HERO_FOOD_IMAGE}
+          alt="Mercy Dosa House crispy dosa and chicken dum biryani"
           fill
           priority
-          sizes="(max-width: 1024px) 90vw, 480px"
-          className="object-cover object-center"
-          unoptimized
-        />
-      </div>
-      <div className="absolute bottom-[2%] right-[2%] z-30 h-[52%] w-[52%] overflow-hidden rounded-full border-[6px] border-white shadow-[0_20px_40px_rgba(11,84,47,0.2)]">
-        <Image
-          src={biryaniSrc}
-          alt={biryani ? productImageAlt(biryani) : 'Mercy Dosa House chicken dum biryani'}
-          fill
-          priority
-          sizes="(max-width: 1024px) 50vw, 280px"
-          className="object-cover"
-          unoptimized
-        />
-      </div>
-      <div className="absolute bottom-[10%] left-[6%] z-10 h-[22%] w-[22%] overflow-hidden rounded-full border-4 border-white shadow-lg">
-        <Image
-          src={idliSrc}
-          alt={idli ? productImageAlt(idli) : 'Mercy Dosa House idli'}
-          fill
-          sizes="120px"
-          className="object-cover"
-          unoptimized
-        />
-      </div>
-      <div className="absolute right-[38%] bottom-[4%] z-20 h-[16%] w-[16%] overflow-hidden rounded-full border-4 border-white shadow-md">
-        <Image
-          src={vadaSrc}
-          alt={vada ? productImageAlt(vada) : 'Mercy Dosa House vada'}
-          fill
-          sizes="90px"
-          className="object-cover"
-          unoptimized
+          sizes="(max-width: 1024px) 90vw, 640px"
+          className="origin-right scale-[1.28] object-cover object-right"
         />
       </div>
     </div>
   );
 }
 
-export function HeroSection({ products = [] }: { products?: ProductDto[] }) {
+export function HeroSection({ products: _products = [] }: { products?: ProductDto[] }) {
   const marketing = useMarketing();
   const heroPromo = marketing?.byPlacement?.HERO_SECTION?.find((item) => !item.promotionProduct);
   const title = DEFAULT_HERO.title || BRAND.name;
@@ -111,7 +61,7 @@ export function HeroSection({ products = [] }: { products?: ProductDto[] }) {
               className="font-[family-name:var(--font-poppins)] text-5xl font-black leading-[0.92] tracking-tight text-[#0B542F] sm:text-6xl lg:text-[4.5rem]"
             >
               <span className="block text-[#0B542F]">{first}</span>
-              {second ? <span className="block text-[#064728]">{second}</span> : null}
+              {second ? <span className="block text-[#C62828]">{second}</span> : null}
             </h1>
             <p className="mt-5 max-w-md whitespace-pre-line text-base leading-relaxed text-[#18352A]/80 sm:text-lg">
               {DEFAULT_HERO.subtitle}
@@ -146,7 +96,7 @@ export function HeroSection({ products = [] }: { products?: ProductDto[] }) {
               </Link>
             </div>
           </div>
-          <HeroFoodComposition products={products} />
+          <HeroFoodComposition />
         </div>
       </div>
     </section>

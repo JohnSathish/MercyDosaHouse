@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { AppPromoConfigDto } from '@mdh/types';
-import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
+import { ANDROID_APP_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { GooglePlayBadge } from '@/components/google-play-badge';
 
@@ -24,11 +24,7 @@ export function AppPromoBanner({ placement }: { placement: 'site' | 'menu' | 'ch
         <p className="font-semibold mt-0.5">{data.title}</p>
         <p className="text-sm text-white/80 mt-0.5">{data.body}</p>
       </div>
-      <GooglePlayBadge
-        href={data.playStoreUrl || ANDROID_PLAY_STORE_URL}
-        size="md"
-        className="shrink-0"
-      />
+      <GooglePlayBadge href={ANDROID_APP_URL} size="md" className="shrink-0" />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Home, UtensilsCrossed, User, Tag, Truck, Info, Phone, Star, LogOut } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SiteLogo } from '@/components/site-logo';
+import { GooglePlayBadge } from '@/components/google-play-badge';
 import { useUiStore } from '@/lib/ui-store';
 import { isAuthenticated, logout, getStoredUser } from '@mdh/auth-client';
 import { getHeaderDisplayName } from '@/components/dashboard/types';
@@ -88,6 +89,10 @@ export function MobileDrawer() {
             );
           })}
         </nav>
+
+        <div className="px-4 pb-3">
+          <GooglePlayBadge size="md" className="w-full justify-center" />
+        </div>
 
         <div className="border-t border-gray-100 p-4 safe-area-pb">
           {authed ? (

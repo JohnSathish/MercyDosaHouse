@@ -1,12 +1,12 @@
 import { FaGooglePlay } from 'react-icons/fa';
-import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
+import { ANDROID_APP_URL } from '@mdh/utils';
 
 type BadgeSize = 'sm' | 'md';
 
 export function GooglePlayBadge({
   size = 'md',
   className = '',
-  href = ANDROID_PLAY_STORE_URL,
+  href = ANDROID_APP_URL,
   onClick,
 }: {
   size?: BadgeSize;
