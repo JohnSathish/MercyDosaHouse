@@ -126,7 +126,7 @@ export function IngredientsTable({ items, onSelect }: IngredientsTableProps) {
           {table.getRowModel().rows.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="px-4 py-12 text-center text-muted-foreground">
-                No ingredients found
+                No ingredients added yet. Start by adding your first ingredient.
               </td>
             </tr>
           ) : (

@@ -143,6 +143,42 @@ export default function RootLayout() {
                 options={{ headerShown: true, title: 'Inventory' }}
               />
               <Stack.Screen
+                name="inventory/items"
+                options={{ headerShown: true, title: 'Ingredients' }}
+              />
+              <Stack.Screen
+                name="inventory/item-form"
+                options={{ headerShown: true, title: 'Ingredient' }}
+              />
+              <Stack.Screen
+                name="inventory/purchase-orders"
+                options={{ headerShown: true, title: 'Purchase Orders' }}
+              />
+              <Stack.Screen
+                name="inventory/adjust"
+                options={{ headerShown: true, title: 'Adjust Stock' }}
+              />
+              <Stack.Screen
+                name="inventory/suppliers"
+                options={{ headerShown: true, title: 'Suppliers' }}
+              />
+              <Stack.Screen
+                name="inventory/waste"
+                options={{ headerShown: true, title: 'Waste' }}
+              />
+              <Stack.Screen
+                name="inventory/low-stock"
+                options={{ headerShown: true, title: 'Low Stock' }}
+              />
+              <Stack.Screen
+                name="inventory/expiry"
+                options={{ headerShown: true, title: 'Expiry' }}
+              />
+              <Stack.Screen
+                name="inventory/reports"
+                options={{ headerShown: true, title: 'Inventory Reports' }}
+              />
+              <Stack.Screen
                 name="offers/index"
                 options={{ headerShown: true, title: 'Offers & Coupons' }}
               />

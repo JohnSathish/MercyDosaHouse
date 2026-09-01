@@ -8,6 +8,7 @@ import { MarketingModule } from '../marketing/marketing.module';
 import { AuthModule } from '../auth/auth.module';
 import { CouponsModule } from '../coupons/coupons.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { LoyaltyModule } from '../loyalty/loyalty.module';
     AuthModule,
     CouponsModule,
     LoyaltyModule,
+    InventoryModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService, OrdersGateway],

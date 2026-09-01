@@ -233,6 +233,7 @@ export interface BusinessSettingsDto {
   storeStatusChangedAt?: string | null;
   storeStatusChangedByName?: string | null;
   operatingSchedule?: import('./restaurant-status').OperatingScheduleDto | null;
+  autoMenuAvailability?: boolean;
   feedback?: import('./reviews').FeedbackConfigDto;
 }
 

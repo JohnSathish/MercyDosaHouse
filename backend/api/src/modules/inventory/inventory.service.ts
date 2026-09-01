@@ -6,13 +6,22 @@ import {
   PurchaseOrderStatus,
   WasteReason,
   InventoryUnit,
+  NotificationType,
+  UserRole,
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { InventoryPdfService } from './inventory-pdf.service';
+import { resolvePublicAssetUrl } from '../notifications/email-branding';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private pdf: InventoryPdfService,
+    private notifications: NotificationsService,
+  ) {}
 
   private num(v: Prisma.Decimal | number): number {
     return Number(v);
@@ -79,14 +88,6 @@ export class InventoryService {
       },
     });
 
-    const purchaseToday = await this.prisma.stockMovement.aggregate({
-      where: {
-        type: { in: [StockMovementType.PURCHASE, StockMovementType.GRN] },
-        createdAt: { gte: todayStart },
-      },
-      _sum: { quantity: true },
-    });
-
     const consumptionToday = await this.prisma.inventoryConsumption.findMany({
       where: { createdAt: { gte: todayStart } },
       include: { item: true },
@@ -96,6 +97,26 @@ export class InventoryService {
       0,
     );
 
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+
+    const wasteMonth = await this.prisma.inventoryWaste.aggregate({
+      where: { createdAt: { gte: monthStart } },
+      _sum: { costLoss: true },
+    });
+    const poMonth = await this.prisma.purchaseOrder.aggregate({
+      where: {
+        createdAt: { gte: monthStart },
+        status: { not: PurchaseOrderStatus.CANCELLED },
+      },
+      _sum: { total: true },
+    });
+    const usedTodayKg = consumptionToday.reduce((s, c) => {
+      const unit = c.item.unit;
+      const qty = this.num(c.quantity);
+      if (unit === 'KG') return s + qty;
+      if (unit === 'GRAM') return s + qty / 1000;
+      return s;
+    }, 0);
     const purchaseValue = await this.prisma.goodsReceivedNote.findMany({
       where: { receivedAt: { gte: todayStart } },
       include: { items: { include: { item: true } } },
@@ -161,6 +182,22 @@ export class InventoryService {
       where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
     });
 
+    const recentMovements = await this.prisma.stockMovement.findMany({
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+      include: { item: true },
+    });
+
+    const expiringBatches = await this.prisma.inventoryBatch.findMany({
+      where: {
+        expiryDate: { gte: todayStart, lte: weekAhead },
+        remainingQty: { gt: 0 },
+      },
+      include: { item: true },
+      orderBy: { expiryDate: 'asc' },
+      take: 8,
+    });
+
     const topConsumedItems = await Promise.all(
       topConsumed.map(async (t) => {
         const item = await this.prisma.inventoryItem.findUnique({ where: { id: t.itemId } });
@@ -176,7 +213,10 @@ export class InventoryService {
         outOfStock,
         expiringSoon,
         purchaseToday: Math.round(purchaseTodayValue),
+        purchaseThisMonth: Math.round(this.num(poMonth._sum.total ?? 0)),
         consumptionToday: Math.round(consumptionValue),
+        stockUsedToday: Math.round(usedTodayKg * 10) / 10,
+        wasteThisMonth: Math.round(this.num(wasteMonth._sum.costLoss ?? 0)),
       },
       consumptionChart,
       lowStockAlerts,
@@ -196,6 +236,34 @@ export class InventoryService {
         createdAt: a.createdAt.toISOString(),
       })),
       topConsumed: topConsumedItems,
+      recentMovements: recentMovements.map((m) => ({
+        id: m.id,
+        item: m.item.name,
+        type: m.type,
+        quantity: this.num(m.quantity),
+        afterQty: this.num(m.afterQty),
+        reference: m.reference,
+        createdAt: m.createdAt.toISOString(),
+      })),
+      expiringIngredients: expiringBatches.map((b) => ({
+        id: b.id,
+        itemName: b.item.name,
+        remainingQty: this.num(b.remainingQty),
+        unit: b.item.unit,
+        expiryDate: b.expiryDate?.toISOString() ?? null,
+        daysLeft: b.expiryDate
+          ? Math.ceil((b.expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null,
+      })),
+      inventoryValue: items
+        .map((i) => ({
+          name: i.name,
+          quantity: this.num(i.currentStock),
+          unit: i.unit,
+          value: this.num(i.currentStock) * this.num(i.averageCost || i.costPrice),
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8),
     };
   }
 
@@ -204,8 +272,12 @@ export class InventoryService {
     categoryId?: string;
     status?: InventoryItemStatus;
     lowStock?: boolean;
+    supplierId?: string;
+    locationId?: string;
+    includeInactive?: boolean;
   }) {
-    const where: Prisma.InventoryItemWhereInput = { isActive: true };
+    const where: Prisma.InventoryItemWhereInput = {};
+    if (!query.includeInactive) where.isActive = true;
     if (query.search) {
       where.OR = [
         { name: { contains: query.search, mode: 'insensitive' } },
@@ -214,6 +286,8 @@ export class InventoryService {
       ];
     }
     if (query.categoryId) where.categoryId = query.categoryId;
+    if (query.supplierId) where.supplierId = query.supplierId;
+    if (query.locationId) where.locationId = query.locationId;
     if (query.status) where.status = query.status;
     if (query.lowStock)
       where.status = { in: [InventoryItemStatus.LOW_STOCK, InventoryItemStatus.OUT_OF_STOCK] };
@@ -252,6 +326,10 @@ export class InventoryService {
       locationId: i.locationId,
       locationName: i.location?.name ?? null,
       expiryTracking: i.expiryTracking,
+      customUnit: i.customUnit,
+      lotNumber: i.lotNumber,
+      expiryDate: i.expiryDate?.toISOString() ?? null,
+      notes: i.notes,
       status: i.status,
       isActive: i.isActive,
       createdAt: i.createdAt.toISOString(),
@@ -266,7 +344,7 @@ export class InventoryService {
         supplier: true,
         location: true,
         batches: { orderBy: { expiryDate: 'asc' } },
-        movements: { take: 20, orderBy: { createdAt: 'desc' } },
+        movements: { take: 100, orderBy: { createdAt: 'desc' } },
       },
     });
     if (!item) throw new NotFoundException('Item not found');
@@ -288,26 +366,81 @@ export class InventoryService {
         reason: m.reason,
         reference: m.reference,
         createdAt: m.createdAt.toISOString(),
+        userId: m.userId,
       })),
     };
   }
 
   async createItem(data: Prisma.InventoryItemCreateInput) {
+    const opening = this.num((data.currentStock as number) ?? 0);
     const item = await this.prisma.inventoryItem.create({
       data,
       include: { category: true, supplier: true, location: true },
     });
+    if (opening > 0) {
+      await this.recordMovement(
+        item.id,
+        StockMovementType.STOCK_IN,
+        opening,
+        0,
+        opening,
+        'Opening stock',
+        'OPENING',
+      );
+    }
     await this.refreshItemStatus(item.id);
     return this.mapItem(item);
   }
 
-  async updateItem(id: string, data: Prisma.InventoryItemUpdateInput) {
+  async updateItem(id: string, data: Record<string, unknown>) {
+    const {
+      currentStock: _stock,
+      reservedStock: _reserved,
+      averageCost: _avg,
+      status: _status,
+      id: _id,
+      supplierId,
+      locationId,
+      categoryId,
+      expiryDate,
+      ...rest
+    } = data;
+    const prismaData: Prisma.InventoryItemUpdateInput = {
+      ...(rest as Prisma.InventoryItemUpdateInput),
+    };
+    if (typeof supplierId === 'string') {
+      prismaData.supplier = supplierId ? { connect: { id: supplierId } } : { disconnect: true };
+    } else if (supplierId === null) {
+      prismaData.supplier = { disconnect: true };
+    }
+    if (typeof locationId === 'string') {
+      prismaData.location = locationId ? { connect: { id: locationId } } : { disconnect: true };
+    } else if (locationId === null) {
+      prismaData.location = { disconnect: true };
+    }
+    if (typeof categoryId === 'string' && categoryId) {
+      prismaData.category = { connect: { id: categoryId } };
+    }
+    if (expiryDate === null || expiryDate === '') {
+      prismaData.expiryDate = null;
+    } else if (typeof expiryDate === 'string') {
+      prismaData.expiryDate = new Date(expiryDate);
+    }
     const item = await this.prisma.inventoryItem.update({
       where: { id },
-      data,
+      data: prismaData,
       include: { category: true, supplier: true, location: true },
     });
     await this.refreshItemStatus(id);
+    return this.mapItem(item);
+  }
+
+  async setItemActive(id: string, isActive: boolean) {
+    const item = await this.prisma.inventoryItem.update({
+      where: { id },
+      data: { isActive },
+      include: { category: true, supplier: true, location: true },
+    });
     return this.mapItem(item);
   }
 
@@ -337,7 +470,17 @@ export class InventoryService {
     });
 
     const movementType =
-      delta >= 0 ? StockMovementType.ADJUSTMENT_ADD : StockMovementType.ADJUSTMENT_REMOVE;
+      reason === StockAdjustmentReason.RETURN
+        ? StockMovementType.RETURN
+        : reason === StockAdjustmentReason.TRANSFER
+          ? delta >= 0
+            ? StockMovementType.TRANSFER_IN
+            : StockMovementType.TRANSFER_OUT
+          : reason === StockAdjustmentReason.CORRECTION
+            ? StockMovementType.CORRECTION
+            : delta >= 0
+              ? StockMovementType.STOCK_IN
+              : StockMovementType.STOCK_OUT;
 
     await this.recordMovement(
       itemId,
@@ -395,20 +538,66 @@ export class InventoryService {
     return { costLoss };
   }
 
-  async listSuppliers() {
-    return this.prisma.supplier.findMany({
-      where: { isActive: true },
-      include: { _count: { select: { items: true, purchaseOrders: true } } },
+  async listSuppliers(includeInactive = false) {
+    const suppliers = await this.prisma.supplier.findMany({
+      where: includeInactive ? {} : { isActive: true },
+      include: {
+        _count: { select: { items: true, purchaseOrders: true } },
+        purchaseOrders: {
+          where: { status: { not: PurchaseOrderStatus.CANCELLED } },
+          select: { total: true },
+        },
+      },
       orderBy: { name: 'asc' },
     });
+    return suppliers.map((s) => ({
+      ...s,
+      totalPurchases: s.purchaseOrders.reduce((sum, p) => sum + this.num(p.total), 0),
+      purchaseOrders: undefined,
+    }));
+  }
+
+  async getSupplier(id: string) {
+    const s = await this.prisma.supplier.findUnique({
+      where: { id },
+      include: {
+        purchaseOrders: {
+          orderBy: { createdAt: 'desc' },
+          include: { items: true },
+        },
+      },
+    });
+    if (!s) throw new NotFoundException('Supplier not found');
+    return {
+      ...s,
+      totalPurchases: s.purchaseOrders
+        .filter((p) => p.status !== PurchaseOrderStatus.CANCELLED)
+        .reduce((sum, p) => sum + this.num(p.total), 0),
+    };
   }
 
   async createSupplier(data: Prisma.SupplierCreateInput) {
     return this.prisma.supplier.create({ data });
   }
 
+  async updateSupplier(id: string, data: Prisma.SupplierUpdateInput) {
+    return this.prisma.supplier.update({ where: { id }, data });
+  }
+
+  async setSupplierActive(id: string, isActive: boolean) {
+    return this.prisma.supplier.update({ where: { id }, data: { isActive } });
+  }
+
   async listCategories() {
-    return this.prisma.inventoryCategory.findMany({ orderBy: { sortOrder: 'asc' } });
+    const existing = await this.prisma.inventoryCategory.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
+    if (existing.length) return existing;
+    return [
+      await this.prisma.inventoryCategory.create({
+        data: { name: 'General', slug: 'general' },
+      }),
+    ];
   }
 
   async listLocations() {
@@ -426,127 +615,268 @@ export class InventoryService {
     supplierId: string;
     items: Array<{ itemId: string; quantity: number; rate: number; tax?: number }>;
     notes?: string;
+    expectedDeliveryDate?: string;
+    supplierRef?: string;
+    paymentTerms?: string;
+    discount?: number;
+    deliveryCharge?: number;
+    otherCharges?: number;
+    orderDate?: string;
+    createdById?: string;
   }) {
-    const count = await this.prisma.purchaseOrder.count();
-    const poNumber = `PO-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}`;
+    const year = new Date().getFullYear();
+    const count = await this.prisma.purchaseOrder.count({
+      where: { poNumber: { startsWith: `PO-${year}-` } },
+    });
+    const poNumber = `PO-${year}-${String(count + 1).padStart(4, '0')}`;
 
     let subtotal = 0;
     let tax = 0;
     const itemsData = data.items.map((i) => {
       const itemTax = i.tax ?? 0;
-      const itemTotal = i.quantity * i.rate + itemTax;
-      subtotal += i.quantity * i.rate;
+      const line = i.quantity * i.rate;
+      subtotal += line;
       tax += itemTax;
       return {
         itemId: i.itemId,
         quantity: i.quantity,
         rate: i.rate,
         tax: itemTax,
-        total: itemTotal,
+        total: line + itemTax,
       };
     });
+    const discount = data.discount ?? 0;
+    const deliveryCharge = data.deliveryCharge ?? 0;
+    const otherCharges = data.otherCharges ?? 0;
+    const total = subtotal - discount + tax + deliveryCharge + otherCharges;
 
     return this.prisma.purchaseOrder.create({
       data: {
         poNumber,
         supplierId: data.supplierId,
         subtotal,
+        discount,
         tax,
-        total: subtotal + tax,
+        deliveryCharge,
+        otherCharges,
+        total,
         notes: data.notes,
+        supplierRef: data.supplierRef,
+        paymentTerms: data.paymentTerms,
+        expectedDeliveryDate: data.expectedDeliveryDate
+          ? new Date(data.expectedDeliveryDate)
+          : undefined,
+        orderDate: data.orderDate ? new Date(data.orderDate) : undefined,
+        createdById: data.createdById,
         items: { create: itemsData },
       },
       include: { supplier: true, items: { include: { item: true } } },
     });
   }
 
-  async updatePurchaseOrderStatus(id: string, status: PurchaseOrderStatus) {
-    return this.prisma.purchaseOrder.update({ where: { id }, data: { status } });
+  private normalizePoStatus(status: PurchaseOrderStatus): PurchaseOrderStatus {
+    if (status === PurchaseOrderStatus.SENT || status === PurchaseOrderStatus.APPROVED) {
+      return PurchaseOrderStatus.ORDERED;
+    }
+    if (status === PurchaseOrderStatus.CLOSED) return PurchaseOrderStatus.RECEIVED;
+    return status;
   }
 
-  async receiveGRN(data: {
-    poId: string;
-    invoiceNumber?: string;
-    remarks?: string;
-    items: Array<{
-      itemId: string;
-      receivedQty: number;
-      damagedQty?: number;
-      acceptedQty: number;
-      rejectedQty?: number;
-    }>;
-  }) {
-    const count = await this.prisma.goodsReceivedNote.count();
-    const grnNumber = `GRN-${new Date().getFullYear()}${String(count + 1).padStart(5, '0')}`;
-
-    const grn = await this.prisma.goodsReceivedNote.create({
-      data: {
-        grnNumber,
-        poId: data.poId,
-        invoiceNumber: data.invoiceNumber,
-        remarks: data.remarks,
-        items: {
-          create: data.items.map((i) => ({
-            itemId: i.itemId,
-            receivedQty: i.receivedQty,
-            damagedQty: i.damagedQty ?? 0,
-            acceptedQty: i.acceptedQty,
-            rejectedQty: i.rejectedQty ?? 0,
-          })),
-        },
-      },
-      include: { items: { include: { item: true } } },
+  async updatePurchaseOrderStatus(id: string, status: PurchaseOrderStatus) {
+    const po = await this.prisma.purchaseOrder.findUnique({ where: { id } });
+    if (!po) throw new NotFoundException('Purchase order not found');
+    const current = this.normalizePoStatus(po.status);
+    const next = this.normalizePoStatus(status);
+    const allowed: Record<string, PurchaseOrderStatus[]> = {
+      DRAFT: [PurchaseOrderStatus.ORDERED, PurchaseOrderStatus.CANCELLED],
+      ORDERED: [
+        PurchaseOrderStatus.PARTIALLY_RECEIVED,
+        PurchaseOrderStatus.RECEIVED,
+        PurchaseOrderStatus.CANCELLED,
+      ],
+      PARTIALLY_RECEIVED: [PurchaseOrderStatus.RECEIVED, PurchaseOrderStatus.CANCELLED],
+      RECEIVED: [],
+      CANCELLED: [],
+    };
+    if (!allowed[current]?.includes(next)) {
+      throw new BadRequestException(`Cannot change PO from ${current} to ${next}`);
+    }
+    return this.prisma.purchaseOrder.update({
+      where: { id },
+      data: { status: next },
+      include: { supplier: true, items: { include: { item: true } } },
     });
+  }
 
-    for (const gi of grn.items) {
-      const accepted = this.num(gi.acceptedQty);
-      if (accepted <= 0) continue;
+  async getPurchaseOrder(id: string) {
+    const po = await this.prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: {
+        supplier: true,
+        items: { include: { item: true } },
+        grns: { include: { items: true } },
+      },
+    });
+    if (!po) throw new NotFoundException('Purchase order not found');
+    return po;
+  }
 
-      const item = await this.prisma.inventoryItem.findUnique({ where: { id: gi.itemId } });
-      if (!item) continue;
-
-      const before = this.num(item.currentStock);
-      const after = before + accepted;
-
-      await this.prisma.inventoryItem.update({
-        where: { id: gi.itemId },
-        data: {
-          currentStock: after,
-          costPrice: this.num(gi.item.costPrice) || this.num(item.costPrice),
-        },
-      });
-
-      await this.recordMovement(
-        gi.itemId,
-        StockMovementType.GRN,
-        accepted,
-        before,
-        after,
-        'GRN received',
-        grnNumber,
+  async receiveGRN(
+    data: {
+      poId: string;
+      invoiceNumber?: string;
+      remarks?: string;
+      items: Array<{
+        itemId: string;
+        receivedQty: number;
+        damagedQty?: number;
+        acceptedQty?: number;
+        rejectedQty?: number;
+        expiryDate?: string;
+        batchNumber?: string;
+      }>;
+    },
+    userId?: string,
+  ) {
+    const po = await this.prisma.purchaseOrder.findUnique({
+      where: { id: data.poId },
+      include: { items: true },
+    });
+    if (!po) throw new NotFoundException('Purchase order not found');
+    const current = this.normalizePoStatus(po.status);
+    if (
+      current === PurchaseOrderStatus.CANCELLED ||
+      current === PurchaseOrderStatus.RECEIVED ||
+      current === PurchaseOrderStatus.DRAFT
+    ) {
+      throw new BadRequestException(
+        'This purchase order cannot receive stock in its current status',
       );
-
-      await this.prisma.inventoryBatch.create({
-        data: {
-          itemId: gi.itemId,
-          batchNumber: `${grnNumber}-${gi.itemId.slice(-4)}`,
-          quantity: accepted,
-          remainingQty: accepted,
-          costPrice: this.num(item.costPrice),
-          supplierId: item.supplierId,
-          locationId: item.locationId,
-        },
-      });
-
-      await this.refreshItemStatus(gi.itemId);
     }
 
-    await this.prisma.purchaseOrder.update({
-      where: { id: data.poId },
-      data: { status: PurchaseOrderStatus.RECEIVED },
+    const { result, nextStatus, poNumber } = await this.prisma.$transaction(async (tx) => {
+      const count = await tx.goodsReceivedNote.count();
+      const grnNumber = `GRN-${new Date().getFullYear()}${String(count + 1).padStart(5, '0')}`;
+      const grn = await tx.goodsReceivedNote.create({
+        data: {
+          grnNumber,
+          poId: data.poId,
+          invoiceNumber: data.invoiceNumber,
+          remarks: data.remarks,
+          items: {
+            create: data.items.map((i) => {
+              const received = Math.max(0, i.receivedQty);
+              const damaged = Math.max(0, i.damagedQty ?? 0);
+              const accepted = Math.max(0, i.acceptedQty ?? received - damaged);
+              return {
+                itemId: i.itemId,
+                receivedQty: received,
+                damagedQty: damaged,
+                acceptedQty: accepted,
+                rejectedQty: i.rejectedQty ?? 0,
+              };
+            }),
+          },
+        },
+        include: { items: { include: { item: true } } },
+      });
+
+      for (const gi of grn.items) {
+        const poLine = po.items.find((p) => p.itemId === gi.itemId);
+        const requested = this.num(gi.acceptedQty);
+        if (requested <= 0) continue;
+        const already = poLine ? this.num(poLine.receivedQty) : 0;
+        const ordered = poLine ? this.num(poLine.quantity) : requested;
+        const pending = Math.max(0, ordered - already);
+        const accepted = Math.min(requested, pending);
+        if (accepted <= 0) continue;
+        if (accepted !== requested) {
+          await tx.grnItem.update({
+            where: { id: gi.id },
+            data: { acceptedQty: accepted, receivedQty: accepted },
+          });
+        }
+        const item = await tx.inventoryItem.findUnique({ where: { id: gi.itemId } });
+        if (!item) continue;
+        const before = this.num(item.currentStock);
+        const after = before + accepted;
+        const prevCost = this.num(item.averageCost || item.costPrice);
+        const incomingCost = this.num(item.costPrice);
+        const avg =
+          after > 0 ? (before * prevCost + accepted * incomingCost) / after : incomingCost;
+
+        await tx.inventoryItem.update({
+          where: { id: gi.itemId },
+          data: { currentStock: after, averageCost: avg },
+        });
+        await tx.stockMovement.create({
+          data: {
+            itemId: gi.itemId,
+            type: StockMovementType.PURCHASE,
+            quantity: accepted,
+            beforeQty: before,
+            afterQty: after,
+            reason: 'Stock received',
+            reference: po.poNumber,
+            userId,
+          },
+        });
+        const line = data.items.find((x) => x.itemId === gi.itemId);
+        await tx.inventoryBatch.create({
+          data: {
+            itemId: gi.itemId,
+            batchNumber: line?.batchNumber || `${grnNumber}-${gi.itemId.slice(-4)}`,
+            quantity: accepted,
+            remainingQty: accepted,
+            costPrice: this.num(item.costPrice),
+            expiryDate: line?.expiryDate ? new Date(line.expiryDate) : undefined,
+            supplierId: item.supplierId,
+            locationId: item.locationId,
+          },
+        });
+        if (poLine) {
+          await tx.purchaseOrderItem.update({
+            where: { id: poLine.id },
+            data: { receivedQty: already + accepted },
+          });
+        }
+        const stock = after;
+        const min = this.num(item.minStock);
+        const status =
+          stock <= 0
+            ? InventoryItemStatus.OUT_OF_STOCK
+            : stock <= min
+              ? InventoryItemStatus.LOW_STOCK
+              : InventoryItemStatus.IN_STOCK;
+        await tx.inventoryItem.update({ where: { id: gi.itemId }, data: { status } });
+      }
+
+      const lines = await tx.purchaseOrderItem.findMany({ where: { poId: data.poId } });
+      const allReceived = lines.every(
+        (l) => this.num(l.receivedQty) + 0.0001 >= this.num(l.quantity),
+      );
+      const anyReceived = lines.some((l) => this.num(l.receivedQty) > 0);
+      const nextStatus = allReceived
+        ? PurchaseOrderStatus.RECEIVED
+        : anyReceived
+          ? PurchaseOrderStatus.PARTIALLY_RECEIVED
+          : PurchaseOrderStatus.ORDERED;
+      await tx.purchaseOrder.update({ where: { id: data.poId }, data: { status: nextStatus } });
+      const result = await tx.goodsReceivedNote.findUniqueOrThrow({
+        where: { id: grn.id },
+        include: { items: { include: { item: true } }, po: true },
+      });
+      return { result, nextStatus, poNumber: po.poNumber };
     });
 
-    return grn;
+    void this.notifyStaff(
+      data.poId,
+      nextStatus === PurchaseOrderStatus.RECEIVED ? 'Purchase received' : 'Partial delivery',
+      nextStatus === PurchaseOrderStatus.RECEIVED
+        ? `${poNumber} has been received.`
+        : `${poNumber} is partially received.`,
+    );
+    return result;
   }
 
   async listRecipes() {
@@ -591,7 +921,7 @@ export class InventoryService {
     });
   }
 
-  /** Auto-deduct ingredients when order moves to PREPARING */
+  /** Auto-deduct ingredients once per order (idempotent via unique orderId+itemId). */
   async deductForOrder(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -602,43 +932,73 @@ export class InventoryService {
     const alreadyDeducted = await this.prisma.inventoryConsumption.count({ where: { orderId } });
     if (alreadyDeducted > 0) return;
 
+    const usage = new Map<string, number>();
     for (const orderItem of order.items) {
       const recipe = await this.prisma.recipe.findUnique({
         where: { productId: orderItem.productId },
-        include: { items: true },
+        include: { items: { include: { item: true } } },
       });
       if (!recipe) continue;
-
       for (const ri of recipe.items) {
-        const deductQty = this.num(ri.quantity) * orderItem.quantity;
-        const item = await this.prisma.inventoryItem.findUnique({ where: { id: ri.itemId } });
-        if (!item) continue;
-
-        const before = this.num(item.currentStock);
-        const after = Math.max(0, before - deductQty);
-
-        await this.prisma.inventoryItem.update({
-          where: { id: ri.itemId },
-          data: { currentStock: after },
-        });
-
-        await this.recordMovement(
-          ri.itemId,
-          StockMovementType.CONSUMPTION,
-          deductQty,
-          before,
-          after,
-          'Order preparation',
-          order.orderNumber,
-        );
-
-        await this.prisma.inventoryConsumption.create({
-          data: { orderId, itemId: ri.itemId, quantity: deductQty },
-        });
-
-        await this.refreshItemStatus(ri.itemId);
+        const qty =
+          this.convertQty(this.num(ri.quantity), ri.unit, ri.item.unit) * orderItem.quantity;
+        usage.set(ri.itemId, (usage.get(ri.itemId) ?? 0) + qty);
       }
     }
+    if (usage.size === 0) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.inventoryConsumption.count({ where: { orderId } });
+      if (existing > 0) return;
+      for (const [itemId, deductQty] of usage) {
+        const item = await tx.inventoryItem.findUnique({ where: { id: itemId } });
+        if (!item) continue;
+        const before = this.num(item.currentStock);
+        const after = Math.max(0, before - deductQty);
+        await tx.inventoryItem.update({
+          where: { id: itemId },
+          data: { currentStock: after },
+        });
+        await tx.stockMovement.create({
+          data: {
+            itemId,
+            type: StockMovementType.RECIPE_USAGE,
+            quantity: deductQty,
+            beforeQty: before,
+            afterQty: after,
+            reason: 'Recipe consumption',
+            reference: order.orderNumber,
+          },
+        });
+        await tx.inventoryConsumption.create({
+          data: { orderId, itemId, quantity: deductQty },
+        });
+        const min = this.num(item.minStock);
+        const status =
+          after <= 0
+            ? InventoryItemStatus.OUT_OF_STOCK
+            : after <= min
+              ? InventoryItemStatus.LOW_STOCK
+              : InventoryItemStatus.IN_STOCK;
+        await tx.inventoryItem.update({ where: { id: itemId }, data: { status } });
+      }
+    });
+
+    await this.maybeNotifyLowStock([...usage.keys()]);
+    await this.applyMenuAvailability();
+  }
+
+  private convertQty(qty: number, from: InventoryUnit, to: InventoryUnit) {
+    if (from === to) return qty;
+    if ((from === 'KG' || from === 'GRAM') && (to === 'KG' || to === 'GRAM')) {
+      const grams = from === 'KG' ? qty * 1000 : qty;
+      return to === 'KG' ? grams / 1000 : grams;
+    }
+    if ((from === 'LITRE' || from === 'ML') && (to === 'LITRE' || to === 'ML')) {
+      const ml = from === 'LITRE' ? qty * 1000 : qty;
+      return to === 'LITRE' ? ml / 1000 : ml;
+    }
+    return qty;
   }
 
   async getExpiringBatches(days = 7) {
@@ -683,6 +1043,428 @@ export class InventoryService {
       orderBy: { createdAt: 'desc' },
     });
     const totalLoss = wastes.reduce((s, w) => s + this.num(w.costLoss), 0);
-    return { wastes, totalLoss };
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const wasteToday = wastes
+      .filter((w) => w.createdAt >= todayStart)
+      .reduce((s, w) => s + this.num(w.costLoss), 0);
+    const top = new Map<string, { name: string; quantity: number; cost: number }>();
+    for (const w of wastes) {
+      const cur = top.get(w.itemId) ?? { name: w.item.name, quantity: 0, cost: 0 };
+      cur.quantity += this.num(w.quantity);
+      cur.cost += this.num(w.costLoss);
+      top.set(w.itemId, cur);
+    }
+    return {
+      wastes,
+      totalLoss,
+      wasteToday,
+      wasteThisMonth: wastes
+        .filter((w) => w.createdAt >= monthStart)
+        .reduce((s, w) => s + this.num(w.costLoss), 0),
+      topWasted: [...top.values()].sort((a, b) => b.cost - a.cost).slice(0, 8),
+    };
+  }
+
+  async listMovements(query: {
+    itemId?: string;
+    type?: StockMovementType;
+    reference?: string;
+    from?: string;
+    to?: string;
+  }) {
+    const where: Prisma.StockMovementWhereInput = {};
+    if (query.itemId) where.itemId = query.itemId;
+    if (query.type) where.type = query.type;
+    if (query.reference) where.reference = { contains: query.reference, mode: 'insensitive' };
+    if (query.from || query.to) {
+      where.createdAt = {};
+      if (query.from) where.createdAt.gte = new Date(query.from);
+      if (query.to) where.createdAt.lte = new Date(query.to);
+    }
+    const rows = await this.prisma.stockMovement.findMany({
+      where,
+      include: { item: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      itemId: m.itemId,
+      itemName: m.item.name,
+      unit: m.item.unit,
+      type: m.type,
+      quantity: this.num(m.quantity),
+      beforeQty: this.num(m.beforeQty),
+      afterQty: this.num(m.afterQty),
+      reason: m.reason,
+      reference: m.reference,
+      userId: m.userId,
+      createdAt: m.createdAt.toISOString(),
+    }));
+  }
+
+  async findByBarcode(code: string) {
+    const item = await this.prisma.inventoryItem.findFirst({
+      where: { OR: [{ barcode: code }, { sku: code }] },
+      include: { category: true, supplier: true, location: true },
+    });
+    if (!item) throw new NotFoundException('No ingredient matches that barcode or SKU');
+    return this.mapItem(item);
+  }
+
+  async duplicatePurchaseOrder(id: string, createdById?: string) {
+    const po = await this.getPurchaseOrder(id);
+    return this.createPurchaseOrder({
+      supplierId: po.supplierId,
+      items: po.items.map((i) => ({
+        itemId: i.itemId,
+        quantity: this.num(i.quantity),
+        rate: this.num(i.rate),
+        tax: this.num(i.tax),
+      })),
+      notes: po.notes ?? undefined,
+      paymentTerms: po.paymentTerms ?? undefined,
+      createdById,
+    });
+  }
+
+  async updateDraftPurchaseOrder(
+    id: string,
+    data: {
+      supplierId?: string;
+      items?: Array<{ itemId: string; quantity: number; rate: number; tax?: number }>;
+      notes?: string;
+      expectedDeliveryDate?: string;
+      supplierRef?: string;
+      paymentTerms?: string;
+      discount?: number;
+      deliveryCharge?: number;
+      otherCharges?: number;
+    },
+  ) {
+    const po = await this.prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!po) throw new NotFoundException('Purchase order not found');
+    const status = this.normalizePoStatus(po.status);
+    if (status !== PurchaseOrderStatus.DRAFT && status !== PurchaseOrderStatus.ORDERED) {
+      throw new BadRequestException('This purchase order can no longer be edited');
+    }
+    if (status === PurchaseOrderStatus.ORDERED && data.items) {
+      throw new BadRequestException('Ordered purchase orders cannot change line items');
+    }
+    let totals: Prisma.PurchaseOrderUpdateInput = {};
+    if (data.items && status === PurchaseOrderStatus.DRAFT) {
+      let subtotal = 0;
+      let tax = 0;
+      const itemsData = data.items.map((i) => {
+        const itemTax = i.tax ?? 0;
+        const line = i.quantity * i.rate;
+        subtotal += line;
+        tax += itemTax;
+        return {
+          itemId: i.itemId,
+          quantity: i.quantity,
+          rate: i.rate,
+          tax: itemTax,
+          total: line + itemTax,
+        };
+      });
+      const discount = data.discount ?? this.num(po.discount);
+      const deliveryCharge = data.deliveryCharge ?? this.num(po.deliveryCharge);
+      const otherCharges = data.otherCharges ?? this.num(po.otherCharges);
+      totals = {
+        subtotal,
+        tax,
+        discount,
+        deliveryCharge,
+        otherCharges,
+        total: subtotal - discount + tax + deliveryCharge + otherCharges,
+        items: { deleteMany: {}, create: itemsData },
+      };
+    }
+    return this.prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        ...totals,
+        notes: data.notes,
+        supplierRef: data.supplierRef,
+        paymentTerms: data.paymentTerms,
+        expectedDeliveryDate: data.expectedDeliveryDate
+          ? new Date(data.expectedDeliveryDate)
+          : undefined,
+        ...(data.supplierId && status === PurchaseOrderStatus.DRAFT
+          ? { supplier: { connect: { id: data.supplierId } } }
+          : {}),
+      },
+      include: { supplier: true, items: { include: { item: true } } },
+    });
+  }
+
+  async generatePurchaseOrderPdf(id: string) {
+    const po = await this.getPurchaseOrder(id);
+    const settings = await this.prisma.businessSettings.findFirst();
+    const theme = await this.prisma.themeSettings.findFirst({ select: { logoUrl: true } });
+    let logo: Buffer | null = null;
+    const logoUrl = resolvePublicAssetUrl(
+      theme?.logoUrl,
+      process.env.WEBSITE_URL || 'https://mercydosahouse.com',
+    );
+    if (logoUrl) {
+      try {
+        const res = await fetch(logoUrl);
+        if (res.ok) logo = Buffer.from(await res.arrayBuffer());
+      } catch {
+        logo = null;
+      }
+    }
+    const buffer = await this.pdf.purchaseOrderPdf({
+      poNumber: po.poNumber,
+      poDate: po.orderDate,
+      expectedDeliveryDate: po.expectedDeliveryDate,
+      supplierName: po.supplier.name,
+      supplierContact: po.supplier.contactPerson,
+      supplierPhone: po.supplier.phone,
+      supplierAddress: po.supplier.address,
+      supplierGst: po.supplier.gstNumber,
+      paymentTerms: po.paymentTerms,
+      notes: po.notes,
+      items: po.items.map((i) => ({
+        name: i.item.name,
+        quantity: this.num(i.quantity),
+        unit: i.item.unit,
+        rate: this.num(i.rate),
+        tax: this.num(i.tax),
+        amount: this.num(i.total),
+      })),
+      subtotal: this.num(po.subtotal),
+      discount: this.num(po.discount),
+      tax: this.num(po.tax),
+      deliveryCharge: this.num(po.deliveryCharge),
+      otherCharges: this.num(po.otherCharges),
+      grandTotal: this.num(po.total),
+      business: {
+        name: settings?.businessName ?? 'Mercy Dosa House',
+        address: settings?.address,
+        phone: settings?.phone,
+        email: settings?.email,
+        gstin: settings?.gstNumber,
+      },
+      deliveryAddress: settings?.address,
+      logo,
+    });
+    return { buffer, filename: `${po.poNumber}.pdf` };
+  }
+
+  async getReports(query: { type?: string; from?: string; to?: string }) {
+    const to = query.to ? new Date(query.to) : new Date();
+    const from = query.from ? new Date(query.from) : new Date(to.getTime() - 30 * 86400000);
+    const type = query.type ?? 'valuation';
+    if (type === 'valuation') {
+      const items = await this.prisma.inventoryItem.findMany({
+        where: { isActive: true },
+        include: { category: true },
+        orderBy: { name: 'asc' },
+      });
+      return items.map((i) => ({
+        ingredient: i.name,
+        sku: i.sku,
+        quantity: this.num(i.currentStock),
+        unit: i.unit,
+        averageCost: this.num(i.averageCost || i.costPrice),
+        totalValue: this.num(i.currentStock) * this.num(i.averageCost || i.costPrice),
+      }));
+    }
+    if (type === 'purchase') {
+      const pos = await this.prisma.purchaseOrder.findMany({
+        where: {
+          createdAt: { gte: from, lte: to },
+          status: { not: PurchaseOrderStatus.CANCELLED },
+        },
+        include: { supplier: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      return pos.map((p) => ({
+        supplier: p.supplier.name,
+        po: p.poNumber,
+        date: p.createdAt.toISOString(),
+        status: p.status,
+        amount: this.num(p.total),
+      }));
+    }
+    if (type === 'consumption') {
+      const items = await this.prisma.inventoryItem.findMany({ where: { isActive: true } });
+      const rows: Array<{
+        ingredient: string;
+        opening: number;
+        purchased: number;
+        consumed: number;
+        waste: number;
+        closing: number;
+      }> = [];
+      for (const item of items) {
+        const openingMove = await this.prisma.stockMovement.findFirst({
+          where: { itemId: item.id, createdAt: { lte: from } },
+          orderBy: { createdAt: 'desc' },
+        });
+        const movements = await this.prisma.stockMovement.findMany({
+          where: { itemId: item.id, createdAt: { gte: from, lte: to } },
+        });
+        const purchased = movements
+          .filter((m) => m.type === StockMovementType.PURCHASE || m.type === StockMovementType.GRN)
+          .reduce((s, m) => s + this.num(m.quantity), 0);
+        const consumed = movements
+          .filter(
+            (m) =>
+              m.type === StockMovementType.CONSUMPTION || m.type === StockMovementType.RECIPE_USAGE,
+          )
+          .reduce((s, m) => s + this.num(m.quantity), 0);
+        const waste = movements
+          .filter((m) => m.type === StockMovementType.WASTE)
+          .reduce((s, m) => s + this.num(m.quantity), 0);
+        const opening = openingMove ? this.num(openingMove.afterQty) : this.num(item.currentStock);
+        rows.push({
+          ingredient: item.name,
+          opening,
+          purchased,
+          consumed,
+          waste,
+          closing: this.num(item.currentStock),
+        });
+      }
+      return rows;
+    }
+    const wastes = await this.prisma.inventoryWaste.findMany({
+      where: { createdAt: { gte: from, lte: to } },
+      include: { item: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return wastes.map((w) => ({
+      ingredient: w.item.name,
+      quantity: this.num(w.quantity),
+      reason: w.reason,
+      cost: this.num(w.costLoss),
+      date: w.createdAt.toISOString(),
+    }));
+  }
+
+  async getMenuAvailability() {
+    const recipes = await this.prisma.recipe.findMany({
+      include: { product: true, items: { include: { item: true } } },
+    });
+    return recipes.map((r) => {
+      const shortages = r.items
+        .filter(
+          (ri) =>
+            this.num(ri.item.currentStock) <
+            this.convertQty(this.num(ri.quantity), ri.unit, ri.item.unit),
+        )
+        .map((ri) => ({
+          ingredient: ri.item.name,
+          current: this.num(ri.item.currentStock),
+          required: this.convertQty(this.num(ri.quantity), ri.unit, ri.item.unit),
+          unit: ri.item.unit,
+        }));
+      return {
+        productId: r.productId,
+        productName: r.product.name,
+        isAvailable: r.product.isAvailable,
+        shortages,
+        warning: shortages.length
+          ? `Insufficient ${shortages.map((s) => s.ingredient).join(', ')} stock`
+          : null,
+      };
+    });
+  }
+
+  async applyMenuAvailability() {
+    const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings?.autoMenuAvailability) return;
+    const rows = await this.getMenuAvailability();
+    for (const row of rows) {
+      if (row.shortages.length && row.isAvailable) {
+        await this.prisma.product.update({
+          where: { id: row.productId },
+          data: { isAvailable: false },
+        });
+      }
+    }
+  }
+
+  async listExpiryBuckets() {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const end = (days: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+    const mapBatch = async (where: Prisma.InventoryBatchWhereInput) => {
+      const batches = await this.prisma.inventoryBatch.findMany({
+        where: { remainingQty: { gt: 0 }, ...where },
+        include: { item: true },
+        orderBy: { expiryDate: 'asc' },
+      });
+      return batches.map((b) => ({
+        id: b.id,
+        itemName: b.item.name,
+        remainingQty: this.num(b.remainingQty),
+        unit: b.item.unit,
+        expiryDate: b.expiryDate?.toISOString() ?? null,
+        daysLeft: b.expiryDate ? Math.ceil((b.expiryDate.getTime() - Date.now()) / 86400000) : null,
+      }));
+    };
+    return {
+      expired: await mapBatch({ expiryDate: { lt: now } }),
+      today: await mapBatch({ expiryDate: { gte: now, lt: end(1) } }),
+      within3: await mapBatch({ expiryDate: { gte: end(1), lt: end(4) } }),
+      within7: await mapBatch({ expiryDate: { gte: end(4), lt: end(8) } }),
+    };
+  }
+
+  async notifyExpiryAlerts() {
+    const buckets = await this.listExpiryBuckets();
+    for (const row of [...buckets.today, ...buckets.within3]) {
+      await this.notifyStaff(
+        row.id,
+        'Expiry alert',
+        `${row.itemName} expires in ${row.daysLeft ?? 0} day(s).`,
+      );
+    }
+  }
+
+  private async maybeNotifyLowStock(itemIds: string[]) {
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { id: { in: itemIds } },
+    });
+    for (const item of items) {
+      if (this.num(item.currentStock) <= this.num(item.minStock)) {
+        await this.notifyStaff(item.id, 'Low stock', `${item.name} is below the minimum level.`);
+      }
+    }
+  }
+
+  private async notifyStaff(ref: string, title: string, body: string) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: { name: { in: [UserRole.SUPER_ADMIN, UserRole.MANAGER] } },
+      },
+      select: { id: true },
+    });
+    for (const user of users) {
+      await this.notifications
+        .create({
+          userId: user.id,
+          type: NotificationType.INVENTORY,
+          title,
+          body,
+          data: { reference: ref },
+        })
+        .catch(() => undefined);
+    }
   }
 }

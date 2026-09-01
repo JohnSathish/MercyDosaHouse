@@ -9,6 +9,17 @@ export default function RecipesPage() {
     queryKey: ['inventory-recipes'],
     queryFn: () => api.get<Array<Record<string, unknown>>>('/inventory/recipes'),
   });
+  const { data: warnings = [] } = useQuery({
+    queryKey: ['inventory-menu-availability'],
+    queryFn: () =>
+      api.get<
+        Array<{
+          productName: string;
+          warning: string | null;
+          shortages: Array<{ ingredient: string; current: number; required: number; unit: string }>;
+        }>
+      >('/inventory/menu-availability'),
+  });
 
   return (
     <div className="space-y-4">
@@ -20,6 +31,27 @@ export default function RecipesPage() {
           Menu items linked to ingredient consumption — auto-deducts on order preparation
         </p>
       </div>
+
+      {warnings.some((w) => w.warning) ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2">
+          {warnings
+            .filter((w) => w.warning)
+            .map((w) => (
+              <p key={w.productName} className="text-sm text-amber-900">
+                <span className="font-semibold">{w.productName}</span> — {w.warning}
+                {w.shortages.map((s) => (
+                  <span key={s.ingredient} className="block text-xs">
+                    {s.ingredient}: current {s.current} {s.unit}, required {s.required} {s.unit}
+                  </span>
+                ))}
+              </p>
+            ))}
+          <p className="text-xs text-muted-foreground">
+            Menu items stay available unless Automatic Menu Availability Control is enabled in
+            Settings.
+          </p>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="h-48 bg-muted animate-pulse rounded-xl" />

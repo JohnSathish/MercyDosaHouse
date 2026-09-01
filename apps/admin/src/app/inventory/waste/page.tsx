@@ -54,10 +54,24 @@ export default function WastePage() {
           <Trash2 className="h-6 w-6 text-red-500" /> Waste Management
         </h1>
         {report && (
-          <p className="text-muted-foreground text-sm mt-1">
-            30-day waste cost:{' '}
-            <span className="font-bold text-red-600">{formatCurrency(report.totalLoss)}</span>
-          </p>
+          <div className="grid sm:grid-cols-3 gap-3 mt-3">
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground">Waste Today</p>
+              <p className="font-bold text-red-600">
+                {formatCurrency(Number(report.wasteToday ?? 0))}
+              </p>
+            </div>
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground">Waste This Month</p>
+              <p className="font-bold text-red-600">
+                {formatCurrency(Number(report.wasteThisMonth ?? 0))}
+              </p>
+            </div>
+            <div className="rounded-xl border p-3">
+              <p className="text-xs text-muted-foreground">Waste Value (period)</p>
+              <p className="font-bold text-red-600">{formatCurrency(report.totalLoss)}</p>
+            </div>
+          </div>
         )}
       </div>
 
@@ -114,24 +128,37 @@ export default function WastePage() {
           {!report?.wastes?.length ? (
             <p className="text-muted-foreground text-sm">No waste recorded</p>
           ) : (
-            <ul className="space-y-2">
-              {report.wastes.slice(0, 10).map((w) => {
-                const item = w.item as { name: string };
-                return (
-                  <li key={String(w.id)} className="flex justify-between text-sm border-b pb-2">
-                    <div>
-                      <p className="font-medium">{item?.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {String(w.reason).replace('_', ' ')}
-                      </p>
+            <>
+              {report.topWasted?.length ? (
+                <div className="mb-4">
+                  <p className="text-xs uppercase text-muted-foreground mb-2">Top wasted</p>
+                  {report.topWasted.map((t: { name: string; cost: number }) => (
+                    <div key={t.name} className="flex justify-between text-sm">
+                      <span>{t.name}</span>
+                      <span>{formatCurrency(t.cost)}</span>
                     </div>
-                    <span className="font-bold text-red-600">
-                      {formatCurrency(Number(w.costLoss))}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+                  ))}
+                </div>
+              ) : null}
+              <ul className="space-y-2">
+                {report.wastes.slice(0, 10).map((w) => {
+                  const item = w.item as { name: string };
+                  return (
+                    <li key={String(w.id)} className="flex justify-between text-sm border-b pb-2">
+                      <div>
+                        <p className="font-medium">{item?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {String(w.reason).replace('_', ' ')}
+                        </p>
+                      </div>
+                      <span className="font-bold text-red-600">
+                        {formatCurrency(Number(w.costLoss))}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
         </div>
       </div>

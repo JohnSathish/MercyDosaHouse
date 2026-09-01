@@ -161,6 +161,7 @@ export class SettingsService {
       'storeReopenMessage',
       'storeClosedReason',
       'operatingSchedule',
+      'autoMenuAvailability',
     ] as const;
     const patch: Record<string, unknown> = {};
     for (const key of keys) {
@@ -308,6 +309,7 @@ export class SettingsService {
         : null,
       storeStatusChangedByName: null,
       operatingSchedule: (s.operatingSchedule as Record<string, unknown> | null) ?? null,
+      autoMenuAvailability: s.autoMenuAvailability === true,
       feedback: parseFeedbackConfig(s.feedbackConfig),
     };
   }
@@ -419,6 +421,12 @@ export class SettingsService {
         ...current.bank,
         ...(patch.bank && typeof patch.bank === 'object'
           ? (patch.bank as Record<string, unknown>)
+          : {}),
+      },
+      email: {
+        ...current.email,
+        ...(patch.email && typeof patch.email === 'object'
+          ? (patch.email as Record<string, unknown>)
           : {}),
       },
     });

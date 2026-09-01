@@ -32,10 +32,20 @@ import {
   parseInvoiceConfig,
   type InvoiceConfig,
 } from '../settings/invoice-config';
-import { resolvePublicAssetUrl, resolveWebsiteUrl } from '../notifications/email-branding';
+import {
+  resolvePublicAssetUrl,
+  resolveWebsiteUrl,
+  formatFromHeader,
+} from '../notifications/email-branding';
 import { computeInvoiceTotals } from './compute-totals';
 import { amountInWordsInr } from './invoice-totals';
 import { InvoicePdfService } from './invoice-pdf.service';
+import {
+  formatPdfFileSize,
+  renderInvoiceEmail,
+  renderInvoiceEmailSubject,
+  type InvoiceEmailKind,
+} from './invoice-email.template';
 
 const CUSTOMER_TYPES = new Set(Object.values(InvoiceCustomerType));
 const PAY_METHODS = new Set(Object.values(InvoicePaymentMethod));
@@ -80,6 +90,10 @@ export class InvoicesService {
       bank: {
         ...current.bank,
         ...(patch.bank && typeof patch.bank === 'object' ? patch.bank : {}),
+      },
+      email: {
+        ...current.email,
+        ...(patch.email && typeof patch.email === 'object' ? patch.email : {}),
       },
     });
     await this.prisma.businessSettings.update({
@@ -291,6 +305,7 @@ export class InvoicesService {
       description: created.invoiceNumber,
     });
 
+    void this.maybeAutoEmail(created.id, 'CREATED');
     return this.toDto(created);
   }
 
@@ -419,6 +434,7 @@ export class InvoicesService {
       }),
     ]);
 
+    void this.maybeAutoEmail(id, 'UPDATED');
     return this.getById(id);
   }
 
@@ -452,6 +468,7 @@ export class InvoicesService {
       entityId: id,
       description: existing.invoiceNumber,
     });
+    void this.maybeAutoEmail(id, 'CANCELLED');
     return this.getById(id);
   }
 
@@ -503,6 +520,8 @@ export class InvoicesService {
         },
       },
     });
+    const nextStatus = this.statusFrom(amountPaid, grand, invoice.dueDate, invoice.status);
+    void this.maybeAutoEmail(id, nextStatus === 'PAID' ? 'PAYMENT_RECEIVED' : 'PAYMENT_PENDING');
     return this.getById(id);
   }
 
@@ -534,64 +553,166 @@ export class InvoicesService {
     return { buffer, filename: `${invoice.invoiceNumber}.pdf` };
   }
 
-  async sendEmail(id: string, actor: RequestUser, to?: string) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id },
-      include: this.includeAll(),
-    });
-    if (!invoice) throw new NotFoundException('Invoice not found');
-    const recipient = (to || invoice.email || '').trim();
-    if (!recipient) throw new BadRequestException('Customer email is required');
-    if (!this.email.isConfigured()) {
-      throw new BadRequestException(
-        'Email is not configured. Add provider credentials on the server.',
-      );
-    }
-    const { buffer, filename } = await this.generatePdf(id);
-    const total = Number(invoice.grandTotal).toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    const name = invoice.customerName;
-    const text = `Dear ${name},
-
-Thank you for choosing Mercy Dosa House.
-
-Please find attached your invoice ${invoice.invoiceNumber} for ₹${total}.
-
-Payment Status: ${invoice.status.replace(/_/g, ' ')}
-
-Please contact us if you have any questions regarding this invoice.
-
-Regards,
-Mercy Dosa House
-
-Crispy Dosas. Happy Hearts. ❤️`;
-    const result = await this.email.send({
-      to: recipient,
-      subject: `Invoice ${invoice.invoiceNumber} — Mercy Dosa House`,
-      text,
-      html: `<p>Dear ${escapeHtml(name)},</p>
-<p>Thank you for choosing Mercy Dosa House.</p>
-<p>Please find attached your invoice <strong>${escapeHtml(invoice.invoiceNumber)}</strong> for ₹${total}.</p>
-<p>Payment Status: ${escapeHtml(invoice.status.replace(/_/g, ' '))}</p>
-<p>Please contact us if you have any questions regarding this invoice.</p>
-<p>Regards,<br/>Mercy Dosa House<br/>Crispy Dosas. Happy Hearts. ❤️</p>`,
-      attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
-    });
+  async sendEmail(id: string, actor: RequestUser, to?: string, kind: InvoiceEmailKind = 'SENT') {
+    const result = await this.deliverInvoiceEmail(id, kind, to);
     await this.prisma.invoiceEvent.create({
       data: {
         invoiceId: id,
         action: 'EMAIL_SENT',
         userId: actor.id,
         userName: actor.name || actor.email || 'Admin',
-        detail: result.sent ? `Email sent to ${recipient}` : result.error || 'Email failed',
+        detail: result.sent
+          ? `Email (${kind.toLowerCase()}) sent to ${result.to}`
+          : result.error || 'Email failed',
       },
     });
     if (!result.sent) {
       throw new BadRequestException(result.error || 'Email could not be sent');
     }
-    return { sent: true, to: recipient };
+    return { sent: true, to: result.to };
+  }
+
+  private async maybeAutoEmail(id: string, kind: InvoiceEmailKind) {
+    try {
+      const cfg = await this.getInvoiceConfig();
+      if (!cfg.email.autoSend) return;
+      const result = await this.deliverInvoiceEmail(id, kind);
+      if (result.sent) {
+        await this.prisma.invoiceEvent.create({
+          data: {
+            invoiceId: id,
+            action: 'EMAIL_SENT',
+            detail: `Automatic ${kind.toLowerCase()} email sent to ${result.to}`,
+          },
+        });
+      }
+    } catch {
+      /* invoice save must succeed even if email fails */
+    }
+  }
+
+  private async deliverInvoiceEmail(
+    id: string,
+    kind: InvoiceEmailKind,
+    to?: string,
+  ): Promise<{ sent: boolean; to?: string; error?: string }> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: this.includeAll(),
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    const recipient = (to || invoice.email || '').trim();
+    if (!recipient) {
+      return { sent: false, error: 'Customer email is required' };
+    }
+    if (!this.email.isConfigured()) {
+      return {
+        sent: false,
+        error: 'Email is not configured. Add provider credentials on the server.',
+      };
+    }
+
+    const settings = await this.ensureSettings();
+    const cfg = parseInvoiceConfig(settings.invoiceConfig);
+    if (!cfg.bank.upiId && settings.upiId) cfg.bank.upiId = settings.upiId;
+    const websiteUrl = resolveWebsiteUrl(
+      cfg.email.website || settings.websiteUrl,
+      this.config.get('WEBSITE_URL'),
+    );
+    const theme = await this.prisma.themeSettings.findFirst({ select: { logoUrl: true } });
+    const logoUrl = resolvePublicAssetUrl(
+      cfg.email.logoUrl || theme?.logoUrl,
+      websiteUrl,
+      this.config.get('STORAGE_PUBLIC_URL'),
+    );
+    const { buffer, filename } = await this.generatePdf(id);
+    const downloadUrl = await this.shareUrl(id);
+    const lastPayment = invoice.payments.at(-1);
+    const { html, text } = renderInvoiceEmail({
+      kind,
+      customerName: invoice.customerName,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate,
+      status: invoice.status,
+      paymentMethod: lastPayment?.method ?? null,
+      subtotal: Number(invoice.subtotal),
+      discount: Number(invoice.discountAmount),
+      tax: Number(invoice.taxAmount),
+      deliveryCharge: Number(invoice.deliveryCharge),
+      packingCharge: Number(invoice.packingCharge),
+      otherCharges: Number(invoice.otherCharges),
+      otherChargesLabel: invoice.otherChargesLabel,
+      grandTotal: Number(invoice.grandTotal),
+      amountPaid: Number(invoice.amountPaid),
+      balanceDue: Number(invoice.balanceDue),
+      summaryRows: [
+        { label: 'Food / Services', amount: Number(invoice.subtotal) },
+        {
+          label: invoice.discountLabel || 'Discount',
+          amount: Number(invoice.discountAmount),
+          muted: true,
+        },
+        { label: 'Delivery charges', amount: Number(invoice.deliveryCharge) },
+        { label: 'Packing charges', amount: Number(invoice.packingCharge) },
+        {
+          label: invoice.otherChargesLabel || 'Other charges',
+          amount: Number(invoice.otherCharges),
+        },
+        {
+          label: invoice.taxEnabled ? `Tax (${invoice.taxType.replace(/_/g, ' ')})` : 'Tax',
+          amount: Number(invoice.taxAmount),
+        },
+        { label: 'Total', amount: Number(invoice.grandTotal), emphasize: true },
+        { label: 'Amount paid', amount: Number(invoice.amountPaid) },
+        {
+          label: 'Balance due',
+          amount: Number(invoice.balanceDue),
+          emphasize: Number(invoice.balanceDue) > 0,
+        },
+      ],
+      bankName: cfg.bank.bankName,
+      accountName: cfg.bank.accountName,
+      accountNumber: cfg.bank.accountNumber,
+      ifsc: cfg.bank.ifsc,
+      upiId: cfg.bank.upiId,
+      showBank: cfg.showBankDetails && invoice.status !== 'CANCELLED' && invoice.status !== 'PAID',
+      phone: cfg.email.phone || settings.phone,
+      email: cfg.email.replyTo || settings.email,
+      website: websiteUrl,
+      address: cfg.email.address || settings.address,
+      logoUrl,
+      downloadUrl,
+      fileName: filename,
+      fileSizeLabel: formatPdfFileSize(buffer.length),
+      footerNote: cfg.email.footer,
+      tagline: settings.tagline,
+    });
+
+    const subject = renderInvoiceEmailSubject(kind, invoice.invoiceNumber, {
+      subject: cfg.email.subject,
+      overdueSubject: cfg.email.overdueSubject,
+    });
+    const fromEmail = cfg.email.senderEmail;
+    const from =
+      fromEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromEmail)
+        ? formatFromHeader(cfg.email.senderName || 'Mercy Dosa House', fromEmail)
+        : undefined;
+    const replyTo =
+      cfg.email.replyTo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cfg.email.replyTo)
+        ? cfg.email.replyTo
+        : undefined;
+
+    const result = await this.email.send({
+      to: recipient,
+      subject,
+      text,
+      html,
+      from,
+      replyTo,
+      attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
+    });
+    return { sent: result.sent, to: recipient, error: result.error };
   }
 
   async sendWhatsApp(id: string, actor: RequestUser, number?: string) {
@@ -745,14 +866,22 @@ Mercy Dosa House`;
 
   private async markOverdue() {
     const now = new Date();
-    await this.prisma.invoice.updateMany({
+    const due = await this.prisma.invoice.findMany({
       where: {
         status: { in: ['UNPAID', 'PARTIALLY_PAID'] },
         dueDate: { lt: now },
         balanceDue: { gt: 0 },
       },
+      select: { id: true },
+    });
+    if (!due.length) return;
+    await this.prisma.invoice.updateMany({
+      where: { id: { in: due.map((d) => d.id) } },
       data: { status: 'OVERDUE' },
     });
+    for (const row of due) {
+      void this.maybeAutoEmail(row.id, 'PAYMENT_OVERDUE');
+    }
   }
 
   private async buildPdf(invoice: InvoiceRow): Promise<Buffer> {
@@ -1040,14 +1169,6 @@ Mercy Dosa House`;
 
 function money(n: number): number {
   return Math.round((Number.isFinite(n) ? n : 0) * 100) / 100;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 async function fetchBuffer(url: string): Promise<Buffer | null> {

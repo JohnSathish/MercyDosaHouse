@@ -44,6 +44,20 @@ export interface InvoiceBankDetailsDto {
   upiId: string;
 }
 
+export interface InvoiceEmailSettingsDto {
+  autoSend: boolean;
+  senderName: string;
+  senderEmail: string;
+  replyTo: string;
+  phone: string;
+  address: string;
+  website: string;
+  logoUrl: string;
+  subject: string;
+  overdueSubject: string;
+  footer: string;
+}
+
 export interface InvoiceConfigDto {
   prefix: string;
   dueDays: number;
@@ -58,6 +72,7 @@ export interface InvoiceConfigDto {
   paymentInstructions: string;
   pan: string;
   bank: InvoiceBankDetailsDto;
+  email: InvoiceEmailSettingsDto;
 }
 
 export interface InvoiceItemInput {

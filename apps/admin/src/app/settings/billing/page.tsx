@@ -16,7 +16,24 @@ export default function BillingSettingsPage() {
   });
   const [form, setForm] = useState<InvoiceConfigDto | null>(null);
   useEffect(() => {
-    if (data) setForm(data);
+    if (!data) return;
+    setForm({
+      ...data,
+      email: {
+        autoSend: false,
+        senderName: 'Mercy Dosa House',
+        senderEmail: '',
+        replyTo: '',
+        phone: '',
+        address: '',
+        website: '',
+        logoUrl: '',
+        subject: 'Invoice {{invoice_number}} | Mercy Dosa House',
+        overdueSubject: 'Payment Reminder — Invoice {{invoice_number}} | Mercy Dosa House',
+        footer: 'Thank you for your trust and continued support!',
+        ...data.email,
+      },
+    });
   }, [data]);
 
   const save = useMutation({
@@ -161,6 +178,81 @@ export default function BillingSettingsPage() {
               className="mt-1 w-full rounded-md border px-3 py-2 text-sm min-h-20"
               value={form.paymentInstructions}
               onChange={(e) => set('paymentInstructions', e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <h2 className="font-semibold">Invoice emails</h2>
+          <p className="text-xs text-muted-foreground">
+            Branded HTML invoices still attach the PDF. Leave sender email blank to use the server
+            default (info@mercydosahouse.com). Automatic emails only send when the invoice has a
+            customer email address.
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.email.autoSend}
+              onChange={(e) => set('email', { ...form.email, autoSend: e.target.checked })}
+            />
+            Enable automatic invoice emails (created, updated, payment, overdue, cancelled)
+          </label>
+          <Field
+            label="Sender name"
+            value={form.email.senderName}
+            onChange={(v) => set('email', { ...form.email, senderName: v })}
+          />
+          <Field
+            label="Sender email"
+            value={form.email.senderEmail}
+            onChange={(v) => set('email', { ...form.email, senderEmail: v })}
+          />
+          <Field
+            label="Reply-to email"
+            value={form.email.replyTo}
+            onChange={(v) => set('email', { ...form.email, replyTo: v })}
+          />
+          <Field
+            label="Business phone (email)"
+            value={form.email.phone}
+            onChange={(v) => set('email', { ...form.email, phone: v })}
+          />
+          <Field
+            label="Business address (email)"
+            value={form.email.address}
+            onChange={(v) => set('email', { ...form.email, address: v })}
+          />
+          <Field
+            label="Website"
+            value={form.email.website}
+            onChange={(v) => set('email', { ...form.email, website: v })}
+          />
+          <Field
+            label="Logo URL (optional override)"
+            value={form.email.logoUrl}
+            onChange={(v) => set('email', { ...form.email, logoUrl: v })}
+          />
+          <Field
+            label="Invoice email subject"
+            value={form.email.subject}
+            onChange={(v) => set('email', { ...form.email, subject: v })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Use {'{{invoice_number}}'} in the subject.
+          </p>
+          <Field
+            label="Overdue reminder subject"
+            value={form.email.overdueSubject}
+            onChange={(v) => set('email', { ...form.email, overdueSubject: v })}
+          />
+          <div>
+            <Label>Email footer</Label>
+            <textarea
+              className="mt-1 w-full rounded-md border px-3 py-2 text-sm min-h-20"
+              value={form.email.footer}
+              onChange={(e) => set('email', { ...form.email, footer: e.target.value })}
             />
           </div>
         </CardContent>

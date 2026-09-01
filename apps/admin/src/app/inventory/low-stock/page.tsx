@@ -1,13 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
-import { Badge } from '@mdh/ui';
+import { Badge, Button } from '@mdh/ui';
 import { api } from '@/lib/api';
 import type { InventoryItemDto } from '@mdh/types';
-import { IngredientsTable } from '@/components/inventory/ingredients-table';
 
 export default function LowStockPage() {
+  const router = useRouter();
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['inventory-low-stock'],
     queryFn: () => api.get<InventoryItemDto[]>('/inventory/items?lowStock=true'),
@@ -29,7 +30,31 @@ export default function LowStockPage() {
           <p className="text-emerald-700 font-semibold">All stock levels are healthy</p>
         </div>
       ) : (
-        <IngredientsTable items={items} />
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-xl border bg-white p-4 flex flex-wrap items-center justify-between gap-3"
+            >
+              <div>
+                <p className="font-semibold">{item.name}</p>
+                <p className="text-sm text-red-600">
+                  Current: {item.currentStock} {item.unit} · Minimum: {item.minStock} {item.unit}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-red-100 text-red-700">LOW STOCK</Badge>
+                <Button
+                  size="sm"
+                  className="bg-[#14532D]"
+                  onClick={() => router.push(`/inventory/purchase-orders?itemId=${item.id}`)}
+                >
+                  Create Purchase Order
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

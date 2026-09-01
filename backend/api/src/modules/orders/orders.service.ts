@@ -42,6 +42,7 @@ import { LoyaltyService } from '../loyalty/loyalty.service';
 import { EmailService } from '../notifications/email.service';
 import { SmsService } from '../notifications/sms.service';
 import { RequestUser } from '../../common/guards';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
@@ -60,6 +61,7 @@ export class OrdersService implements OnModuleInit {
     private email: EmailService,
     private sms: SmsService,
     private config: ConfigService,
+    private inventory: InventoryService,
   ) {
     const redisUrl = this.config.get<string>('REDIS_URL');
     if (redisUrl) {
@@ -881,6 +883,7 @@ export class OrdersService implements OnModuleInit {
     });
     if (status === OrderStatus.DELIVERED) {
       void this.loyalty.awardForOrder(id);
+      void this.inventory.deductForOrder(id);
     }
     if (status === OrderStatus.CANCELLED) {
       void this.loyalty.reverseForOrder(id, 'CANCELLED');

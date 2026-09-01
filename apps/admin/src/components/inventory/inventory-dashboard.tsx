@@ -17,19 +17,23 @@ import { cn, Badge } from '@mdh/ui';
 const STAT_CARDS = [
   {
     key: 'stockValue',
-    label: 'Stock Value',
+    label: 'Total Stock Value',
     icon: IndianRupee,
     color: 'from-[#14532D] to-emerald-700',
     format: 'currency',
   },
-  { key: 'totalItems', label: 'Items', icon: Package, color: 'from-blue-500 to-blue-600' },
   {
     key: 'lowStock',
-    label: 'Low Stock',
+    label: 'Low Stock Items',
     icon: AlertTriangle,
     color: 'from-amber-500 to-orange-500',
   },
-  { key: 'outOfStock', label: 'Out of Stock', icon: XCircle, color: 'from-red-500 to-red-600' },
+  {
+    key: 'outOfStock',
+    label: 'Out of Stock',
+    icon: XCircle,
+    color: 'from-red-500 to-red-600',
+  },
   {
     key: 'expiringSoon',
     label: 'Expiring Soon',
@@ -37,15 +41,22 @@ const STAT_CARDS = [
     color: 'from-purple-500 to-purple-600',
   },
   {
-    key: 'purchaseToday',
-    label: 'Purchase Today',
+    key: 'purchaseThisMonth',
+    label: 'Purchase This Month',
     icon: ShoppingCart,
     color: 'from-teal-500 to-teal-600',
     format: 'currency',
   },
   {
-    key: 'consumptionToday',
-    label: 'Consumption Today',
+    key: 'stockUsedToday',
+    label: 'Stock Used Today',
+    icon: Package,
+    color: 'from-blue-500 to-blue-600',
+    suffix: ' KG',
+  },
+  {
+    key: 'wasteThisMonth',
+    label: 'Waste This Month',
     icon: TrendingDown,
     color: 'from-rose-500 to-rose-600',
     format: 'currency',
@@ -91,7 +102,9 @@ export function InventoryDashboardView({
                 <span className="text-[10px] uppercase tracking-wide font-semibold">{label}</span>
               </div>
               <p className="text-xl lg:text-2xl font-bold">
-                {format === 'currency' ? formatCurrency(val as number) : val}
+                {format === 'currency'
+                  ? formatCurrency(val as number)
+                  : `${val}${'suffix' in card ? card.suffix : ''}`}
               </p>
             </motion.div>
           );
@@ -194,6 +207,62 @@ export function InventoryDashboardView({
               <div key={i} className="flex justify-between text-sm py-1.5 border-b">
                 <span>{t.name}</span>
                 <span className="font-semibold">{t.quantity.toFixed(1)}</span>
+              </div>
+            ))
+          )}
+        </Widget>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <Widget title="Recent Stock Movements">
+          {!data.recentMovements?.length ? (
+            <p className="text-sm text-muted-foreground">No stock movements yet</p>
+          ) : (
+            data.recentMovements.map((m) => (
+              <div key={m.id} className="flex justify-between text-sm py-1.5 border-b gap-2">
+                <div>
+                  <p className="font-medium">{m.item}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {m.type.replace('_', ' ')} {m.reference ? `· ${m.reference}` : ''}
+                  </p>
+                </div>
+                <span className="font-bold shrink-0">{m.quantity}</span>
+              </div>
+            ))
+          )}
+        </Widget>
+        <Widget title="Expiring Ingredients">
+          {!data.expiringIngredients?.length ? (
+            <p className="text-sm text-muted-foreground">No batches expiring soon</p>
+          ) : (
+            data.expiringIngredients.map((b) => (
+              <div key={b.id} className="flex justify-between text-sm py-1.5 border-b">
+                <div>
+                  <p className="font-medium">{b.itemName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {b.expiryDate ? new Date(b.expiryDate).toLocaleDateString('en-IN') : '—'}
+                  </p>
+                </div>
+                <span className="text-amber-700 font-semibold text-xs">
+                  {b.daysLeft != null ? `${b.daysLeft}d` : ''}
+                </span>
+              </div>
+            ))
+          )}
+        </Widget>
+        <Widget title="Inventory Value">
+          {!data.inventoryValue?.length ? (
+            <p className="text-sm text-muted-foreground">No ingredients added yet</p>
+          ) : (
+            data.inventoryValue.map((v) => (
+              <div key={v.name} className="flex justify-between text-sm py-1.5 border-b">
+                <span>
+                  {v.name}{' '}
+                  <span className="text-muted-foreground">
+                    {v.quantity} {v.unit}
+                  </span>
+                </span>
+                <span className="font-semibold">{formatCurrency(v.value)}</span>
               </div>
             ))
           )}

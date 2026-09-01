@@ -77,9 +77,18 @@ export default function AdjustmentsPage() {
             onChange={(e) => setReason(e.target.value as StockAdjustmentReason)}
             className="w-full mt-1 h-10 rounded-lg border px-3 text-sm"
           >
-            {Object.values(StockAdjustmentReason).map((r) => (
-              <option key={r} value={r}>
-                {r.replace('_', ' ')}
+            {Object.entries({
+              ADD: 'Stock In',
+              REMOVE: 'Stock Out',
+              CORRECTION: 'Correction',
+              RETURN: 'Return',
+              TRANSFER: 'Transfer',
+              DAMAGE: 'Damaged',
+              SAMPLE: 'Sample',
+              LOSS: 'Loss',
+            }).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>

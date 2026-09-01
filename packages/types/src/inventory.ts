@@ -5,10 +5,12 @@ export enum InventoryUnit {
   ML = 'ML',
   PIECE = 'PIECE',
   PACKET = 'PACKET',
+  BOX = 'BOX',
   BOTTLE = 'BOTTLE',
   TRAY = 'TRAY',
   DOZEN = 'DOZEN',
   BUNDLE = 'BUNDLE',
+  CUSTOM = 'CUSTOM',
 }
 
 export enum InventoryItemStatus {
@@ -21,6 +23,8 @@ export enum PurchaseOrderStatus {
   DRAFT = 'DRAFT',
   SENT = 'SENT',
   APPROVED = 'APPROVED',
+  ORDERED = 'ORDERED',
+  PARTIALLY_RECEIVED = 'PARTIALLY_RECEIVED',
   RECEIVED = 'RECEIVED',
   CLOSED = 'CLOSED',
   CANCELLED = 'CANCELLED',
@@ -33,6 +37,8 @@ export enum StockAdjustmentReason {
   DAMAGE = 'DAMAGE',
   SAMPLE = 'SAMPLE',
   LOSS = 'LOSS',
+  RETURN = 'RETURN',
+  TRANSFER = 'TRANSFER',
 }
 
 export enum WasteReason {
@@ -42,6 +48,10 @@ export enum WasteReason {
   SPILLAGE = 'SPILLAGE',
   RETURNED = 'RETURNED',
   QUALITY_ISSUE = 'QUALITY_ISSUE',
+  SPOILAGE = 'SPOILAGE',
+  COOKING_LOSS = 'COOKING_LOSS',
+  OVERPRODUCTION = 'OVERPRODUCTION',
+  OTHER = 'OTHER',
 }
 
 export interface InventoryStatsDto {
@@ -51,7 +61,10 @@ export interface InventoryStatsDto {
   outOfStock: number;
   expiringSoon: number;
   purchaseToday: number;
+  purchaseThisMonth: number;
   consumptionToday: number;
+  stockUsedToday: number;
+  wasteThisMonth: number;
 }
 
 export interface InventoryItemDto {
@@ -74,6 +87,10 @@ export interface InventoryItemDto {
   locationId?: string | null;
   locationName?: string | null;
   expiryTracking: boolean;
+  customUnit?: string | null;
+  lotNumber?: string | null;
+  expiryDate?: string | null;
+  notes?: string | null;
   status: InventoryItemStatus;
   isActive: boolean;
   createdAt: string;
@@ -107,4 +124,22 @@ export interface InventoryDashboardDto {
     createdAt: string;
   }>;
   topConsumed: Array<{ name: string; quantity: number }>;
+  recentMovements: Array<{
+    id: string;
+    item: string;
+    type: string;
+    quantity: number;
+    afterQty: number;
+    reference: string | null;
+    createdAt: string;
+  }>;
+  expiringIngredients: Array<{
+    id: string;
+    itemName: string;
+    remainingQty: number;
+    unit: string;
+    expiryDate: string | null;
+    daysLeft: number | null;
+  }>;
+  inventoryValue: Array<{ name: string; quantity: number; unit: string; value: number }>;
 }

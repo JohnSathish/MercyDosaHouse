@@ -200,6 +200,7 @@ export class EmailService implements OnModuleInit {
           subject: options.subject,
           text: options.text,
           html: options.html,
+          replyTo: options.replyTo,
           attachments: options.attachments?.map((a) => ({
             filename: a.filename,
             content: a.content.toString('base64'),

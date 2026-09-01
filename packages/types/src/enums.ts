@@ -83,4 +83,5 @@ export enum NotificationType {
   ASSIGNED = 'ASSIGNED',
   PICKED_UP = 'PICKED_UP',
   REVIEW_REPLY = 'REVIEW_REPLY',
+  INVENTORY = 'INVENTORY',
 }

@@ -9,6 +9,20 @@ export type InvoiceBankDetails = {
   upiId: string;
 };
 
+export type InvoiceEmailSettings = {
+  autoSend: boolean;
+  senderName: string;
+  senderEmail: string;
+  replyTo: string;
+  phone: string;
+  address: string;
+  website: string;
+  logoUrl: string;
+  subject: string;
+  overdueSubject: string;
+  footer: string;
+};
+
 export type InvoiceConfig = {
   prefix: string;
   dueDays: number;
@@ -23,6 +37,7 @@ export type InvoiceConfig = {
   paymentInstructions: string;
   pan: string;
   bank: InvoiceBankDetails;
+  email: InvoiceEmailSettings;
 };
 
 export const EMPTY_BANK_DETAILS: InvoiceBankDetails = {
@@ -32,6 +47,20 @@ export const EMPTY_BANK_DETAILS: InvoiceBankDetails = {
   ifsc: 'SBIN0007332',
   branch: 'CHANDMARI',
   upiId: '',
+};
+
+export const DEFAULT_INVOICE_EMAIL: InvoiceEmailSettings = {
+  autoSend: false,
+  senderName: 'Mercy Dosa House',
+  senderEmail: '',
+  replyTo: '',
+  phone: '',
+  address: '',
+  website: '',
+  logoUrl: '',
+  subject: 'Invoice {{invoice_number}} | Mercy Dosa House',
+  overdueSubject: 'Payment Reminder — Invoice {{invoice_number}} | Mercy Dosa House',
+  footer: 'Thank you for your trust and continued support!',
 };
 
 export const DEFAULT_INVOICE_CONFIG: InvoiceConfig = {
@@ -48,6 +77,7 @@ export const DEFAULT_INVOICE_CONFIG: InvoiceConfig = {
   paymentInstructions: '',
   pan: '',
   bank: { ...EMPTY_BANK_DETAILS },
+  email: { ...DEFAULT_INVOICE_EMAIL },
 };
 
 function str(value: unknown, fallback = ''): string {
@@ -106,6 +136,23 @@ export function bankDetailsConfigured(bank: InvoiceBankDetails): boolean {
   );
 }
 
+function parseEmail(raw: unknown): InvoiceEmailSettings {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    autoSend: bool(o.autoSend, DEFAULT_INVOICE_EMAIL.autoSend),
+    senderName: str(o.senderName, DEFAULT_INVOICE_EMAIL.senderName),
+    senderEmail: str(o.senderEmail).toLowerCase(),
+    replyTo: str(o.replyTo).toLowerCase(),
+    phone: str(o.phone),
+    address: str(o.address),
+    website: str(o.website),
+    logoUrl: str(o.logoUrl),
+    subject: str(o.subject, DEFAULT_INVOICE_EMAIL.subject),
+    overdueSubject: str(o.overdueSubject, DEFAULT_INVOICE_EMAIL.overdueSubject),
+    footer: str(o.footer, DEFAULT_INVOICE_EMAIL.footer),
+  };
+}
+
 export function parseInvoiceConfig(raw: unknown): InvoiceConfig {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const nestedBank = o.bank && typeof o.bank === 'object' ? o.bank : o;
@@ -123,5 +170,6 @@ export function parseInvoiceConfig(raw: unknown): InvoiceConfig {
     paymentInstructions: str(o.paymentInstructions),
     pan: str(o.pan).toUpperCase(),
     bank: parseBank(nestedBank),
+    email: parseEmail(o.email),
   };
 }

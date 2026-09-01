@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import type { CreateInvoiceRequest, RecordInvoicePaymentRequest } from '@mdh/types';
 import { Public, RequirePermissions, RequestUser } from '../../common/guards';
 import { InvoicesService } from './invoices.service';
+import type { InvoiceEmailKind } from './invoice-email.template';
 
 @ApiTags('invoices')
 @Controller('invoices')
@@ -132,9 +133,9 @@ export class InvoicesController {
   sendEmail(
     @Req() req: { user: RequestUser },
     @Param('id') id: string,
-    @Body() body: { to?: string },
+    @Body() body: { to?: string; kind?: InvoiceEmailKind },
   ) {
-    return this.invoices.sendEmail(id, req.user, body?.to);
+    return this.invoices.sendEmail(id, req.user, body?.to, body?.kind ?? 'SENT');
   }
 
   @ApiBearerAuth()

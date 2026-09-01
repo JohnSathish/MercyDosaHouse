@@ -1,96 +1,63 @@
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api } from '@/lib/api';
-import { Card, EmptyState, KpiCard, Screen, StatusChip } from '@/ui';
-import { theme } from '@/ui/theme';
+import { Card, EmptyState, KpiCard, Screen } from '@/ui';
+import { theme, formatInr } from '@/ui/theme';
 
-const rowsOf = (d: any) =>
-  Array.isArray(d) ? d : (d?.items ?? d?.data ?? d?.inventoryItems ?? []);
+const LINKS = [
+  ['Ingredients', '/inventory/items'],
+  ['Add ingredient', '/inventory/item-form'],
+  ['Purchase orders', '/inventory/purchase-orders'],
+  ['Receive stock', '/inventory/purchase-orders'],
+  ['Stock adjustment', '/inventory/adjust'],
+  ['Suppliers', '/inventory/suppliers'],
+  ['Waste', '/inventory/waste'],
+  ['Low stock', '/inventory/low-stock'],
+  ['Expiry', '/inventory/expiry'],
+  ['Reports', '/inventory/reports'],
+] as const;
+
 export default function InventoryScreen() {
+  const router = useRouter();
   const query = useQuery({
     queryKey: ['inventory-dashboard'],
-    queryFn: async () => {
-      try {
-        return await api.get<any>('/inventory/dashboard');
-      } catch {
-        return api.get<any>('/inventory/items?limit=100');
-      }
-    },
+    queryFn: () => api.get<any>('/inventory/dashboard'),
     refetchInterval: 30_000,
   });
-  const d = query.data ?? {};
-  const rows = rowsOf(d);
+  const stats = query.data?.stats ?? {};
   return (
     <Screen>
-      <FlatList
-        data={rows}
-        keyExtractor={(x: any) => x.id}
-        refreshing={query.isRefetching}
-        onRefresh={query.refetch}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <>
-            <View style={styles.grid}>
-              <KpiCard
-                label="Total items"
-                value={d.totalItems ?? d.stats?.totalItems ?? rows.length}
-              />
-              <KpiCard
-                label="Low stock"
-                value={
-                  d.lowStock ??
-                  d.stats?.lowStock ??
-                  rows.filter(
-                    (x: any) =>
-                      Number(x.currentStock ?? x.quantity) <=
-                      Number(x.reorderLevel ?? x.minimumStock),
-                  ).length
-                }
-                accent={theme.colors.secondary}
-              />
-              <KpiCard
-                label="Out of stock"
-                value={d.outOfStock ?? d.stats?.outOfStock ?? 0}
-                accent={theme.colors.danger}
-              />
-            </View>
-            <Text style={styles.heading}>Stock levels</Text>
-          </>
-        }
-        ListEmptyComponent={<EmptyState title="No inventory items" onRetry={query.refetch} />}
-        renderItem={({ item: x }: any) => {
-          const stock = Number(x.currentStock ?? x.quantity ?? x.stock ?? 0);
-          const min = Number(x.reorderLevel ?? x.minimumStock ?? 0);
-          return (
+      <ScrollView contentContainerStyle={styles.list}>
+        <View style={styles.grid}>
+          <KpiCard label="Stock value" value={formatInr(stats.stockValue ?? 0)} />
+          <KpiCard label="Low stock" value={stats.lowStock ?? 0} accent={theme.colors.secondary} />
+          <KpiCard
+            label="Out of stock"
+            value={stats.outOfStock ?? 0}
+            accent={theme.colors.danger}
+          />
+          <KpiCard label="Expiring" value={stats.expiringSoon ?? 0} />
+        </View>
+        {!query.data && !query.isLoading ? (
+          <EmptyState title="Could not load inventory" onRetry={query.refetch} />
+        ) : null}
+        <Text style={styles.heading}>Actions</Text>
+        {LINKS.map(([label, href]) => (
+          <Pressable key={href + label} onPress={() => router.push(href as any)}>
             <Card>
-              <View style={styles.row}>
-                <View>
-                  <Text style={styles.name}>{x.name}</Text>
-                  <Text style={styles.muted}>{x.category?.name ?? x.unit ?? 'Inventory item'}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 5 }}>
-                  <Text style={styles.stock}>
-                    {stock} {x.unit ?? ''}
-                  </Text>
-                  <StatusChip
-                    label={stock <= 0 ? 'OUT' : stock <= min ? 'LOW' : 'OK'}
-                    tone={stock <= 0 ? 'danger' : stock <= min ? 'warn' : 'success'}
-                  />
-                </View>
-              </View>
+              <Text style={styles.link}>{label}</Text>
             </Card>
-          );
-        }}
-      />
+          </Pressable>
+        ))}
+      </ScrollView>
     </Screen>
   );
 }
+
 const styles = StyleSheet.create({
-  list: { padding: 12, gap: 10 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  heading: { fontSize: 17, fontWeight: '900', color: theme.colors.text, marginVertical: 8 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  name: { fontWeight: '800', color: theme.colors.text },
-  muted: { color: theme.colors.muted, marginTop: 4 },
-  stock: { fontWeight: '900', color: theme.colors.primary },
+  list: { padding: 12, paddingBottom: 40, gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  heading: { fontWeight: '800', color: theme.colors.primary, marginTop: 8, marginBottom: 4 },
+  link: { fontWeight: '700', color: theme.colors.text },
 });

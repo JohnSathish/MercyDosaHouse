@@ -87,6 +87,37 @@ export class MdhApiClient {
   list<T>(path: string) {
     return this.get<PaginatedResult<T>>(path);
   }
+
+  getBlob(path: string, timeoutMs = 30_000) {
+    return this.requestBlob(path, {}, false, timeoutMs);
+  }
+
+  private async requestBlob(
+    path: string,
+    options: RequestInit = {},
+    retried = false,
+    timeoutMs = 30_000,
+  ): Promise<Blob> {
+    const token = getAccessToken();
+    const headers: Record<string, string> = {
+      ...(options.headers as Record<string, string> | undefined),
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetchWithTimeout(
+      `${this.baseUrl}${path}`,
+      { ...options, headers },
+      timeoutMs,
+    );
+    if (res.status === 401 && !retried) {
+      const refreshed = await refreshTokens(this.baseUrl);
+      if (refreshed) return this.requestBlob(path, options, true, timeoutMs);
+      clearAuth();
+    }
+    if (!res.ok) {
+      throw new Error('Download failed');
+    }
+    return res.blob();
+  }
 }
 
 export function createApiClient(baseUrl: string) {
