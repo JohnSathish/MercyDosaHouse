@@ -168,7 +168,7 @@ export default function AdminDashboardPage() {
       {/* Notifications */}
       <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 w-full">
         <div className="xl:col-span-1 2xl:col-span-2">
-          <NotificationsFeed stats={stats} />
+          <NotificationsFeed />
         </div>
       </div>
     </div>

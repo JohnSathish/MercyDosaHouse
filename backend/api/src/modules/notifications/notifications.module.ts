@@ -6,12 +6,14 @@ import { EmailService } from './email.service';
 import { OrderEmailNotificationService } from './order-email-notification.service';
 import { OrderNotificationRecipientsService } from './order-notification-recipients.service';
 import { FcmSender } from './fcm.sender';
+import { NotificationsGateway } from './notifications.gateway';
 
 @Module({
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
     FcmSender,
+    NotificationsGateway,
     SmsService,
     EmailService,
     OrderEmailNotificationService,

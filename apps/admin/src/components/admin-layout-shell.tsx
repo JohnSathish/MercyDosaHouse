@@ -13,6 +13,7 @@ import { APP_URLS } from '@/lib/app-urls';
 import { useAdminBrand } from '@/lib/use-admin-brand';
 import { AdminSidebar } from '@/components/admin-sidebar';
 import { AdminTopbar } from '@/components/admin-topbar';
+import { InboxRealtime } from '@/components/inbox-realtime';
 import { AdminMobileDrawer } from '@/components/admin-mobile-drawer';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
@@ -154,6 +155,7 @@ export function AdminLayoutShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh max-h-dvh w-full overflow-hidden bg-gray-50 dark:bg-gray-950">
+      <InboxRealtime />
       <AdminSidebar
         collapsed={sidebarCollapsed}
         onToggle={toggleSidebar}

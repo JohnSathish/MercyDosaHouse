@@ -5,12 +5,22 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { NotificationType, OrderSource, OrderStatus, Prisma, UserRole } from '@prisma/client';
+import type { InboxListDto, InboxNotificationDto, NotificationPreferenceDto } from '@mdh/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FcmSender } from './fcm.sender';
+import { NotificationsGateway } from './notifications.gateway';
+import {
+  CATEGORY_ROLES,
+  hrefForNotification,
+  mergePrefs,
+  prefAllows,
+  ORDER_STATUS_STAFF,
+  type StaffInboxInput,
+} from './inbox.helpers';
 import {
   applyNotificationTemplate,
-  DEFAULT_NOTIFICATION_CONFIG,
   parseNotificationConfig,
   type CustomerStatusKey,
   type NotificationConfig,
@@ -58,6 +68,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private prisma: PrismaService,
     private fcm: FcmSender,
+    private inboxGateway: NotificationsGateway,
   ) {}
 
   onModuleInit() {
@@ -77,6 +88,8 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     title: string;
     body: string;
     data?: Record<string, unknown>;
+    eventKey?: string;
+    category?: string;
   }) {
     const notification = await this.prisma.notification.create({
       data: {
@@ -85,6 +98,8 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         title: params.title,
         body: params.body,
         data: params.data as object,
+        eventKey: params.eventKey ?? `create:${randomUUID()}`,
+        category: params.category ?? 'ORDER',
       },
     });
 
@@ -103,6 +118,239 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return notification;
+  }
+
+  async emitStaffInbox(input: StaffInboxInput): Promise<void> {
+    try {
+      const roles = (
+        input.roles === undefined ? CATEGORY_ROLES[input.category] : input.roles
+      ).filter((r): r is UserRole => (Object.values(UserRole) as string[]).includes(r));
+      const staff = await this.prisma.user.findMany({
+        where: { isActive: true, role: { name: { in: roles } } },
+        select: { id: true },
+      });
+      const extra = (input.extraUserIds ?? []).filter(Boolean);
+      const recipientIds = [...new Set([...staff.map((s) => s.id), ...extra])];
+      if (!recipientIds.length) return;
+
+      const staffCfg = await this.getStaffPushConfig();
+      const paths = hrefForNotification({
+        category: input.category,
+        type: input.type,
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        data: { href: input.href, androidPath: input.androidPath },
+      });
+      const payloadData = {
+        type: input.type,
+        category: input.category,
+        referenceType: input.referenceType ?? null,
+        referenceId: input.referenceId ?? null,
+        href: paths.href,
+        androidPath: paths.androidPath,
+        screen: paths.androidPath,
+        playCustomRingtone: Boolean(input.playNewOrderSound),
+        channelId: input.playNewOrderSound ? staffCfg.channelId : 'order_updates',
+        soundName: input.playNewOrderSound ? staffCfg.soundName : 'default',
+        ...(input.metadata ?? {}),
+      };
+
+      for (const userId of recipientIds) {
+        const prefs = await this.getPreferences(userId);
+        if (!prefAllows(prefs, input)) continue;
+
+        const eventKey = `${input.eventKey}:${userId}`;
+        const playSound =
+          Boolean(input.playNewOrderSound) &&
+          staffCfg.enabled &&
+          staffCfg.ringtoneEnabled &&
+          prefs.newOrderSound &&
+          prefs.pushEnabled;
+        const shouldPush = staffCfg.enabled && prefs.pushEnabled;
+
+        const created = await this.prisma
+          .$transaction(async (tx) => {
+            const notification = await tx.notification.create({
+              data: {
+                userId,
+                type: input.type,
+                title: input.title,
+                body: input.body,
+                data: payloadData,
+                eventKey,
+                category: input.category,
+                priority: input.priority ?? 'NORMAL',
+                referenceType: input.referenceType,
+                referenceId: input.referenceId,
+              },
+            });
+            let dispatchId: string | null = null;
+            if (shouldPush) {
+              const dispatch = await tx.pushDispatch.create({
+                data: {
+                  dedupeKey: eventKey,
+                  orderId: input.referenceType === 'ORDER' ? input.referenceId : null,
+                  newStatus: String(input.type),
+                  notificationType: input.type,
+                  notificationId: notification.id,
+                  channelId: playSound ? staffCfg.channelId : 'order_updates',
+                  sound: playSound ? staffCfg.soundName : 'default',
+                  deliveryStatus: 'PENDING',
+                },
+              });
+              dispatchId = dispatch.id;
+            }
+            return { notification, dispatchId };
+          })
+          .catch((error: unknown) => {
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+              return null;
+            }
+            throw error;
+          });
+
+        if (!created) continue;
+        const dto = this.toInboxDto(created.notification);
+        this.inboxGateway.emitToUser(userId, dto as unknown as Record<string, unknown>);
+        const unreadCount = await this.prisma.notification.count({
+          where: { userId, isRead: false },
+        });
+        this.inboxGateway.emitUnreadCount(userId, unreadCount);
+        if (created.dispatchId) void this.processNotificationDispatch(created.dispatchId);
+      }
+    } catch (err) {
+      this.logger.error(
+        `Failed staff inbox ${input.eventKey}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
+  }
+
+  async listInbox(
+    userId: string,
+    query: {
+      category?: string;
+      type?: string;
+      read?: string;
+      q?: string;
+      from?: string;
+      to?: string;
+      page?: string;
+      limit?: string;
+    },
+  ): Promise<InboxListDto> {
+    const page = Math.max(1, parseInt(query.page || '1', 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(query.limit || '20', 10) || 20));
+    const where: Prisma.NotificationWhereInput = { userId };
+    if (query.category && query.category !== 'ALL') where.category = query.category;
+    if (query.type) where.type = query.type as NotificationType;
+    if (query.read === 'unread') where.isRead = false;
+    if (query.read === 'read') where.isRead = true;
+    if (query.q?.trim()) {
+      where.OR = [
+        { title: { contains: query.q.trim(), mode: 'insensitive' } },
+        { body: { contains: query.q.trim(), mode: 'insensitive' } },
+      ];
+    }
+    if (query.from || query.to) {
+      where.createdAt = {};
+      if (query.from) where.createdAt.gte = new Date(query.from);
+      if (query.to) {
+        const end = new Date(query.to);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
+      }
+    }
+
+    const [rows, total, unreadCount] = await this.prisma.$transaction([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.count({ where: { userId, isRead: false } }),
+    ]);
+
+    return {
+      data: rows.map((row) => this.toInboxDto(row)),
+      total,
+      unreadCount,
+      page,
+      limit,
+    };
+  }
+
+  async unreadCount(userId: string) {
+    const unreadCount = await this.prisma.notification.count({
+      where: { userId, isRead: false },
+    });
+    return { unreadCount };
+  }
+
+  async getPreferences(userId: string): Promise<NotificationPreferenceDto> {
+    const row = await this.prisma.notificationPreference.findUnique({ where: { userId } });
+    if (!row) return mergePrefs(null);
+    return mergePrefs(row);
+  }
+
+  async updatePreferences(
+    userId: string,
+    patch: Partial<NotificationPreferenceDto>,
+  ): Promise<NotificationPreferenceDto> {
+    const current = await this.getPreferences(userId);
+    const next = mergePrefs({ ...current, ...patch });
+    await this.prisma.notificationPreference.upsert({
+      where: { userId },
+      create: { userId, ...next },
+      update: next,
+    });
+    return next;
+  }
+
+  private toInboxDto(row: {
+    id: string;
+    type: NotificationType;
+    title: string;
+    body: string;
+    data: Prisma.JsonValue;
+    isRead: boolean;
+    createdAt: Date;
+    category?: string;
+    priority?: string;
+    referenceType?: string | null;
+    referenceId?: string | null;
+    readAt?: Date | null;
+  }): InboxNotificationDto {
+    const data = (row.data && typeof row.data === 'object' ? row.data : {}) as Record<
+      string,
+      unknown
+    >;
+    const paths = hrefForNotification({
+      category: row.category ?? 'ORDER',
+      type: row.type,
+      referenceType: row.referenceType,
+      referenceId: row.referenceId,
+      data,
+    });
+    return {
+      id: row.id,
+      type: row.type,
+      category: (row.category as InboxNotificationDto['category']) || 'ORDER',
+      priority: (row.priority as InboxNotificationDto['priority']) || 'NORMAL',
+      title: row.title,
+      body: row.body,
+      message: row.body,
+      referenceType: row.referenceType ?? null,
+      referenceId: row.referenceId ?? null,
+      href: paths.href,
+      androidPath: paths.androidPath,
+      isRead: row.isRead,
+      createdAt: row.createdAt.toISOString(),
+      readAt: row.readAt?.toISOString() ?? null,
+      metadata: data,
+    };
   }
 
   async getStaffPushConfig(): Promise<StaffPushConfig> {
@@ -182,7 +430,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     try {
       const staffCfg = await this.getStaffPushConfig();
       const notifyCfg = await this.getNotificationConfig();
-      if (!staffCfg.enabled || !notifyCfg.newOrderEnabled) return;
+      if (!notifyCfg.newOrderEnabled) return;
 
       const order = await this.prisma.order.findUnique({ where: { id: orderId } });
       if (!order) return;
@@ -194,79 +442,75 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      const amount = `${Math.round(Number(order.grandTotal))}`;
+      const customer = order.customerName || order.customerPhone || 'Customer';
+      const vars = { ORDER_NUMBER: order.orderNumber, AMOUNT: amount };
+      const title = applyNotificationTemplate(notifyCfg.newOrderTemplate.title, vars);
+      const body = `Order #${order.orderNumber} from ${customer} — ₹${amount}`;
       const roles = (
         staffCfg.recipientRoles.length
           ? staffCfg.recipientRoles
           : DEFAULT_STAFF_PUSH_CONFIG.recipientRoles
       ).filter((r): r is UserRole => (Object.values(UserRole) as string[]).includes(r));
 
-      const staff = await this.prisma.user.findMany({
-        where: { isActive: true, role: { name: { in: roles } } },
-        select: { id: true },
+      await this.emitStaffInbox({
+        eventKey: `ORDER:${order.id}:NEW`,
+        type: NotificationType.NEW_ORDER,
+        category: 'ORDER',
+        priority: 'HIGH',
+        title: title.includes('New Order') ? '🛎️ New Order Received' : title,
+        body,
+        referenceType: 'ORDER',
+        referenceId: order.id,
+        playNewOrderSound: notifyCfg.newOrderSound,
+        roles,
+        metadata: {
+          type: 'NEW_ORDER',
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerName: customer,
+          orderType: String(order.orderType ?? 'DELIVERY'),
+          amount: `₹${amount}`,
+          grandTotal: Number(order.grandTotal),
+          vibrationEnabled: staffCfg.vibrationEnabled && notifyCfg.vibration,
+        },
       });
-      if (!staff.length) return;
-
-      const amount = `${Math.round(Number(order.grandTotal))}`;
-      const vars = { ORDER_NUMBER: order.orderNumber, AMOUNT: amount };
-      const title = applyNotificationTemplate(notifyCfg.newOrderTemplate.title, vars);
-      const body = applyNotificationTemplate(notifyCfg.newOrderTemplate.body, vars);
-      const customer = order.customerName || order.customerPhone || 'Customer';
-      const data = {
-        type: 'NEW_ORDER',
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        customerName: customer,
-        orderType: String(order.orderType ?? 'DELIVERY'),
-        amount: `₹${amount}`,
-        grandTotal: Number(order.grandTotal),
-        screen: 'orders',
-        channelId: staffCfg.channelId,
-        soundName: staffCfg.soundName,
-        ringtoneEnabled: staffCfg.ringtoneEnabled && notifyCfg.newOrderSound,
-        vibrationEnabled: staffCfg.vibrationEnabled && notifyCfg.vibration,
-      };
-
-      for (const member of staff) {
-        const dispatchId = await this.prisma
-          .$transaction(async (tx) => {
-            const notification = await tx.notification.create({
-              data: {
-                userId: member.id,
-                type: NotificationType.NEW_ORDER,
-                title,
-                body,
-                data,
-              },
-            });
-            const dispatch = await tx.pushDispatch.create({
-              data: {
-                dedupeKey: `staff:new-order:${order.id}:${member.id}`,
-                orderId: order.id,
-                newStatus: 'NEW_ORDER',
-                notificationType: NotificationType.NEW_ORDER,
-                notificationId: notification.id,
-                channelId: staffCfg.channelId,
-                sound:
-                  staffCfg.ringtoneEnabled && notifyCfg.newOrderSound ? staffCfg.soundName : null,
-                deliveryStatus: 'PENDING',
-              },
-            });
-            return dispatch.id;
-          })
-          .catch((error: unknown) => {
-            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-              return null;
-            }
-            throw error;
-          });
-        if (dispatchId) void this.processNotificationDispatch(dispatchId);
-      }
     } catch (err) {
       this.logger.error(
         `Failed staff push for order ${orderId}`,
         err instanceof Error ? err.stack : String(err),
       );
     }
+  }
+
+  async notifyStaffOrderStatus(
+    orderId: string,
+    status: OrderStatus | 'ASSIGNED' | 'PICKED_UP',
+  ): Promise<void> {
+    const key = String(status);
+    const copy = ORDER_STATUS_STAFF[key];
+    if (!copy) return;
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, orderNumber: true, customerName: true, grandTotal: true },
+    });
+    if (!order) return;
+    await this.emitStaffInbox({
+      eventKey: `ORDER:${order.id}:STATUS:${key}`,
+      type: copy.type,
+      category: key === 'ASSIGNED' || key === 'PICKED_UP' ? 'DELIVERY' : 'ORDER',
+      priority: key === 'CANCELLED' ? 'HIGH' : 'NORMAL',
+      title: copy.title,
+      body: copy.body(order.orderNumber),
+      referenceType: 'ORDER',
+      referenceId: order.id,
+      metadata: {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        amount: `₹${Math.round(Number(order.grandTotal))}`,
+      },
+    });
   }
 
   async notifyCustomerOrderPlaced(orderId: string): Promise<void> {
@@ -330,6 +574,8 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
               title,
               body,
               data,
+              eventKey: dedupeKey,
+              category: 'ORDER',
             },
           });
           await tx.pushDispatch.update({
@@ -386,7 +632,15 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
             },
           });
           const notification = await tx.notification.create({
-            data: { userId: order.userId, type: NotificationType.NEAR_CUSTOMER, title, body, data },
+            data: {
+              userId: order.userId,
+              type: NotificationType.NEAR_CUSTOMER,
+              title,
+              body,
+              data,
+              eventKey: `customer:nearby:${order.id}`,
+              category: 'ORDER',
+            },
           });
           await tx.pushDispatch.update({
             where: { id: dispatch.id },
@@ -575,35 +829,42 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  markRead(id: string, userId: string) {
-    return this.prisma.notification.updateMany({
+  async markRead(id: string, userId: string) {
+    const result = await this.prisma.notification.updateMany({
       where: { id, userId },
-      data: { isRead: true },
+      data: { isRead: true, readAt: new Date() },
     });
+    const unreadCount = await this.prisma.notification.count({
+      where: { userId, isRead: false },
+    });
+    this.inboxGateway.emitUnreadCount(userId, unreadCount);
+    return result;
   }
 
-  markAllRead(userId: string) {
-    return this.prisma.notification.updateMany({
+  async markAllRead(userId: string) {
+    const result = await this.prisma.notification.updateMany({
       where: { userId, isRead: false },
-      data: { isRead: true },
+      data: { isRead: true, readAt: new Date() },
     });
+    this.inboxGateway.emitUnreadCount(userId, 0);
+    return result;
   }
 
   async markReadByOrderId(orderId: string, userId: string) {
     const rows = await this.prisma.notification.findMany({
       where: { userId, isRead: false },
-      select: { id: true, data: true },
+      select: { id: true, data: true, referenceId: true },
     });
     const ids = rows
       .filter((r) => {
         const data = r.data as { orderId?: string } | null;
-        return data?.orderId === orderId;
+        return data?.orderId === orderId || r.referenceId === orderId;
       })
       .map((r) => r.id);
     if (!ids.length) return { count: 0 };
     return this.prisma.notification.updateMany({
       where: { id: { in: ids }, userId },
-      data: { isRead: true },
+      data: { isRead: true, readAt: new Date() },
     });
   }
 

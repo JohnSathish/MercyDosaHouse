@@ -9,6 +9,7 @@ import {
   TrackingStatus,
   DeliveryAssignmentStatus,
   DeliveryExecutiveStatus,
+  NotificationType,
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -704,6 +705,21 @@ export class DeliveryService {
       await this.notifications.notifyCustomerStatus(orderId, 'ASSIGNED', {
         previousStatus: previousTracking?.status ?? DeliveryAssignmentStatus.WAITING,
       });
+      void this.notifications.notifyStaffOrderStatus(orderId, 'ASSIGNED');
+      if (staff.userId) {
+        void this.notifications.emitStaffInbox({
+          eventKey: `DELIVERY:${orderId}:ASSIGNED:${staff.userId}`,
+          type: NotificationType.DELIVERY,
+          category: 'DELIVERY',
+          title: '🚴 Delivery assigned',
+          body: `Order #${order.orderNumber} was assigned to you.`,
+          referenceType: 'ORDER',
+          referenceId: orderId,
+          extraUserIds: [staff.userId],
+          roles: [],
+          metadata: { orderId, orderNumber: order.orderNumber },
+        });
+      }
     }
 
     return this.getOrder(orderId);
@@ -776,6 +792,7 @@ export class DeliveryService {
       await this.notifications.notifyCustomerStatus(orderId, 'PICKED_UP', {
         previousStatus: tracking.status,
       });
+      void this.notifications.notifyStaffOrderStatus(orderId, 'PICKED_UP');
     } else if (status === DeliveryAssignmentStatus.OUT_FOR_DELIVERY) {
       await this.orders.updateStatus(orderId, OrderStatus.OUT_FOR_DELIVERY, {
         trackingStatus: TrackingStatus.OUT_FOR_DELIVERY,
@@ -1181,6 +1198,24 @@ export class DeliveryService {
       routePolyline: updated.routePolyline,
     });
     if (shouldNotifyNearby) void this.notifications.notifyCustomerNearby(orderId);
+    const started = tracking.outForDeliveryAt ?? tracking.assignedAt;
+    const settings = await this.prisma.businessSettings.findFirst({
+      select: { estimatedDeliveryMinutes: true },
+    });
+    const estimatedMin = settings?.estimatedDeliveryMinutes ?? 30;
+    if (started && now.getTime() - started.getTime() > (Number(estimatedMin) + 10) * 60_000) {
+      void this.notifications.emitStaffInbox({
+        eventKey: `DELIVERY:${orderId}:DELAYED`,
+        type: NotificationType.DELIVERY,
+        category: 'DELIVERY',
+        priority: 'HIGH',
+        title: '⚠️ Delivery delayed',
+        body: `Order #${tracking.order.orderNumber} is taking longer than expected.`,
+        referenceType: 'ORDER',
+        referenceId: orderId,
+        extraUserIds: staff.userId ? [staff.userId] : [],
+      });
+    }
     return {
       orderId,
       latitude: updated.latitude,

@@ -14,6 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   ContentStatus,
   DeliveryAssignmentStatus,
+  NotificationType,
   OrderStatus,
   OrderSource,
   PaymentMethod,
@@ -338,9 +339,25 @@ export class OrdersService implements OnModuleInit {
       orderType: order.orderType,
       grandTotal: Number(order.grandTotal),
     });
+    void this.notificationsService.notifyStaffNewOrder(order.id);
     if (this.orderEmailNotification.shouldNotifyOnOrderCreate(data.paymentMethod)) {
       void this.orderEmailNotification.notifyOrderConfirmed(order.id);
-      void this.notificationsService.notifyStaffNewOrder(order.id);
+    }
+    const onlinePay =
+      data.paymentMethod === 'RAZORPAY' ||
+      data.paymentMethod === 'CASHFREE' ||
+      data.paymentMethod === 'UPI';
+    if (onlinePay) {
+      void this.notificationsService.emitStaffInbox({
+        eventKey: `PAYMENT:${order.id}:PENDING`,
+        type: NotificationType.PAYMENT_PENDING,
+        category: 'PAYMENT',
+        title: '💳 Payment pending',
+        body: `Payment pending for order #${order.orderNumber} — ₹${Math.round(Number(order.grandTotal))}.`,
+        referenceType: 'ORDER',
+        referenceId: order.id,
+        metadata: { orderId: order.id, orderNumber: order.orderNumber },
+      });
     }
     await this.notificationsService.notifyCustomerOrderPlaced(order.id);
     if (pricing.rewardPointsUsed > 0 && data.userId) {
@@ -881,6 +898,19 @@ export class OrdersService implements OnModuleInit {
       previousStatus: existing.status,
       reason: options?.remarks,
     });
+    void this.notificationsService.notifyStaffOrderStatus(id, status);
+    if (status === OrderStatus.DELIVERED) {
+      void this.notificationsService.emitStaffInbox({
+        eventKey: `PAYMENT:${id}:COMPLETED`,
+        type: NotificationType.PAYMENT,
+        category: 'PAYMENT',
+        title: '💰 Payment received',
+        body: `₹${Math.round(Number(order.grandTotal))} received for order #${order.orderNumber}.`,
+        referenceType: 'ORDER',
+        referenceId: id,
+        metadata: { orderId: id, orderNumber: order.orderNumber },
+      });
+    }
     if (status === OrderStatus.DELIVERED) {
       void this.loyalty.awardForOrder(id);
       void this.inventory.deductForOrder(id);
@@ -947,6 +977,7 @@ export class OrdersService implements OnModuleInit {
         previousStatus: result.previousStatus,
         reason,
       });
+      void this.notificationsService.notifyStaffOrderStatus(id, OrderStatus.CANCELLED);
       void this.loyalty.reverseForOrder(id, 'CANCELLED');
     }
     return this.findOne(order.id);
@@ -989,7 +1020,16 @@ export class OrdersService implements OnModuleInit {
       data: { paymentStatus: PaymentStatus.COMPLETED },
     });
     void this.orderEmailNotification.notifyOrderConfirmed(id);
-    void this.notificationsService.notifyStaffNewOrder(id);
+    void this.notificationsService.emitStaffInbox({
+      eventKey: `PAYMENT:${id}:COMPLETED`,
+      type: NotificationType.PAYMENT,
+      category: 'PAYMENT',
+      title: '💰 Payment received',
+      body: `₹${Math.round(Number(order.grandTotal))} received for order #${order.orderNumber}.`,
+      referenceType: 'ORDER',
+      referenceId: id,
+      metadata: { orderId: id, orderNumber: order.orderNumber },
+    });
     return order;
   }
 

@@ -17,6 +17,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SmsService } from '../notifications/sms.service';
 import { EmailService } from '../notifications/email.service';
 import { SettingsService } from '../settings/settings.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 import Redis from 'ioredis';
 
 const LOGIN_OTP_TTL_SEC = 300;
@@ -57,6 +59,7 @@ export class AuthService {
     private sms: SmsService,
     private email: EmailService,
     private settings: SettingsService,
+    private notifications: NotificationsService,
   ) {
     const redisUrl = config.get<string>('REDIS_URL');
     if (redisUrl) {
@@ -87,6 +90,7 @@ export class AuthService {
       throw new BadRequestException('No email address on file for this account.');
     }
 
+    void this.notifyStaffLogin(user);
     return this.buildAuthResponse(user);
   }
 
@@ -128,6 +132,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is blocked or not found.');
     }
 
+    void this.notifyStaffLogin(user);
     return this.buildAuthResponse(user);
   }
 
@@ -412,6 +417,7 @@ export class AuthService {
         },
         include: this.userInclude(),
       });
+      void this.notifyNewCustomer(user);
     }
     return user;
   }
@@ -807,6 +813,7 @@ export class AuthService {
         },
         include: this.userInclude(),
       });
+      void this.notifyNewCustomer(user);
     } else if (user.phone !== normalized) {
       user = await this.prisma.user.update({
         where: { id: user.id },
@@ -879,6 +886,7 @@ export class AuthService {
           },
         },
       });
+      void this.notifyNewCustomer(user);
     } else if (!user.googleId) {
       user = await this.prisma.user.update({
         where: { id: user.id },
@@ -919,6 +927,43 @@ export class AuthService {
   async logout(refreshToken: string) {
     await this.prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
     return { message: 'Logged out' };
+  }
+
+  private notifyNewCustomer(user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }) {
+    const who = user.name || user.email || user.phone || 'New customer';
+    void this.notifications.emitStaffInbox({
+      eventKey: `CUSTOMER:${user.id}:REGISTERED`,
+      type: NotificationType.CUSTOMER,
+      category: 'CUSTOMER',
+      title: '👤 New customer registration',
+      body: `${who} created an account.`,
+      referenceType: 'USER',
+      referenceId: user.id,
+    });
+  }
+
+  private notifyStaffLogin(user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: { name: string } | null;
+  }) {
+    if (!user.role?.name || user.role.name === 'CUSTOMER') return;
+    const day = new Date().toISOString().slice(0, 10);
+    void this.notifications.emitStaffInbox({
+      eventKey: `SECURITY:LOGIN:${user.id}:${day}`,
+      type: NotificationType.SECURITY,
+      category: 'SYSTEM',
+      title: '🔐 Staff login',
+      body: `${user.name || user.email || 'A staff member'} signed in to Admin.`,
+      referenceType: 'USER',
+      referenceId: user.id,
+    });
   }
 
   private async buildAuthResponse(user: {

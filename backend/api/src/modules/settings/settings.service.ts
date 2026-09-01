@@ -1,5 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BadRequestException, Inject, Injectable, forwardRef } from '@nestjs/common';
+import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
 import { applyChargePlaceholders, toStoredUploadPath } from '@mdh/utils';
@@ -12,10 +12,15 @@ import {
 import { DEFAULT_INVOICE_CONFIG, parseInvoiceConfig } from './invoice-config';
 import { DEFAULT_APP_PROMO_CONFIG, parseAppPromoConfig } from './app-promo-config';
 import { resolvePublicAssetUrl, resolveWebsiteUrl } from '../notifications/email-branding';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SettingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationsService))
+    private notifications: NotificationsService,
+  ) {}
 
   async getBusinessSettings() {
     let settings = await this.prisma.businessSettings.findFirst();
@@ -104,6 +109,15 @@ export class SettingsService {
     const updated = await this.prisma.businessSettings.update({
       where: { id: settings.id },
       data: patch as never,
+    });
+    void this.notifications.emitStaffInbox({
+      eventKey: `SETTINGS:BUSINESS:${updated.updatedAt.toISOString()}`,
+      type: NotificationType.SYSTEM,
+      category: 'SYSTEM',
+      title: '⚙️ System configuration changed',
+      body: 'Business settings were updated.',
+      referenceType: 'SETTINGS',
+      referenceId: updated.id,
     });
     return this.mapSettings(updated);
   }

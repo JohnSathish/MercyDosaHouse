@@ -48,6 +48,8 @@ type OrderPushData = {
   orderType?: string;
   amount?: string;
   isTest?: boolean;
+  playCustomRingtone?: boolean;
+  androidPath?: string;
 };
 
 async function ensureNewOrdersChannel(prefs: NotificationPrefs) {
@@ -79,6 +81,7 @@ async function handleIncomingOrderAlert(
   if (!prefs.enabled) return;
 
   const data = (content.data ?? {}) as OrderPushData;
+  const isNewOrder = data.type === 'NEW_ORDER' || data.playCustomRingtone === true;
   const orderId = data.orderId;
   if (!orderId || orderId === 'test') {
     if (playSound && data.isTest) await playNewOrderRingtone(prefs);
@@ -97,7 +100,7 @@ async function handleIncomingOrderAlert(
     read: false,
   });
 
-  if (playSound) {
+  if (playSound && isNewOrder) {
     const already = await hasPlayedOrderAlert(orderId);
     if (!already) {
       await markOrderAlertPlayed(orderId);
@@ -164,9 +167,13 @@ export function useAdminPushRegistration(enabled: boolean) {
         void api
           .post('/notifications/read-by-order', { orderId: data.orderId })
           .catch(() => undefined);
+      }
+      if (data?.androidPath) {
+        router.push(data.androidPath as never);
+      } else if (data?.orderId && data.orderId !== 'test') {
         router.push(`/orders/${data.orderId}`);
       } else {
-        router.push('/(tabs)/orders');
+        router.push('/notifications');
       }
     };
 

@@ -219,8 +219,12 @@ export default function RootLayout() {
                 options={{ headerShown: true, title: 'Settings' }}
               />
               <Stack.Screen
-                name="notification-settings/index"
+                name="notifications/index"
                 options={{ headerShown: true, title: 'Notifications' }}
+              />
+              <Stack.Screen
+                name="notification-settings/index"
+                options={{ headerShown: true, title: 'Notification settings' }}
               />
               <Stack.Screen name="pos/index" options={{ headerShown: true, title: 'POS' }} />
             </Stack>

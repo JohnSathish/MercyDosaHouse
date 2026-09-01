@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 import { theme } from '@/ui/theme';
 import { useOrdersSocket } from '@/hooks/use-orders-socket';
+import { useInboxSocket } from '@/hooks/use-inbox-socket';
 import { useAuth } from '@/providers/auth-provider';
 
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
@@ -25,6 +26,7 @@ export default function TabsLayout() {
   const { user } = useAuth();
   const AdminTabs = Tabs as any;
   useOrdersSocket(!!user);
+  useInboxSocket(!!user);
 
   return (
     <AdminTabs

@@ -1,24 +1,33 @@
-/** WebSocket CORS origins — mirrors HTTP CORS_ORIGINS env. */
+/** CORS origins for HTTP and Socket.IO — always include live Admin + website in production. */
+const PRODUCTION_ORIGINS = [
+  'https://mercydosahouse.com',
+  'https://www.mercydosahouse.com',
+  'https://admin.mercydosahouse.com',
+];
+
+export function getAllowedCorsOrigins(): string[] | true {
+  const extra = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  if (process.env.NODE_ENV !== 'production' && extra.length === 0) {
+    return true;
+  }
+
+  const merged = [
+    ...PRODUCTION_ORIGINS,
+    ...extra,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.NEXT_PUBLIC_ADMIN_URL,
+    process.env.NEXT_PUBLIC_WEBSITE_URL,
+  ]
+    .filter(Boolean)
+    .map((o) => o!.replace(/\/$/, ''));
+
+  return [...new Set(merged)];
+}
+
 export function getWebSocketCorsConfig(): { origin: string[] | boolean; credentials: boolean } {
-  const raw = process.env.CORS_ORIGINS;
-  if (raw) {
-    const origins = raw
-      .split(',')
-      .map((o) => o.trim())
-      .filter(Boolean);
-    return { origin: origins.length ? origins : false, credentials: true };
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    return {
-      origin: [
-        'https://mercydosahouse.com',
-        'https://www.mercydosahouse.com',
-        'https://admin.mercydosahouse.com',
-      ],
-      credentials: true,
-    };
-  }
-
-  return { origin: true, credentials: true };
+  return { origin: getAllowedCorsOrigins(), credentials: true };
 }

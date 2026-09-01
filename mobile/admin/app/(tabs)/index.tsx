@@ -103,6 +103,11 @@ export default function DashboardScreen() {
     staleTime: 60_000,
   });
 
+  const unread = useQuery({
+    queryKey: ['admin-inbox-unread'],
+    queryFn: () => api.get<{ unreadCount: number }>('/notifications/unread-count'),
+    refetchInterval: 20_000,
+  });
   const toggle = useMutation({
     mutationFn: () =>
       api.patch('/settings/restaurant-status', { storeOpen: !status.data?.storeOpen }),
@@ -161,8 +166,8 @@ export default function DashboardScreen() {
         showBrandMark
         statusLine={open ? 'All systems running smoothly' : 'Restaurant is currently closed'}
         onMenuPress={() => router.push('/(tabs)/more')}
-        notificationCount={pending}
-        onNotificationsPress={() => router.push('/(tabs)/orders')}
+        notificationCount={unread.data?.unreadCount ?? 0}
+        onNotificationsPress={() => router.push('/notifications')}
         periodLabel="Today"
         onPeriodPress={() => router.push('/reports')}
       />

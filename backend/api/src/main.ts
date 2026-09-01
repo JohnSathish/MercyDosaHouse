@@ -8,6 +8,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { ProductionExceptionFilter } from './common/filters/http-exception.filter';
 import { assertProductionEnv } from './common/production-guard';
+import { getAllowedCorsOrigins } from './common/ws-cors';
 
 async function bootstrap() {
   assertProductionEnv();
@@ -27,14 +28,12 @@ async function bootstrap() {
     }),
   );
 
-  const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',')
-        .map((o) => o.trim())
-        .filter(Boolean)
-    : isProduction
-      ? false
-      : true;
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  app.enableCors({
+    origin: getAllowedCorsOrigins(),
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

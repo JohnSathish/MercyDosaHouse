@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { PaymentMethod, PaymentStatus } from '@prisma/client';
+import { NotificationType, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -80,6 +80,11 @@ export class RazorpayService {
       order?: { entity: { id: string; amount: number } };
     };
   }) {
+    if (payload.event === 'payment.failed') {
+      const failed = payload.payload.payment?.entity;
+      if (failed?.order_id) await this.notifyPaymentFailed(failed.order_id);
+      return { handled: true, event: payload.event };
+    }
     if (payload.event !== 'payment.captured') {
       return { handled: false, event: payload.event };
     }
@@ -136,7 +141,41 @@ export class RazorpayService {
 
     this.logger.log(`Razorpay payment captured for order ${payment.orderId}`);
     void this.orderEmailNotification.notifyOrderConfirmed(payment.orderId);
-    void this.notificationsService.notifyStaffNewOrder(payment.orderId);
+    void this.notificationsService.emitStaffInbox({
+      eventKey: `PAYMENT:${payment.orderId}:COMPLETED`,
+      type: NotificationType.PAYMENT,
+      category: 'PAYMENT',
+      title: '💰 Payment received',
+      body: `₹${Math.round(Number(payment.amount))} received for order #${payment.order.orderNumber}.`,
+      referenceType: 'ORDER',
+      referenceId: payment.orderId,
+      metadata: {
+        orderId: payment.orderId,
+        orderNumber: payment.order.orderNumber,
+      },
+    });
     return { handled: true, orderId: payment.orderId };
+  }
+
+  private async notifyPaymentFailed(razorpayOrderId: string) {
+    const payments = await this.prisma.payment.findMany({
+      include: { order: true },
+    });
+    const payment = payments.find(
+      (p) =>
+        (p.gatewayData as { razorpayOrderId?: string } | null)?.razorpayOrderId === razorpayOrderId,
+    );
+    if (!payment) return;
+    void this.notificationsService.emitStaffInbox({
+      eventKey: `PAYMENT:${payment.orderId}:FAILED`,
+      type: NotificationType.PAYMENT_FAILED,
+      category: 'PAYMENT',
+      priority: 'HIGH',
+      title: '⚠️ Payment failed',
+      body: `Payment failed for order #${payment.order.orderNumber}.`,
+      referenceType: 'ORDER',
+      referenceId: payment.orderId,
+      metadata: { orderId: payment.orderId, orderNumber: payment.order.orderNumber },
+    });
   }
 }

@@ -7,7 +7,6 @@ import {
   WasteReason,
   InventoryUnit,
   NotificationType,
-  UserRole,
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -869,13 +868,7 @@ export class InventoryService {
       return { result, nextStatus, poNumber: po.poNumber };
     });
 
-    void this.notifyStaff(
-      data.poId,
-      nextStatus === PurchaseOrderStatus.RECEIVED ? 'Purchase received' : 'Partial delivery',
-      nextStatus === PurchaseOrderStatus.RECEIVED
-        ? `${poNumber} has been received.`
-        : `${poNumber} is partially received.`,
-    );
+    void this.notifyPo(data.poId, poNumber, nextStatus);
     return result;
   }
 
@@ -1428,11 +1421,16 @@ export class InventoryService {
   async notifyExpiryAlerts() {
     const buckets = await this.listExpiryBuckets();
     for (const row of [...buckets.today, ...buckets.within3]) {
-      await this.notifyStaff(
-        row.id,
-        'Expiry alert',
-        `${row.itemName} expires in ${row.daysLeft ?? 0} day(s).`,
-      );
+      await this.notifications.emitStaffInbox({
+        eventKey: `INV:BATCH:${row.id}:EXPIRY`,
+        type: NotificationType.INVENTORY_EXPIRY,
+        category: 'INVENTORY',
+        priority: 'HIGH',
+        title: '⏰ Ingredient expiring soon',
+        body: `${row.itemName} expires in ${row.daysLeft ?? 0} day(s).`,
+        referenceType: 'INVENTORY_BATCH',
+        referenceId: row.id,
+      });
     }
   }
 
@@ -1441,30 +1439,45 @@ export class InventoryService {
       where: { id: { in: itemIds } },
     });
     for (const item of items) {
-      if (this.num(item.currentStock) <= this.num(item.minStock)) {
-        await this.notifyStaff(item.id, 'Low stock', `${item.name} is below the minimum level.`);
+      const stock = this.num(item.currentStock);
+      const min = this.num(item.minStock);
+      if (stock <= 0) {
+        await this.notifications.emitStaffInbox({
+          eventKey: `INV:${item.id}:OUT`,
+          type: NotificationType.INVENTORY_OUT,
+          category: 'INVENTORY',
+          priority: 'HIGH',
+          title: '🔴 Ingredient out of stock',
+          body: `${item.name} is out of stock.`,
+          referenceType: 'INVENTORY_ITEM',
+          referenceId: item.id,
+        });
+      } else if (stock <= min) {
+        await this.notifications.emitStaffInbox({
+          eventKey: `INV:${item.id}:LOW`,
+          type: NotificationType.INVENTORY,
+          category: 'INVENTORY',
+          priority: 'HIGH',
+          title: '⚠️ Low stock',
+          body: `${item.name} is below minimum stock.\nCurrent: ${stock} ${item.unit} • Minimum: ${min} ${item.unit}`,
+          referenceType: 'INVENTORY_ITEM',
+          referenceId: item.id,
+          metadata: { currentStock: stock, minStock: min, unit: item.unit },
+        });
       }
     }
   }
 
-  private async notifyStaff(ref: string, title: string, body: string) {
-    const users = await this.prisma.user.findMany({
-      where: {
-        isActive: true,
-        role: { name: { in: [UserRole.SUPER_ADMIN, UserRole.MANAGER] } },
-      },
-      select: { id: true },
+  private async notifyPo(poId: string, poNumber: string, status: PurchaseOrderStatus) {
+    const partial = status === PurchaseOrderStatus.PARTIALLY_RECEIVED;
+    await this.notifications.emitStaffInbox({
+      eventKey: `PO:${poId}:${status}`,
+      type: NotificationType.PURCHASE_ORDER,
+      category: 'INVENTORY',
+      title: partial ? '📋 Purchase order partially received' : '📦 Purchase order received',
+      body: partial ? `${poNumber} is partially received.` : `${poNumber} has been received.`,
+      referenceType: 'PURCHASE_ORDER',
+      referenceId: poId,
     });
-    for (const user of users) {
-      await this.notifications
-        .create({
-          userId: user.id,
-          type: NotificationType.INVENTORY,
-          title,
-          body,
-          data: { reference: ref },
-        })
-        .catch(() => undefined);
-    }
   }
 }

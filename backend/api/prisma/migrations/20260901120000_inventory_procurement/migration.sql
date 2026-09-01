@@ -69,8 +69,6 @@ ALTER TABLE "purchase_orders"
   ADD COLUMN IF NOT EXISTS "otherCharges" DECIMAL(12,2) NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS "createdById" TEXT;
 
-UPDATE "purchase_orders" SET "status" = 'ORDERED' WHERE "status" IN ('SENT', 'APPROVED');
-
 CREATE UNIQUE INDEX IF NOT EXISTS "inventory_consumption_orderId_itemId_key"
   ON "inventory_consumption"("orderId", "itemId");
 CREATE INDEX IF NOT EXISTS "inventory_consumption_orderId_idx" ON "inventory_consumption"("orderId");

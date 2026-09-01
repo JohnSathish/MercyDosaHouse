@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Search,
-  Bell,
   Monitor,
   Moon,
   Sun,
@@ -27,6 +26,7 @@ import { getAdminPageTitle } from '@/lib/admin-page-title';
 import type { AdminBrand } from '@/lib/use-admin-brand';
 import type { ThemeMode } from '@/components/admin-layout-shell';
 import { AdminMobileBrand } from '@/components/admin-sidebar';
+import { NotificationBell } from '@/components/notification-bell';
 
 interface AdminTopbarProps {
   userName: string;
@@ -38,31 +38,6 @@ interface AdminTopbarProps {
   onOpenMobileNav: () => void;
   onToggleSidebar?: () => void;
 }
-
-const MOCK_NOTIFICATIONS = [
-  {
-    id: '1',
-    type: 'order',
-    message: 'New order #MDH-1042 received',
-    time: '2 min ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    type: 'inventory',
-    message: 'Rice stock running low',
-    time: '15 min ago',
-    unread: true,
-  },
-  {
-    id: '3',
-    type: 'review',
-    message: 'New 5-star review from Priya',
-    time: '1 hr ago',
-    unread: false,
-  },
-  { id: '4', type: 'payment', message: 'Payment received ₹450', time: '2 hrs ago', unread: false },
-];
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
   { mode: 'light', label: 'Light', icon: Sun },
@@ -93,7 +68,6 @@ export function AdminTopbar({
   const searchRef = useRef<HTMLInputElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
 
-  const unreadCount = MOCK_NOTIFICATIONS.filter((n) => n.unread).length;
   const initial = userName.charAt(0).toUpperCase() || 'A';
 
   const searchResults = searchQuery.trim()
@@ -156,19 +130,7 @@ export function AdminTopbar({
           <Search className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => setNotifOpen((o) => !o)}
-          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          {unreadCount > 0 && (
-            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-              {unreadCount}
-            </span>
-          )}
-        </button>
+        <NotificationBell open={notifOpen} onOpenChange={setNotifOpen} />
 
         <button
           type="button"
@@ -361,19 +323,7 @@ export function AdminTopbar({
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setNotifOpen((o) => !o)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-              {unreadCount}
-            </span>
-          )}
-        </button>
+        <NotificationBell open={notifOpen} onOpenChange={setNotifOpen} />
 
         <button
           type="button"
@@ -392,38 +342,6 @@ export function AdminTopbar({
           <ChevronDown className="hidden h-3.5 w-3.5 text-gray-400 xl:block" />
         </button>
       </div>
-
-      {notifOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-          <div className="absolute right-2 top-full z-50 mt-2 w-[min(calc(100vw-1rem),20rem)] overflow-hidden rounded-2xl border bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900 md:right-4 lg:right-8">
-            <div className="flex items-center justify-between border-b px-4 py-3 dark:border-gray-700">
-              <span className="text-sm font-semibold">Notifications</span>
-              <button
-                type="button"
-                onClick={() => setNotifOpen(false)}
-                className="min-h-[44px] min-w-[44px] p-2"
-              >
-                <X className="h-4 w-4 text-gray-400" />
-              </button>
-            </div>
-            <div className="max-h-72 overflow-y-auto">
-              {MOCK_NOTIFICATIONS.map((n) => (
-                <div
-                  key={n.id}
-                  className={cn(
-                    'border-b px-4 py-3 last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50',
-                    n.unread && 'bg-[#0B3D24]/5',
-                  )}
-                >
-                  <p className="text-sm font-medium">{n.message}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{n.time}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
 
       {userOpen && (
         <>

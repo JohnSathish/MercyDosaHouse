@@ -21,7 +21,8 @@ export default function MoreScreen() {
     ['Reports', '/reports', true],
     ['Billing & Invoices', '/invoices', true],
     ['Order Emails', '/emails', canManageMenu(user)],
-    ['Notifications', '/notification-settings', true],
+    ['Notifications', '/notifications', true],
+    ['Notification settings', '/notification-settings', true],
     ['Settings', '/settings', canManageMenu(user)],
     ['Full POS', '/pos', canUsePos(user)],
   ].filter((x) => x[2]);

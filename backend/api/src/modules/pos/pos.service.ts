@@ -16,6 +16,7 @@ import {
   PosDiscountType,
   Prisma,
   TrackingStatus,
+  NotificationType,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -1264,6 +1265,16 @@ export class PosService {
       entityId: billId,
       description: data.reason,
       newValue: { amount: data.amount },
+    });
+    void this.notifications.emitStaffInbox({
+      eventKey: `PAYMENT:${billId}:REFUND:${data.amount}`,
+      type: NotificationType.REFUND,
+      category: 'PAYMENT',
+      title: '🔄 Refund processed',
+      body: `₹${Math.round(data.amount)} refunded for bill ${order.orderNumber}.`,
+      referenceType: 'ORDER',
+      referenceId: billId,
+      metadata: { orderId: billId, orderNumber: order.orderNumber },
     });
 
     return { success: true, amount: data.amount };

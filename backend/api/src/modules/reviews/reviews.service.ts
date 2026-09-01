@@ -104,6 +104,32 @@ export class ReviewsService {
       include: this.include(),
     });
 
+    const customerName = review.user?.name || 'A customer';
+    const pid = review.productId ?? order.items[0]?.productId;
+    const firstProduct = pid
+      ? await this.prisma.product.findUnique({ where: { id: pid }, select: { name: true } })
+      : null;
+    const productName = firstProduct?.name || 'their order';
+    void this.notifications.emitStaffInbox({
+      eventKey: `REVIEW:${review.id}:NEW`,
+      type: NotificationType.REVIEW,
+      category: 'CUSTOMER',
+      priority: rating <= 2 ? 'HIGH' : 'NORMAL',
+      title:
+        rating <= 2
+          ? '⚠️ Negative feedback'
+          : rating === 5
+            ? '⭐ New 5-star review'
+            : '⭐ New customer feedback',
+      body:
+        rating === 5
+          ? `${customerName} rated ${productName} 5 stars.`
+          : `${customerName} left a ${rating}-star review.`,
+      referenceType: 'REVIEW',
+      referenceId: review.id,
+      metadata: { reviewId: review.id, orderId: order.id, rating },
+    });
+
     return this.toDto(review, { viewerId: userId, publicName: false });
   }
 

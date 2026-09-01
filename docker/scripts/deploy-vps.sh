@@ -58,6 +58,12 @@ for i in $(seq 1 30); do
     break
   fi
   if [ "$i" -eq 30 ]; then
+    echo "API health check timed out — last API logs:"
+    docker compose --env-file .env -f "$COMPOSE_FILE" logs api --tail 80 || true
+    echo "If Prisma reports a failed migration, run:"
+    echo "  docker compose --env-file .env -f $COMPOSE_FILE exec -T api npx prisma migrate resolve --rolled-back 20260901120000_inventory_procurement"
+    echo "  docker compose --env-file .env -f $COMPOSE_FILE exec -T api npx prisma migrate resolve --rolled-back 20260901150000_staff_inbox_notifications"
+    echo "then: docker compose --env-file .env -f $COMPOSE_FILE up -d api"
     echo "API health check timed out — check: docker compose -f $COMPOSE_FILE logs api"
     exit 1
   fi

@@ -63,7 +63,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         liveBadge: 'pendingOrders',
         badgeTone: 'count',
       },
-      { href: '/alerts', label: 'Order Alerts', icon: Bell },
+      { href: '/notifications', label: 'Notifications', icon: Bell },
       { href: '/pos', label: 'POS', icon: Monitor },
       { href: '/menu', label: 'Menu Management', icon: UtensilsCrossed },
       { href: '/inventory', label: 'Inventory', icon: Package },

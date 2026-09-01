@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import { Button } from '@mdh/ui';
@@ -10,7 +10,7 @@ import { IngredientsTable, IngredientsMobileCards } from '@/components/inventory
 import { IngredientFormDialog } from '@/components/inventory/ingredient-form-dialog';
 import { IngredientDetailDrawer } from '@/components/inventory/ingredient-detail-drawer';
 import { useToastStore } from '@/lib/toast-store';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function IngredientsPage() {
   const router = useRouter();
@@ -19,6 +19,10 @@ export default function IngredientsPage() {
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const itemFromQuery = useSearchParams().get('itemId');
+  useEffect(() => {
+    if (itemFromQuery) setSelectedId(itemFromQuery);
+  }, [itemFromQuery]);
   const [editing, setEditing] = useState<InventoryItemDto | null>(null);
 
   const { data: items = [], isLoading } = useQuery({

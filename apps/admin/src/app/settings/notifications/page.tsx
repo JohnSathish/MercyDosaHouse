@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, ChefHat, Shield, UserCog } from 'lucide-react';
 import { Button, Card, CardContent, cn } from '@mdh/ui';
 import { api } from '@/lib/api';
+import type { NotificationPreferenceDto } from '@mdh/types';
 import { OrderNotificationEmailsPanel } from '@/components/settings/order-notification-emails-panel';
 import { PushTemplatesPanel } from '@/components/settings/push-templates-panel';
 import { OrderNotificationLogsPanel } from '@/components/settings/order-notification-logs-panel';
@@ -49,6 +50,16 @@ export default function SettingsNotificationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['staff-push-config'] }),
   });
 
+  const { data: prefs } = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: () => api.get<NotificationPreferenceDto>('/notifications/preferences'),
+  });
+  const savePrefs = useMutation({
+    mutationFn: (body: Partial<NotificationPreferenceDto>) =>
+      api.patch<NotificationPreferenceDto>('/notifications/preferences', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notification-preferences'] }),
+  });
+
   const roles = data?.recipientRoles ?? [];
 
   const toggleRole = (role: string) => {
@@ -65,9 +76,45 @@ export default function SettingsNotificationsPage() {
           Notifications
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Email alerts and Admin Android new-order push (FCM/Expo) with custom ringtone.
+          Choose which events reach Admin, plus Android push, ringtone, and email alerts.
         </p>
       </div>
+
+      <Card className="dark:bg-gray-900">
+        <CardContent className="p-4 sm:p-6 space-y-3">
+          <h2 className="font-semibold">Notification categories</h2>
+          <p className="text-sm text-muted-foreground">
+            Applies to this signed-in Admin account on web and Android.
+          </p>
+          {!prefs ? (
+            <p className="text-sm text-muted-foreground">Loading preferences…</p>
+          ) : (
+            (
+              [
+                ['newOrders', 'New orders'],
+                ['orderStatus', 'Order status changes'],
+                ['payments', 'Payments'],
+                ['lowStock', 'Low stock'],
+                ['expiryAlerts', 'Expiry alerts'],
+                ['customerFeedback', 'Customer feedback'],
+                ['deliveryAlerts', 'Delivery alerts'],
+                ['systemAlerts', 'System alerts'],
+                ['pushEnabled', 'Push notifications'],
+                ['newOrderSound', 'New order sound'],
+                ['vibration', 'Vibration'],
+              ] as const
+            ).map(([key, label]) => (
+              <ToggleRow
+                key={key}
+                label={label}
+                checked={prefs[key]}
+                onChange={(v) => savePrefs.mutate({ [key]: v })}
+                disabled={savePrefs.isPending}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="dark:bg-gray-900">
         <CardContent className="p-4 sm:p-6">

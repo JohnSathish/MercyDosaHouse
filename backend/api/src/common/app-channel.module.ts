@@ -18,6 +18,6 @@ import { AppChannelInterceptor } from './app-channel.interceptor';
     }),
   ],
   providers: [AppChannelService, { provide: APP_INTERCEPTOR, useClass: AppChannelInterceptor }],
-  exports: [AppChannelService],
+  exports: [AppChannelService, JwtModule],
 })
 export class AppChannelModule {}

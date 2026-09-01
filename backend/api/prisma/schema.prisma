@@ -276,6 +276,18 @@ enum NotificationType {
   REVIEW_REPLY
   LOYALTY
   INVENTORY
+  PAYMENT
+  PAYMENT_FAILED
+  PAYMENT_PENDING
+  REFUND
+  INVENTORY_OUT
+  INVENTORY_EXPIRY
+  PURCHASE_ORDER
+  REVIEW
+  CUSTOMER
+  DELIVERY
+  SECURITY
+  SYSTEM
 }
 
 enum LoyaltyTier {
@@ -347,6 +359,7 @@ model User {
   userCoupons          UserCoupon[]
   couponCustomers      CouponCustomer[]
   notifications        Notification[]
+  notificationPreference NotificationPreference?
   posSessions          PosSession[]         @relation("PosCashier")
   posOrders            Order[]              @relation("PosCashierOrders")
   posDiscountsApproved PosDiscount[]        @relation("PosDiscountApprover")
@@ -991,18 +1004,47 @@ model Banner {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String?
-  user      User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      NotificationType
-  title     String
-  body      String
-  data      Json?
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  id            String           @id @default(uuid())
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          NotificationType
+  title         String
+  body          String
+  data          Json?
+  isRead        Boolean          @default(false)
+  eventKey      String           @unique
+  category      String           @default("ORDER")
+  priority      String           @default("NORMAL")
+  referenceType String?
+  referenceId   String?
+  readAt        DateTime?
+  createdAt     DateTime         @default(now())
 
   @@index([userId, createdAt])
+  @@index([userId, isRead, createdAt])
+  @@index([category, createdAt])
   @@map("notifications")
+}
+
+model NotificationPreference {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newOrders         Boolean  @default(true)
+  orderStatus       Boolean  @default(true)
+  payments          Boolean  @default(true)
+  lowStock          Boolean  @default(true)
+  expiryAlerts      Boolean  @default(true)
+  customerFeedback  Boolean  @default(true)
+  deliveryAlerts    Boolean  @default(true)
+  systemAlerts      Boolean  @default(true)
+  pushEnabled       Boolean  @default(true)
+  newOrderSound     Boolean  @default(true)
+  vibration         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("notification_preferences")
 }
 
 enum ReviewVisibility {

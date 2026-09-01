@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import type { NotificationPreferenceDto } from '@mdh/types';
 import { NotificationsService, type StaffPushConfig } from './notifications.service';
 import { RequestUser, RequirePermissions } from '../../common/guards';
 
@@ -8,6 +9,48 @@ import { RequestUser, RequirePermissions } from '../../common/guards';
 @Controller('notifications')
 export class NotificationsController {
   constructor(private notificationsService: NotificationsService) {}
+
+  @Get('inbox')
+  getInbox(
+    @Req() req: { user: RequestUser },
+    @Query('category') category?: string,
+    @Query('type') type?: string,
+    @Query('read') read?: string,
+    @Query('q') q?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.notificationsService.listInbox(req.user.id, {
+      category,
+      type,
+      read,
+      q,
+      from,
+      to,
+      page,
+      limit,
+    });
+  }
+
+  @Get('unread-count')
+  getUnreadCount(@Req() req: { user: RequestUser }) {
+    return this.notificationsService.unreadCount(req.user.id);
+  }
+
+  @Get('preferences')
+  getPreferences(@Req() req: { user: RequestUser }) {
+    return this.notificationsService.getPreferences(req.user.id);
+  }
+
+  @Patch('preferences')
+  updatePreferences(
+    @Req() req: { user: RequestUser },
+    @Body() body: Partial<NotificationPreferenceDto>,
+  ) {
+    return this.notificationsService.updatePreferences(req.user.id, body);
+  }
 
   @Get()
   getNotifications(@Req() req: { user: RequestUser }) {
