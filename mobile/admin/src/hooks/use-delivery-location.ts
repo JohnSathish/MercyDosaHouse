@@ -70,24 +70,19 @@ async function sendLocation(orderId: string, location: Location.LocationObject) 
       .catch(() => null);
     if (current && !current.active) {
       await AsyncStorage.removeItem(ACTIVE_ORDER_KEY);
-      if (await TaskManager.isTaskRegisteredAsync(TASK_NAME)) {
-        await Location.stopLocationUpdatesAsync(TASK_NAME);
-      }
     }
   }
 }
 
-type LocationTaskData = { locations?: Location.LocationObject[] };
-
-TaskManager.defineTask(TASK_NAME, async ({ data, error }) => {
-  if (error) return;
-  const locations = (data as LocationTaskData | undefined)?.locations ?? [];
-  const latest = locations.at(-1);
-  const orderId = await AsyncStorage.getItem(ACTIVE_ORDER_KEY);
-  if (!latest || !orderId) return;
-
-  await sendLocation(orderId, latest);
-});
+async function stopLegacyBackgroundUpdates() {
+  try {
+    if (await TaskManager.isTaskRegisteredAsync(TASK_NAME)) {
+      await Location.stopLocationUpdatesAsync(TASK_NAME);
+    }
+  } catch {
+    /* older builds registered this task */
+  }
+}
 
 export function useDeliveryLocationSharing(
   orderId: string | undefined,
@@ -101,36 +96,18 @@ export function useDeliveryLocationSharing(
       if (!orderId || !active) return;
       const foreground = await Location.requestForegroundPermissionsAsync();
       if (foreground.status !== Location.PermissionStatus.GRANTED || cancelled) return;
-      const background = await Location.requestBackgroundPermissionsAsync();
-      if (cancelled) return;
+      await stopLegacyBackgroundUpdates();
       await AsyncStorage.setItem(ACTIVE_ORDER_KEY, orderId);
-      if (background.status === Location.PermissionStatus.GRANTED) {
-        const running = await TaskManager.isTaskRegisteredAsync(TASK_NAME);
-        if (!running) {
-          await Location.startLocationUpdatesAsync(TASK_NAME, {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: Math.max(5, options?.intervalSeconds ?? 10) * 1000,
-            distanceInterval: Math.max(10, options?.distanceMeters ?? 25),
-            pausesUpdatesAutomatically: false,
-            foregroundService: {
-              notificationTitle: 'Mercy Dosa House delivery active',
-              notificationBody: 'Your location is shared only for this active delivery.',
-              notificationColor: '#14532D',
-            },
-          });
-        }
-      } else {
-        foregroundSubscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: Math.max(5, options?.intervalSeconds ?? 10) * 1000,
-            distanceInterval: Math.max(10, options?.distanceMeters ?? 25),
-          },
-          (location) => {
-            void sendLocation(orderId, location);
-          },
-        );
-      }
+      foregroundSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: Math.max(5, options?.intervalSeconds ?? 10) * 1000,
+          distanceInterval: Math.max(10, options?.distanceMeters ?? 25),
+        },
+        (location) => {
+          void sendLocation(orderId, location);
+        },
+      );
     };
 
     void start().catch(() => undefined);
@@ -145,9 +122,7 @@ export function useDeliveryLocationSharing(
     void (async () => {
       await AsyncStorage.removeItem(ACTIVE_ORDER_KEY);
       await SecureStore.deleteItemAsync(PENDING_LOCATIONS_KEY);
-      if (await TaskManager.isTaskRegisteredAsync(TASK_NAME)) {
-        await Location.stopLocationUpdatesAsync(TASK_NAME);
-      }
+      await stopLegacyBackgroundUpdates();
     })().catch(() => undefined);
   }, [active, orderId]);
 }

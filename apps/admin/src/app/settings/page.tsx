@@ -9,12 +9,12 @@ import { api } from '@/lib/api';
 import { APP_URLS } from '@/lib/app-urls';
 import { MediaUploader } from '@/components/cms/media-uploader';
 import type { BusinessSettingsDto, ThemeSettingsDto } from '@mdh/types';
+import { resolvePublicMediaUrl } from '@mdh/utils';
 import { useState, useEffect } from 'react';
 
 function resolveAssetUrl(url?: string | null): string {
   if (!url) return `${APP_URLS.website}/images/logo.png`;
-  if (url.startsWith('http')) return url;
-  return `${APP_URLS.website}${url.startsWith('/') ? url : `/${url}`}`;
+  return resolvePublicMediaUrl(url, APP_URLS.website) || url;
 }
 
 function LogoPreview({ url, label }: { url?: string | null; label: string }) {
@@ -312,7 +312,10 @@ export default function SettingsPage() {
               <MediaUploader
                 label="Upload certificate PDF"
                 accept="application/pdf"
-                onUploaded={(url) => setForm({ ...form, fssaiCertificateUrl: url })}
+                onUploaded={(url) => {
+                  setForm((prev) => ({ ...prev, fssaiCertificateUrl: url }));
+                  saveBusiness.mutate({ fssaiCertificateUrl: url });
+                }}
               />
               {form.fssaiCertificateUrl ? (
                 <>
@@ -328,7 +331,10 @@ export default function SettingsPage() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setForm({ ...form, fssaiCertificateUrl: null })}
+                    onClick={() => {
+                      setForm((prev) => ({ ...prev, fssaiCertificateUrl: null }));
+                      saveBusiness.mutate({ fssaiCertificateUrl: null });
+                    }}
                   >
                     Remove certificate
                   </Button>
@@ -353,6 +359,14 @@ export default function SettingsPage() {
           <Button onClick={() => saveBusiness.mutate(form)} disabled={saveBusiness.isPending}>
             {saveBusiness.isPending ? 'Saving…' : 'Save FSSAI Details'}
           </Button>
+          {saveBusiness.isError ? (
+            <p className="text-sm text-red-600">Could not save FSSAI details. Try again.</p>
+          ) : null}
+          {saveBusiness.isSuccess ? (
+            <p className="text-sm text-emerald-600">
+              FSSAI details saved. The public site will show the certificate.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 

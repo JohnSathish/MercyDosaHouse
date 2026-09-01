@@ -10,6 +10,8 @@ import {
   UserRound,
 } from 'lucide-react';
 import type { BusinessSettingsDto } from '@mdh/types';
+import { resolvePublicMediaUrl } from '@mdh/utils';
+import { APP_URLS } from '@/lib/app-urls';
 
 interface FssaiDetailsProps {
   settings: BusinessSettingsDto | null;
@@ -61,6 +63,7 @@ export function FssaiDetails({ settings, compact = false }: FssaiDetailsProps) {
 
   const issuedOn = formatDate(settings.fssaiIssuedOn);
   const feePaidUntil = formatDate(settings.fssaiFeePaidUntil);
+  const certificateUrl = resolvePublicMediaUrl(settings.fssaiCertificateUrl, APP_URLS.website);
 
   if (compact) {
     return (
@@ -123,7 +126,7 @@ export function FssaiDetails({ settings, compact = false }: FssaiDetailsProps) {
           <FileText className="mt-0.5 h-5 w-5 shrink-0 text-[#14532D]" aria-hidden="true" />
           <div>
             <p className="font-bold text-[#14532D]">FSSAI Registration Certificate</p>
-            {settings.fssaiCertificateUrl ? (
+            {certificateUrl ? (
               <p className="mt-1 text-sm text-gray-600">
                 View our official FSSAI registration certificate.
               </p>
@@ -138,9 +141,9 @@ export function FssaiDetails({ settings, compact = false }: FssaiDetailsProps) {
             )}
           </div>
         </div>
-        {settings.fssaiCertificateUrl ? (
+        {certificateUrl ? (
           <a
-            href={settings.fssaiCertificateUrl}
+            href={certificateUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#14532D] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#166534]"

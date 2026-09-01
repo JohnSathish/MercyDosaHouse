@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_STORE_CLOSED_MESSAGE } from '@mdh/types';
-import { applyChargePlaceholders } from '@mdh/utils';
+import { applyChargePlaceholders, toStoredUploadPath } from '@mdh/utils';
 import { DEFAULT_AUTH_CONFIG, parseAuthConfig, type AuthConfig } from './auth-config';
 import {
   DEFAULT_FEEDBACK_CONFIG,
@@ -97,11 +97,94 @@ export class SettingsService {
 
   async updateBusinessSettings(data: Record<string, unknown>) {
     const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      throw new BadRequestException('Business settings are not initialized');
+    }
+    const patch = this.pickBusinessSettingsPatch(data);
     const updated = await this.prisma.businessSettings.update({
-      where: { id: settings!.id },
-      data: data as never,
+      where: { id: settings.id },
+      data: patch as never,
     });
     return this.mapSettings(updated);
+  }
+
+  private pickBusinessSettingsPatch(data: Record<string, unknown>): Record<string, unknown> {
+    const keys = [
+      'businessName',
+      'tagline',
+      'phone',
+      'whatsapp',
+      'email',
+      'address',
+      'deliveryCharge',
+      'packingCharge',
+      'minOrderAmount',
+      'freeDeliveryLimit',
+      'deliveryRadiusKm',
+      'estimatedDeliveryMinutes',
+      'openingHours',
+      'deliveryHours',
+      'upiId',
+      'upiQrUrl',
+      'googleMapsEmbed',
+      'socialLinks',
+      'footerCopyright',
+      'announcementBar',
+      'gstNumber',
+      'websiteUrl',
+      'fssaiEnabled',
+      'fssaiRegistrationNumber',
+      'fssaiBusinessName',
+      'fssaiBusinessAddress',
+      'fssaiPremisesAddress',
+      'fssaiNearestLandmark',
+      'fssaiKindOfBusiness',
+      'fssaiIssuedOn',
+      'fssaiFeePaidUntil',
+      'fssaiCertificateUrl',
+      'receiptShowLogo',
+      'receiptShowQr',
+      'receiptShowGst',
+      'receiptShowAddress',
+      'receiptShowCustomer',
+      'receiptShowCashier',
+      'receiptShowPayment',
+      'receiptFooterMessage',
+      'receiptFontSize',
+      'receiptPaperWidth',
+      'receiptCopies',
+      'receiptAutoPrintPayment',
+      'receiptAutoPrintKot',
+      'preOrderMinDaysAhead',
+      'storeOpen',
+      'storeClosedMessage',
+      'storeReopenMessage',
+      'storeClosedReason',
+      'operatingSchedule',
+    ] as const;
+    const patch: Record<string, unknown> = {};
+    for (const key of keys) {
+      if (key in data) patch[key] = data[key];
+    }
+    if ('fssaiCertificateUrl' in patch) {
+      const raw = patch.fssaiCertificateUrl;
+      if (raw == null || String(raw).trim() === '') {
+        patch.fssaiCertificateUrl = null;
+      } else {
+        patch.fssaiCertificateUrl = toStoredUploadPath(String(raw).trim());
+      }
+    }
+    for (const dateKey of ['fssaiIssuedOn', 'fssaiFeePaidUntil'] as const) {
+      if (!(dateKey in patch)) continue;
+      const value = patch[dateKey];
+      if (value == null || value === '') {
+        patch[dateKey] = null;
+      } else {
+        const parsed = new Date(String(value));
+        patch[dateKey] = Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+    }
+    return patch;
   }
 
   getBanners(activeOnly = true) {
@@ -195,7 +278,9 @@ export class SettingsService {
       fssaiFeePaidUntil: s.fssaiFeePaidUntil
         ? new Date(s.fssaiFeePaidUntil as string | Date).toISOString()
         : '2027-08-26T00:00:00.000Z',
-      fssaiCertificateUrl: (s.fssaiCertificateUrl as string | null) ?? null,
+      fssaiCertificateUrl: s.fssaiCertificateUrl
+        ? toStoredUploadPath(String(s.fssaiCertificateUrl))
+        : null,
       receiptShowLogo: s.receiptShowLogo !== false,
       receiptShowQr: s.receiptShowQr !== false,
       receiptShowGst: s.receiptShowGst !== false,

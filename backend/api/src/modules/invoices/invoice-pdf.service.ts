@@ -1,9 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
-import QRCode from 'qrcode';
 import type { InvoiceConfig } from '../settings/invoice-config';
 import { bankDetailsConfigured } from '../settings/invoice-config';
 import { amountInWordsInr } from './invoice-totals';
+
+/* pdfkit is CommonJS. Default import compiles to `.default`, which is not a constructor. */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PDFDocument = (() => {
+  const loaded = require('pdfkit') as { default?: unknown } | ((opts?: unknown) => unknown);
+  if (typeof loaded === 'function') return loaded;
+  if (loaded && typeof loaded.default === 'function') return loaded.default;
+  throw new Error('pdfkit did not export a PDFDocument constructor');
+})() as typeof import('pdfkit');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QRCode = require('qrcode') as typeof import('qrcode');
 
 const GREEN = '#14532D';
 const GOLD = '#C9A227';

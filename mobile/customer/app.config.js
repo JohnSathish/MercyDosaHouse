@@ -7,7 +7,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'Mercy Dosa House',
   slug: 'mercy-dosa-house',
-  version: '1.0.10',
+  version: '1.0.14',
   orientation: 'portrait',
   scheme: 'mercydosa',
   userInterfaceStyle: 'automatic',
@@ -25,8 +25,18 @@ module.exports = ({ config }) => ({
     },
     package: 'com.mercydosahouse.customer',
     googleServicesFile: './google-services.json',
-    versionCode: 11,
+    versionCode: 15,
     permissions: ['INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
+    blockedPermissions: [
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.CAMERA',
+      'android.permission.RECORD_AUDIO',
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_LOCATION',
+    ],
     allowBackup: false,
     intentFilters: [
       {
@@ -62,6 +72,8 @@ module.exports = ({ config }) => ({
       {
         locationWhenInUsePermission:
           'Mercy Dosa House uses your location to place an accurate delivery pin.',
+        isAndroidBackgroundLocationEnabled: false,
+        isIosBackgroundLocationEnabled: false,
       },
     ],
     './plugins/with-android-16kb',
@@ -70,9 +82,9 @@ module.exports = ({ config }) => ({
       {
         android: {
           minSdkVersion: 24,
-          compileSdkVersion: 35,
-          targetSdkVersion: 35,
-          buildToolsVersion: '35.0.0',
+          compileSdkVersion: 36,
+          targetSdkVersion: 36,
+          buildToolsVersion: '36.0.0',
           usesCleartextTraffic: false,
           useLegacyPackaging: false,
         },

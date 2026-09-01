@@ -13,6 +13,7 @@ import { getPublishedSiteContent } from '@/lib/cms-content';
 import { getMarketingBundle } from '@/lib/marketing-content';
 import { RestaurantJsonLd } from '@/components/seo/restaurant-jsonld';
 import type { BusinessSettingsDto } from '@mdh/types';
+import { resolvePublicMediaUrl } from '@mdh/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -106,7 +107,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   settings?.fssaiEnabled === false ? null : settings?.fssaiRegistrationNumber
                 }
                 fssaiCertificateUrl={
-                  settings?.fssaiEnabled === false ? null : settings?.fssaiCertificateUrl
+                  settings?.fssaiEnabled === false
+                    ? null
+                    : resolvePublicMediaUrl(settings?.fssaiCertificateUrl, APP_URLS.website) || null
                 }
               >
                 {children}

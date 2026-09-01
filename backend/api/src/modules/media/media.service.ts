@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { toStoredUploadPath } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -27,7 +28,7 @@ export class MediaService {
     const filename = `${uuidv4()}${ext}`;
     const { writeFileSync } = require('fs');
     writeFileSync(join(this.uploadDir, filename), file.buffer);
-    const url = `${this.publicUrl}/${filename}`;
+    const url = toStoredUploadPath(`${this.publicUrl}/${filename}`);
 
     const asset = await this.prisma.mediaAsset.create({
       data: {

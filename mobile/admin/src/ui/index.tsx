@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +12,27 @@ import {
   type TextStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolvePublicMediaUrl } from '@mdh/utils';
+import { WEBSITE_URL } from '@/lib/constants';
 import { theme, formatInr } from './theme';
+
+const BUNDLED_BRAND_LOGO = require('../../assets/logo.png');
+
+function BrandMark() {
+  const [useBundled, setUseBundled] = useState(false);
+  const uri = resolvePublicMediaUrl('/images/logo.png', WEBSITE_URL);
+  return (
+    <View style={styles.brandMark}>
+      <Image
+        source={useBundled || !uri ? BUNDLED_BRAND_LOGO : { uri }}
+        defaultSource={BUNDLED_BRAND_LOGO}
+        onError={() => setUseBundled(true)}
+        style={styles.brandMarkImage}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   return <View style={[styles.screen, style]}>{children}</View>;
@@ -100,15 +121,7 @@ export function AppHeader({
             <Text style={styles.headerIcon}>☰</Text>
           </Pressable>
         ) : null)}
-      {showBrandMark ? (
-        <View style={styles.brandMark}>
-          <Image
-            source={require('../../assets/icon.png')}
-            style={styles.brandMarkImage}
-            resizeMode="cover"
-          />
-        </View>
-      ) : null}
+      {showBrandMark ? <BrandMark /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {title}

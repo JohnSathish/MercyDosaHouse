@@ -1,6 +1,6 @@
 {
   "name": "@mdh/customer-app",
-  "version": "1.0.10",
+  "version": "1.0.14",
   "private": true,
   "main": "index.js",
   "scripts": {

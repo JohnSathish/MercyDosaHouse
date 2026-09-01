@@ -264,6 +264,7 @@ function CheckoutScreenBody() {
           code: raw,
           subtotal: pricing.subtotal,
           items: discountItems,
+          customerPhone: profile?.phone || undefined,
         },
       );
       const applied = res.coupon?.code ?? raw;

@@ -1,5 +1,7 @@
 import { api } from '@/lib/api';
+import { APP_URLS } from '@/lib/app-urls';
 import type { BusinessSettingsDto } from '@mdh/types';
+import { resolvePublicMediaUrl } from '@mdh/utils';
 import { FssaiDetails } from '@/components/compliance/fssai-details';
 
 async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
@@ -13,10 +15,14 @@ async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
   }
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function FssaiPage() {
   const settings = await getBusinessSettings();
   const publicSettings = settings?.fssaiEnabled === false ? null : settings;
-  const certificateUrl = publicSettings?.fssaiCertificateUrl?.trim() || null;
+  const certificateUrl =
+    resolvePublicMediaUrl(publicSettings?.fssaiCertificateUrl, APP_URLS.website) || null;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-12 sm:py-16">

@@ -19,6 +19,8 @@ export class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
     if (token) headers.Authorization = `Bearer ${token}`;
+    headers['X-MDH-Client'] = 'mercy-android-customer';
+    headers['X-MDH-Package'] = 'com.mercydosahouse.customer';
     if (!path.startsWith('/auth/app-channel')) {
       try {
         const appToken = await getAppChannelToken();

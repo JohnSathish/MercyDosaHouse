@@ -1,59 +1,106 @@
 /**
- * Wipe all customer/POS order data (trial testing cleanup).
- * Keeps menu, customers, settings, and notification recipient emails.
+ * Wipe all trial orders and customer profiles.
+ * Keeps menu, CMS, settings, inventory, staff/admin users, and invoices
+ * (invoice rows remain; order/customer links are cleared).
  *
  * Usage (from backend/api, with DATABASE_URL set):
  *   pnpm prisma:truncate-orders
  *
- * On VPS:
- *   docker compose --env-file .env -f docker/docker-compose.prod.coexist.yml exec api \
- *     npx ts-node --transpile-only prisma/scripts/truncate-orders.ts
+ * On VPS (preferred, after git pull):
+ *   bash docker/scripts/truncate-orders.sh
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const before = await prisma.order.count();
-  console.log(`Orders before truncate: ${before}`);
+async function tableExists(name: string): Promise<boolean> {
+  const rows = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = ${name}
+    ) AS exists
+  `;
+  return Boolean(rows[0]?.exists);
+}
 
-  if (before === 0) {
+async function main() {
+  const beforeOrders = await prisma.order.count();
+  const customerRole = await prisma.role.findUnique({ where: { name: UserRole.CUSTOMER } });
+  const beforeCustomers = customerRole
+    ? await prisma.user.count({ where: { roleId: customerRole.id } })
+    : 0;
+
+  console.log(`Orders before: ${beforeOrders}`);
+  console.log(`Customer profiles before: ${beforeCustomers}`);
+
+  if (beforeOrders === 0 && beforeCustomers === 0) {
     console.log('Nothing to delete.');
     return;
   }
 
   const orderIds = (await prisma.order.findMany({ select: { id: true } })).map((o) => o.id);
+  const customerIds = customerRole
+    ? (
+        await prisma.user.findMany({ where: { roleId: customerRole.id }, select: { id: true } })
+      ).map((u) => u.id)
+    : [];
+  const hasInvoices = await tableExists('invoices');
+  const hasLoyalty = await tableExists('loyalty_transactions');
 
   await prisma.$transaction(async (tx) => {
-    // Tables without ON DELETE CASCADE from orders
-    await tx.deliveryLog.deleteMany({ where: { orderId: { in: orderIds } } });
-    await tx.inventoryConsumption.deleteMany({ where: { orderId: { in: orderIds } } });
-    await tx.rewardTransaction.updateMany({
-      where: { orderId: { in: orderIds } },
-      data: { orderId: null },
-    });
-    await tx.posHoldBill.updateMany({
-      where: { orderId: { in: orderIds } },
-      data: { orderId: null },
-    });
+    if (hasInvoices) {
+      await tx.invoice.updateMany({ data: { orderId: null, userId: null } });
+    }
 
-    // Cascades: items, payments, status history, kitchen logs,
-    // email notifications, delivery tracking (+ proof/rating), POS lines/discounts
-    const deleted = await tx.order.deleteMany({});
-    console.log(`Deleted orders: ${deleted.count}`);
+    if (orderIds.length) {
+      await tx.deliveryLog.deleteMany({ where: { orderId: { in: orderIds } } });
+      await tx.inventoryConsumption.deleteMany({ where: { orderId: { in: orderIds } } });
+      await tx.rewardTransaction.updateMany({
+        where: { orderId: { in: orderIds } },
+        data: { orderId: null },
+      });
+      await tx.posHoldBill.updateMany({
+        where: { orderId: { in: orderIds } },
+        data: { orderId: null },
+      });
+      if (hasLoyalty) {
+        await tx.loyaltyTransaction.updateMany({
+          where: { orderId: { in: orderIds } },
+          data: { orderId: null },
+        });
+      }
+      await tx.pushDispatch.deleteMany({ where: { orderId: { in: orderIds } } });
+      const deletedOrders = await tx.order.deleteMany({});
+      console.log(`Deleted orders: ${deletedOrders.count}`);
+    }
 
-    await tx.businessSettings.updateMany({
-      data: { orderSequence: 0 },
-    });
+    if (customerIds.length) {
+      await tx.userSession.deleteMany({ where: { userId: { in: customerIds } } });
+      await tx.loginHistory.deleteMany({ where: { userId: { in: customerIds } } });
+      const deletedCustomers = await tx.user.deleteMany({
+        where: { id: { in: customerIds } },
+      });
+      console.log(`Deleted customer profiles: ${deletedCustomers.count}`);
+    }
 
+    await tx.businessSettings.updateMany({ data: { orderSequence: 0 } });
     await tx.deliveryStaff.updateMany({
-      data: { activeOrders: 0, todayEarnings: 0 },
+      data: { activeOrders: 0, todayEarnings: 0, totalDeliveries: 0 },
+    });
+    await tx.posTable.updateMany({ data: { status: 'AVAILABLE' } });
+    await tx.coupon.updateMany({ data: { usageCount: 0 } });
+    await tx.categoryAnalytics.updateMany({
+      data: { orders: 0, revenue: 0, conversion: 0, popularity: 0 },
     });
   });
 
-  const after = await prisma.order.count();
-  console.log(`Orders after truncate: ${after}`);
-  console.log('Order sequence reset to 0. Ready for live orders.');
+  const afterOrders = await prisma.order.count();
+  const afterCustomers = customerRole
+    ? await prisma.user.count({ where: { roleId: customerRole.id } })
+    : 0;
+  console.log(`Orders after: ${afterOrders}`);
+  console.log(`Customer profiles after: ${afterCustomers}`);
+  console.log('Order sequence reset to 0. Staff logins, menu, and invoices were kept.');
 }
 
 main()

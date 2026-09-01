@@ -8,7 +8,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'MDH Admin',
   slug: 'mercy-dosa-house-admin',
-  version: '1.0.5',
+  version: '1.0.8',
   orientation: 'default',
   scheme: 'mercydosa-admin',
   userInterfaceStyle: 'light',
@@ -26,13 +26,23 @@ module.exports = ({ config }) => ({
     },
     package: 'com.mercydosahouse.admin',
     googleServicesFile: './google-services.json',
-    versionCode: 6,
+    versionCode: 9,
     permissions: [
       'INTERNET',
       'ACCESS_NETWORK_STATE',
       'VIBRATE',
       'RECEIVE_BOOT_COMPLETED',
       'POST_NOTIFICATIONS',
+    ],
+    blockedPermissions: [
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_LOCATION',
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.RECORD_AUDIO',
+      'android.permission.CAMERA',
     ],
     allowBackup: false,
   },
@@ -63,7 +73,8 @@ module.exports = ({ config }) => ({
       {
         locationWhenInUsePermission:
           'Mercy Dosa House shares your location only while an active delivery is in progress.',
-        isAndroidBackgroundLocationEnabled: true,
+        isAndroidBackgroundLocationEnabled: false,
+        isIosBackgroundLocationEnabled: false,
       },
     ],
     [
@@ -71,9 +82,9 @@ module.exports = ({ config }) => ({
       {
         android: {
           minSdkVersion: 24,
-          compileSdkVersion: 35,
-          targetSdkVersion: 35,
-          buildToolsVersion: '35.0.0',
+          compileSdkVersion: 36,
+          targetSdkVersion: 36,
+          buildToolsVersion: '36.0.0',
           usesCleartextTraffic: false,
           useLegacyPackaging: false,
         },
