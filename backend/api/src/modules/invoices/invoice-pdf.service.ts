@@ -145,8 +145,9 @@ export class InvoicePdfService {
     const payload = this.sanitize(raw);
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 40,
+      margin: 0,
       bufferPages: true,
+      autoFirstPage: true,
       info: {
         Title: `Invoice ${payload.invoiceNumber}`,
         Author: payload.business.name,
@@ -161,12 +162,11 @@ export class InvoicePdfService {
     });
 
     this.drawHeader(doc, payload);
-    let y = 168;
+    let y = 136;
     y = this.drawMetaAndParties(doc, payload, y);
     y = this.drawItems(doc, payload, y);
     y = this.drawTotals(doc, payload, y);
-    y = this.drawPaymentAndBank(doc, payload, y);
-    await this.drawUpiQr(doc, payload, y);
+    await this.drawPaymentBankAndQr(doc, payload, y);
     this.drawFooterCopy(doc, payload);
     this.addPageNumbers(doc);
     doc.end();
@@ -261,37 +261,37 @@ export class InvoicePdfService {
   }
 
   private drawHeader(doc: PDFKit.PDFDocument, payload: InvoicePdfPayload) {
-    doc.rect(0, 0, 595, 118).fill(GREEN);
-    doc.rect(0, 118, 595, 4).fill(GOLD);
+    doc.rect(0, 0, 595, 96).fill(GREEN);
+    doc.rect(0, 96, 595, 3).fill(GOLD);
 
     if (payload.logo) {
       try {
-        doc.image(payload.logo, 40, 22, { fit: [56, 56] });
+        doc.image(payload.logo, 40, 18, { fit: [52, 52] });
       } catch {
         /* skip invalid logo */
       }
     }
 
-    const left = payload.logo ? 108 : 40;
+    const left = payload.logo ? 104 : 40;
     doc
       .fillColor('#FFFFFF')
       .font('Helvetica-Bold')
-      .fontSize(18)
-      .text(payload.business.name.toUpperCase(), left, 28, {
+      .fontSize(16)
+      .text(payload.business.name.toUpperCase(), left, 22, {
         width: 300,
       });
     const tag = payload.business.tagline || 'FOOD - QUALITY - TRUST';
-    doc.font('Helvetica').fontSize(9).fillColor(GOLD).text(tag, left, 52, { width: 300 });
+    doc.font('Helvetica').fontSize(8).fillColor(GOLD).text(tag, left, 44, { width: 300 });
 
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(16).text('INVOICE', 360, 28, {
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(14).text('INVOICE', 360, 22, {
       width: 195,
       align: 'right',
     });
-    doc.font('Helvetica').fontSize(11).fillColor(GOLD).text(payload.invoiceNumber, 360, 50, {
+    doc.font('Helvetica').fontSize(10).fillColor(GOLD).text(payload.invoiceNumber, 360, 42, {
       width: 195,
       align: 'right',
     });
-    doc.fontSize(8).fillColor('#D1FAE5').text(statusLabel(payload.status).toUpperCase(), 360, 70, {
+    doc.fontSize(8).fillColor('#D1FAE5').text(statusLabel(payload.status).toUpperCase(), 360, 58, {
       width: 195,
       align: 'right',
     });
@@ -401,7 +401,7 @@ export class InvoicePdfService {
   }
 
   private drawTotals(doc: PDFKit.PDFDocument, payload: InvoicePdfPayload, y: number): number {
-    y = this.ensureSpace(doc, y, 160);
+    y = this.ensureSpace(doc, y, 90);
     const row = (label: string, value: string, bold = false) => {
       doc
         .font(bold ? 'Helvetica-Bold' : 'Helvetica')
@@ -440,89 +440,88 @@ export class InvoicePdfService {
       .text(`Amount in Words: ${winAnsi(amountInWordsInr(payload.grandTotal))}`, 40, y, {
         width: 515,
       });
-    return y + 28;
+    return y + 16;
   }
 
-  private drawPaymentAndBank(
+  private async drawPaymentBankAndQr(
     doc: PDFKit.PDFDocument,
     payload: InvoicePdfPayload,
     y: number,
-  ): number {
-    y = this.ensureSpace(doc, y, 120);
+  ): Promise<number> {
+    const bank = payload.config.bank;
+    const showBank = payload.config.showBankDetails && bankDetailsConfigured(bank);
+    const showQr =
+      payload.config.showUpiQr &&
+      Boolean(bank.upiId?.trim()) &&
+      payload.status !== 'PAID' &&
+      payload.status !== 'CANCELLED';
+
     doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9).text('PAYMENT DETAILS', 40, y);
-    y += 14;
+    y += 12;
     const lastMethod = payload.payments[payload.payments.length - 1]?.method;
     doc.font('Helvetica').fontSize(8).fillColor(TEXT);
     doc.text(`Status: ${statusLabel(payload.status)}`, 40, y);
     if (lastMethod) doc.text(`Last payment method: ${lastMethod.replace(/_/g, ' ')}`, 200, y);
-    y += 12;
+    y += 11;
     doc.text(`Amount Paid: ${inr(payload.amountPaid)}`, 40, y);
     doc.text(`Balance Due: ${inr(payload.balanceDue)}`, 200, y);
-    y += 18;
+    y += 16;
 
-    const bank = payload.config.bank;
-    if (payload.config.showBankDetails && bankDetailsConfigured(bank)) {
-      y = this.ensureSpace(doc, y, 90);
+    const blockTop = y;
+    if (showBank) {
       doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9).text('BANK DETAILS', 40, y);
-      y += 14;
+      y += 12;
       const lines = [
-        bank.accountName && `Account Name: ${bank.accountName}`,
+        bank.accountName && `Account Holder: ${bank.accountName}`,
         bank.bankName && `Bank: ${bank.bankName}`,
         bank.accountNumber && `Account No.: ${bank.accountNumber}`,
-        bank.ifsc && `IFSC: ${bank.ifsc}`,
         bank.branch && `Branch: ${bank.branch}`,
+        bank.ifsc && `IFSC: ${bank.ifsc}`,
         bank.upiId && `UPI: ${bank.upiId}`,
       ].filter(Boolean) as string[];
       doc
         .font('Helvetica')
         .fontSize(8)
         .fillColor(TEXT)
-        .text(lines.join('\n'), 40, y, { width: 320 });
-      y += lines.length * 12 + 8;
+        .text(lines.join('\n'), 40, y, { width: showQr ? 360 : 515, lineGap: 1 });
+      y += lines.length * 11 + 6;
     }
     if (payload.config.paymentInstructions) {
       doc
         .font('Helvetica')
         .fontSize(8)
         .fillColor(MUTED)
-        .text(payload.config.paymentInstructions, 40, y, {
-          width: 515,
-        });
-      y += 16;
+        .text(payload.config.paymentInstructions, 40, y, { width: 360 });
+      y += 14;
+    }
+
+    if (showQr) {
+      try {
+        const am = payload.balanceDue > 0 ? payload.balanceDue : payload.grandTotal;
+        const url = `upi://pay?pa=${encodeURIComponent(bank.upiId.trim())}&pn=${encodeURIComponent(
+          payload.business.name,
+        )}&am=${am.toFixed(2)}&cu=INR&tn=${encodeURIComponent(payload.invoiceNumber)}`;
+        const png = await QRCode.toBuffer(url, { type: 'png', margin: 1, width: 110 });
+        doc.image(png, 445, blockTop, { fit: [78, 78] });
+        doc
+          .font('Helvetica')
+          .fontSize(7)
+          .fillColor(MUTED)
+          .text('Scan to Pay', 445, blockTop + 80, { width: 78, align: 'center' });
+        y = Math.max(y, blockTop + 96);
+      } catch (err) {
+        this.logger.warn(`UPI QR skipped: ${err instanceof Error ? err.message : 'error'}`);
+      }
     }
     return y;
-  }
-
-  private async drawUpiQr(doc: PDFKit.PDFDocument, payload: InvoicePdfPayload, y: number) {
-    const upi = payload.config.bank.upiId?.trim();
-    if (!payload.config.showUpiQr || !upi) return;
-    if (payload.status === 'PAID' || payload.status === 'CANCELLED') return;
-    y = this.ensureSpace(doc, y, 130);
-    try {
-      const am = payload.balanceDue > 0 ? payload.balanceDue : payload.grandTotal;
-      const url = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(
-        payload.business.name,
-      )}&am=${am.toFixed(2)}&cu=INR&tn=${encodeURIComponent(payload.invoiceNumber)}`;
-      const png = await QRCode.toBuffer(url, { type: 'png', margin: 1, width: 140 });
-      doc.image(png, 430, y, { fit: [90, 90] });
-      doc
-        .font('Helvetica')
-        .fontSize(8)
-        .fillColor(MUTED)
-        .text('Scan to Pay', 430, y + 94, {
-          width: 90,
-          align: 'center',
-        });
-    } catch (err) {
-      this.logger.warn(`UPI QR skipped: ${err instanceof Error ? err.message : 'error'}`);
-    }
   }
 
   private drawFooterCopy(doc: PDFKit.PDFDocument, payload: InvoicePdfPayload) {
     const pageCount = doc.bufferedPageRange().count;
     for (let i = 0; i < pageCount; i++) {
       doc.switchToPage(i);
-      const footerY = 800;
+      const footerY = 812;
+      doc.save();
       doc.moveTo(40, footerY).lineTo(555, footerY).strokeColor(GOLD).lineWidth(0.8).stroke();
       doc
         .font('Helvetica')
@@ -531,6 +530,7 @@ export class InvoicePdfService {
         .text(payload.config.footer || '', 40, footerY + 6, {
           width: 515,
           align: 'center',
+          lineBreak: false,
         });
       doc
         .fontSize(7)
@@ -538,39 +538,34 @@ export class InvoicePdfService {
         .text(
           'This is a computer-generated invoice and does not require a physical signature.',
           40,
-          footerY + 20,
-          { width: 515, align: 'center' },
+          footerY + 18,
+          { width: 515, align: 'center', lineBreak: false },
         );
-      if (payload.config.termsAndConditions && i === pageCount - 1) {
-        doc
-          .fontSize(7)
-          .fillColor(MUTED)
-          .text(`Terms: ${payload.config.termsAndConditions}`, 40, footerY - 28, {
-            width: 515,
-          });
-      }
+      doc.restore();
     }
   }
 
   private addPageNumbers(doc: PDFKit.PDFDocument) {
     const range = doc.bufferedPageRange();
+    if (range.count <= 1) return;
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i);
       doc
         .font('Helvetica')
         .fontSize(7)
         .fillColor(MUTED)
-        .text(`Page ${i + 1} of ${range.count}`, 40, 820, {
+        .text(`Page ${i + 1} of ${range.count}`, 40, 828, {
           width: 515,
           align: 'right',
+          lineBreak: false,
         });
     }
   }
 
   private ensureSpace(doc: PDFKit.PDFDocument, y: number, needed: number): number {
-    if (y + needed > 760) {
-      doc.addPage();
-      return 48;
+    if (y + needed > 800) {
+      doc.addPage({ size: 'A4', margin: 0 });
+      return 36;
     }
     return y;
   }

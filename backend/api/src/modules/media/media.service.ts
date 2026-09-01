@@ -28,7 +28,7 @@ export class MediaService {
     const filename = `${uuidv4()}${ext}`;
     const { writeFileSync } = require('fs');
     writeFileSync(join(this.uploadDir, filename), file.buffer);
-    const url = toStoredUploadPath(`${this.publicUrl}/${filename}`);
+    const url = toStoredUploadPath(`/uploads/${filename}`);
 
     const asset = await this.prisma.mediaAsset.create({
       data: {
@@ -42,6 +42,33 @@ export class MediaService {
     });
 
     return { url, filename, id: asset.id };
+  }
+
+  resolvePublicFile(filename: string): { path: string; mimeType: string } {
+    const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '');
+    if (!safe || safe !== filename) {
+      throw new NotFoundException('File not found');
+    }
+    const filePath = join(this.uploadDir, safe);
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('File not found');
+    }
+    const ext = extname(safe).toLowerCase();
+    const mimeType =
+      ext === '.pdf'
+        ? 'application/pdf'
+        : ext === '.png'
+          ? 'image/png'
+          : ext === '.jpg' || ext === '.jpeg'
+            ? 'image/jpeg'
+            : ext === '.webp'
+              ? 'image/webp'
+              : ext === '.gif'
+                ? 'image/gif'
+                : ext === '.svg'
+                  ? 'image/svg+xml'
+                  : 'application/octet-stream';
+    return { path: filePath, mimeType };
   }
 
   list(filters?: { search?: string; folder?: string; page?: number; limit?: number }) {

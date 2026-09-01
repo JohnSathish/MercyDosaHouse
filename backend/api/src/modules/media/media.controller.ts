@@ -11,10 +11,12 @@ import {
   UseInterceptors,
   BadRequestException,
   Req,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import { MediaService } from './media.service';
 import { RequirePermissions, Public } from '../../common/guards';
 
@@ -22,6 +24,16 @@ import { RequirePermissions, Public } from '../../common/guards';
 @Controller('media')
 export class MediaController {
   constructor(private mediaService: MediaService) {}
+
+  @Public()
+  @Get('file/:filename')
+  servePublicFile(@Param('filename') filename: string, @Res() res: Response) {
+    const file = this.mediaService.resolvePublicFile(filename);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.sendFile(file.path);
+  }
 
   @ApiBearerAuth()
   @RequirePermissions('cms.write')

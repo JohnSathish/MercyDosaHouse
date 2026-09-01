@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: '/favicon.ico', destination: '/favicon.png', permanent: true }];
   },
+  async rewrites() {
+    const internal = process.env.API_INTERNAL_URL;
+    const apiBase = internal ? internal.replace(/\/api\/v1\/?$/, '') : 'http://127.0.0.1:3001';
+    return [{ source: '/uploads/:path*', destination: `${apiBase}/uploads/:path*` }];
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: isProd

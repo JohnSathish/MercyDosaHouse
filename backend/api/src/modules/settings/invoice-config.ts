@@ -26,11 +26,11 @@ export type InvoiceConfig = {
 };
 
 export const EMPTY_BANK_DETAILS: InvoiceBankDetails = {
-  accountName: '',
-  bankName: '',
-  accountNumber: '',
-  ifsc: '',
-  branch: '',
+  accountName: 'JOHN SATHISH SOUNDARARAJAN',
+  bankName: 'SBI',
+  accountNumber: '20261463610',
+  ifsc: 'SBIN0007332',
+  branch: 'CHANDMARI',
   upiId: '',
 };
 
@@ -51,7 +51,9 @@ export const DEFAULT_INVOICE_CONFIG: InvoiceConfig = {
 };
 
 function str(value: unknown, fallback = ''): string {
-  return typeof value === 'string' ? value.trim() : fallback;
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  return trimmed || fallback;
 }
 
 function num(value: unknown, fallback: number): number {
@@ -75,11 +77,11 @@ function taxType(value: unknown, fallback: InvoiceTaxType): InvoiceTaxType {
 function parseBank(raw: unknown): InvoiceBankDetails {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   return {
-    accountName: str(o.accountName),
-    bankName: str(o.bankName),
-    accountNumber: str(o.accountNumber),
-    ifsc: str(o.ifsc).toUpperCase(),
-    branch: str(o.branch),
+    accountName: str(o.accountName, EMPTY_BANK_DETAILS.accountName),
+    bankName: str(o.bankName, EMPTY_BANK_DETAILS.bankName),
+    accountNumber: str(o.accountNumber, EMPTY_BANK_DETAILS.accountNumber),
+    ifsc: str(o.ifsc, EMPTY_BANK_DETAILS.ifsc).toUpperCase(),
+    branch: str(o.branch, EMPTY_BANK_DETAILS.branch),
     upiId: str(o.upiId),
   };
 }

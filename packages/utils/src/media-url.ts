@@ -15,14 +15,19 @@ export function toStoredUploadPath(value: string): string {
 
 /**
  * Resolve a media URL for display on website or admin.
- * Uploaded files always load from the customer website origin, not admin.mercydosahouse.com.
+ * Uploads are served by the API so they are not swallowed by the Next.js 404 page.
  */
 export function resolvePublicMediaUrl(value?: string | null, websiteOrigin?: string): string {
   if (!value?.trim()) return '';
   const origin = siteOrigin(websiteOrigin);
   const stored = toStoredUploadPath(value);
-  if (stored.startsWith('/uploads/')) return `${origin}${stored}`;
-  if (stored.startsWith('uploads/')) return `${origin}/${stored}`;
+  if (stored.startsWith('/uploads/')) {
+    const filename = stored.slice('/uploads/'.length);
+    return `${origin}/api/v1/media/file/${encodeURIComponent(filename)}`;
+  }
+  if (stored.startsWith('uploads/')) {
+    return `${origin}/api/v1/media/file/${encodeURIComponent(stored.slice('uploads/'.length))}`;
+  }
   if (/^https?:\/\//i.test(stored)) return stored;
   if (stored.startsWith('/')) return `${origin}${stored}`;
   return `${origin}/${stored}`;
