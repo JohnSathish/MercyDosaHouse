@@ -35,6 +35,7 @@ const nextConfig: NextConfig = {
           { protocol: 'https', hostname: 'mercydosahouse.com' },
           { protocol: 'https', hostname: 'www.mercydosahouse.com' },
           { protocol: 'https', hostname: '**.mercydosahouse.com' },
+          { protocol: 'https', hostname: 'westregion.fssai.gov.in' },
         ]
       : [
           { protocol: 'http', hostname: 'localhost' },

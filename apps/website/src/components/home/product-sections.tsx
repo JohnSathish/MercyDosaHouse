@@ -94,9 +94,26 @@ export function CompactProductGrid({
 }
 
 export function pickPopularFavourites(products: ProductDto[], limit = 5): ProductDto[] {
+  const preferred = [
+    'ghee-roast-dosa',
+    'masala-dosa',
+    'mysore-masala-dosa',
+    'idli-4-pieces',
+    'vada-4-pieces',
+    'chicken-biryani',
+  ];
+  const picked: ProductDto[] = [];
+  for (const slug of preferred) {
+    const match = products.find((p) => p.slug === slug);
+    if (match && !picked.some((p) => p.id === match.id)) picked.push(match);
+    if (picked.length >= limit) return picked;
+  }
   const flagged = products.filter((p) => p.isPopular || p.isBestseller);
-  const rest = products.filter((p) => !flagged.some((f) => f.id === p.id));
-  return [...flagged, ...rest].slice(0, limit);
+  for (const item of [...flagged, ...products]) {
+    if (!picked.some((p) => p.id === item.id)) picked.push(item);
+    if (picked.length >= limit) break;
+  }
+  return picked.slice(0, limit);
 }
 
 function FavouriteCard({ product, index }: { product: ProductDto; index: number }) {
@@ -123,7 +140,7 @@ function FavouriteCard({ product, index }: { product: ProductDto; index: number 
         soldOut ? 'opacity-60' : ''
       }`}
     >
-      <div className="relative h-40">
+      <div className="relative aspect-[4/3]">
         <Image
           src={getProductImage(product)}
           alt={productImageAlt(product)}
@@ -134,7 +151,9 @@ function FavouriteCard({ product, index }: { product: ProductDto; index: number 
         />
       </div>
       <div className="p-4">
-        <h3 className="font-bold text-[#14532D] line-clamp-1">{product.name}</h3>
+        <h3 className="min-h-[2.5rem] font-bold leading-snug text-[#0B542F] line-clamp-2">
+          {product.name}
+        </h3>
         <p className="mt-1 font-semibold text-[#1F2937]">{formatCurrency(product.price)}</p>
         <p className="mt-1 text-xs font-medium text-gray-500">
           {soldOut ? 'Currently unavailable' : 'Available'}
@@ -153,7 +172,7 @@ function FavouriteCard({ product, index }: { product: ProductDto; index: number 
                 });
               }
             }}
-            className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-[#F59E0B] px-3 text-sm font-bold text-[#1F2937] transition hover:bg-[#FBBF24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14532D]"
+            className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-[#F5A000] px-3 text-sm font-bold text-[#18352A] transition hover:bg-[#FBBF24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B542F]"
           >
             {cta}
           </Link>
@@ -167,14 +186,14 @@ export function PopularFavouritesGrid({ products }: { products: ProductDto[] }) 
   if (!products.length) return null;
 
   return (
-    <section className="bg-white py-10 md:py-14">
+    <section className="bg-[#FFF8E8] py-10 md:py-14">
       <div className="container mx-auto px-4">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <span className="text-sm font-semibold uppercase tracking-wider text-secondary">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#F5A000]">
               From our kitchen
             </span>
-            <h2 className="mt-1 text-2xl font-bold text-[#14532D] md:text-3xl">
+            <h2 className="mt-1 text-2xl font-black text-[#0B542F] md:text-3xl">
               Our Popular Favourites
             </h2>
           </div>

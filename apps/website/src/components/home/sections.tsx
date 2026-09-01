@@ -4,69 +4,53 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
-import { FiTruck, FiShield, FiHeart, FiStar, FiCoffee, FiChevronDown } from 'react-icons/fi';
-import { useCmsContent } from '@/components/cms/cms-content-provider';
-import { getSectionContent } from '@/lib/cms-content';
-import { BRAND } from '@mdh/utils';
+import { UtensilsCrossed, Leaf, Truck, Heart } from 'lucide-react';
+import { FiStar, FiChevronDown } from 'react-icons/fi';
 import { api } from '@/lib/api';
 import { GALLERY_PREVIEW_ITEMS } from '@/lib/gallery-images';
 import type { ReviewDto, ReviewSummaryDto } from '@mdh/types';
 
 const WHY_ITEMS = [
   {
-    icon: FiShield,
-    title: 'Hygienic Kitchen',
-    desc: 'Clean, safe & certified food preparation',
+    icon: UtensilsCrossed,
+    title: 'Freshly Prepared',
+    desc: 'Made fresh for every order.',
   },
-  { icon: FiTruck, title: 'On-Time Delivery', desc: 'Hot food at your door, on schedule' },
-  { icon: FiCoffee, title: 'Quality Ingredients', desc: 'Prepared with premium ingredients' },
-  { icon: FiHeart, title: 'Made with Love', desc: 'Traditional recipes from our kitchen' },
+  {
+    icon: Leaf,
+    title: 'Quality Ingredients',
+    desc: 'Carefully selected ingredients.',
+  },
+  {
+    icon: Truck,
+    title: 'Home Delivery',
+    desc: 'Convenient delivery to your doorstep.',
+  },
+  {
+    icon: Heart,
+    title: 'Made With Love',
+    desc: 'Fresh food prepared with care.',
+  },
 ];
 
 export function WhyChooseUsSection() {
-  const cms = useCmsContent();
-  const cmsItems = cms
-    ? getSectionContent<{ items: { title: string; desc: string }[] }>(cms, 'home', 'whyChooseUs')
-        ?.items
-    : undefined;
-  const mockTitles = new Set(WHY_ITEMS.map((item) => item.title.toLowerCase()));
-  const cmsMatchesFour =
-    cmsItems?.filter((item) => mockTitles.has(item.title.trim().toLowerCase())).length === 4
-      ? cmsItems
-          .filter((item) => mockTitles.has(item.title.trim().toLowerCase()))
-          .slice(0, 4)
-          .map((item) => {
-            const fallback = WHY_ITEMS.find(
-              (w) => w.title.toLowerCase() === item.title.trim().toLowerCase(),
-            )!;
-            return { ...fallback, title: item.title, desc: item.desc || fallback.desc };
-          })
-      : null;
-  const items = cmsMatchesFour ?? WHY_ITEMS;
+  const items = WHY_ITEMS;
 
   return (
-    <section className="py-16 md:py-20 bg-white">
+    <section className="bg-white py-12 md:py-16">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] text-center mb-12">
-          Why Choose {BRAND.name}
+        <h2 className="mb-10 text-center text-2xl font-black text-[#0B542F] md:text-3xl">
+          Why Choose Mercy Dosa House
         </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {items.map((item, i) => (
-            <motion.div
-              key={item.title}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
-              whileHover={{ y: -4 }}
-              className="text-center p-6 rounded-2xl bg-[#FFF8E8] border border-[#14532D]/5"
-            >
-              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                <item.icon className="w-7 h-7 text-primary" />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((item) => (
+            <div key={item.title} className="text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF8E8] text-[#0B542F]">
+                <item.icon className="h-6 w-6" />
               </div>
-              <h3 className="font-bold text-[#1F2937] mb-2">{item.title}</h3>
-              <p className="text-sm text-gray-500">{item.desc}</p>
-            </motion.div>
+              <h3 className="mb-1 font-bold text-[#18352A]">{item.title}</h3>
+              <p className="text-sm text-[#18352A]/70">{item.desc}</p>
+            </div>
           ))}
         </div>
       </div>
@@ -86,76 +70,44 @@ export function TestimonialsSection() {
     staleTime: 60_000,
   });
   const list = reviews ?? [];
+  if (!list.length) return null;
 
   return (
-    <section className="py-16 bg-[#FFF8E8]">
+    <section className="bg-[#FFF8E8] py-12 md:py-16">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-[#14532D] text-center mb-3">
+        <h2 className="mb-3 text-center text-2xl font-black text-[#0B542F] md:text-3xl">
           What Our Customers Say
         </h2>
         {summary && summary.totalReviews > 0 ? (
-          <p className="text-center text-gray-600 mb-10">
+          <p className="mb-10 text-center text-[#18352A]/70">
             {summary.averageRating}/5 · Based on {summary.totalReviews} customer reviews
           </p>
         ) : (
-          <p className="text-center text-gray-600 mb-8">Verified reviews from delivered orders.</p>
+          <div className="mb-8" />
         )}
-        {list.length ? (
-          <>
-            <div className="grid md:grid-cols-3 gap-6">
-              {list.slice(0, 3).map((t) => (
-                <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="bg-white rounded-2xl p-6 shadow-md card-lift"
-                >
-                  <div className="flex gap-0.5 text-secondary mb-3">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <FiStar
-                        key={s}
-                        className={`w-4 h-4 ${s <= t.rating ? 'fill-current' : 'text-gray-200'}`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 italic mb-4">
-                    {t.comment ? (
-                      <>&ldquo;{t.comment}&rdquo;</>
-                    ) : (
-                      'Rated this order after delivery.'
-                    )}
-                  </p>
-                  <p className="font-semibold text-[#14532D]">— {t.customerName}</p>
-                  {t.verified ? (
-                    <p className="text-[11px] font-bold text-emerald-700 mt-1">✓ Verified Order</p>
-                  ) : null}
-                </motion.div>
-              ))}
+        <div className="grid gap-6 md:grid-cols-3">
+          {list.slice(0, 3).map((t) => (
+            <div key={t.id} className="rounded-2xl bg-white p-6 shadow-sm">
+              <div className="mb-3 flex gap-0.5 text-[#F5A000]">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <FiStar
+                    key={s}
+                    className={`h-4 w-4 ${s <= t.rating ? 'fill-current' : 'text-gray-200'}`}
+                  />
+                ))}
+              </div>
+              <p className="mb-4 italic text-[#18352A]/80">
+                {t.comment ? <>&ldquo;{t.comment}&rdquo;</> : 'Rated this order after delivery.'}
+              </p>
+              <p className="font-semibold text-[#0B542F]">— {t.customerName}</p>
             </div>
-            <div className="text-center mt-8">
-              <Link
-                href="/reviews"
-                className="text-primary font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] rounded"
-              >
-                View All Reviews
-              </Link>
-            </div>
-          </>
-        ) : (
-          <div className="mx-auto max-w-lg rounded-2xl border border-[#14532D]/10 bg-white p-8 text-center shadow-sm">
-            <p className="text-lg font-bold text-[#14532D]">Be our first reviewer</p>
-            <p className="mt-2 text-sm text-gray-600">
-              Share feedback after a delivered order — we only publish real customer reviews.
-            </p>
-            <Link
-              href="/reviews"
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#F59E0B] px-5 text-sm font-bold text-[#1F2937] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14532D]"
-            >
-              Share Your Feedback
-            </Link>
-          </div>
-        )}
+          ))}
+        </div>
+        <div className="mt-8 text-center">
+          <Link href="/reviews" className="font-semibold text-[#0B542F] underline">
+            View all reviews
+          </Link>
+        </div>
       </div>
     </section>
   );

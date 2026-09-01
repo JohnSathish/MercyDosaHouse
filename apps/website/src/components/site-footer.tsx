@@ -1,13 +1,11 @@
 import Link from 'next/link';
-import { FiMapPin, FiPhone, FiClock, FiInstagram, FiFacebook, FiMail } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiInstagram, FiFacebook, FiMail } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { BRAND } from '@mdh/utils';
 import { SiteLogo } from '@/components/site-logo';
 import { LiveVisitorCounter } from '@/components/live-visitor-counter';
-import { GooglePlayBadge } from '@/components/google-play-badge';
 
 const BASECODE_LABS_URL = 'https://basecodelabs.com';
-const FSSAI_FALLBACK = '21726006000529';
 
 interface SiteFooterProps {
   phone?: string;
@@ -34,18 +32,32 @@ function socialHref(
   return null;
 }
 
+const QUICK_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/menu', label: 'Menu' },
+  { href: '/offers', label: 'Offers' },
+  { href: '/about', label: 'About Us' },
+  { href: '/track', label: 'Order Tracking' },
+  { href: '/contact', label: 'Contact Us' },
+];
+
+const SERVICE_LINKS = [
+  { href: '/faq', label: 'FAQ' },
+  { href: '/#home-delivery', label: 'Delivery Information' },
+  { href: '/terms', label: 'Terms & Conditions' },
+  { href: '/privacy', label: 'Privacy Policy' },
+  { href: '/refunds', label: 'Refund Policy' },
+];
+
 export function SiteFooter({
   phone,
   whatsapp,
   email,
   address = 'Tura, Meghalaya',
-  hours,
+  hours: _hours,
   socialLinks,
-  fssaiRegistrationNumber,
-  fssaiCertificateUrl,
   compact = false,
 }: SiteFooterProps) {
-  const fssai = fssaiRegistrationNumber?.trim() || FSSAI_FALLBACK;
   const instagram = socialHref(socialLinks, ['instagram', 'ig']);
   const facebook = socialHref(socialLinks, ['facebook', 'fb']);
   const waNumber = (whatsapp || '').replace(/\D/g, '');
@@ -53,113 +65,91 @@ export function SiteFooter({
     ? `https://wa.me/${waNumber}`
     : socialHref(socialLinks, ['whatsapp']);
 
-  const quickLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/menu', label: 'Menu' },
-    { href: '/about', label: 'About Us' },
-    { href: '/track', label: 'Order Tracking' },
-    { href: '/gallery', label: 'Gallery' },
-    { href: '/south-indian-restaurant-tura', label: 'South Indian in Tura' },
-    { href: '/south-indian-food-tura', label: 'South Indian food' },
-    { href: '/chicken-dum-biryani-tura', label: 'Chicken Dum Biryani' },
-    { href: '/terms', label: 'Terms' },
-    { href: '/refunds', label: 'Returns' },
-    { href: '/privacy', label: 'Privacy' },
-    { href: '/contact', label: 'Contact Us' },
-  ];
-
   return (
-    <footer className="bg-[#14532D] text-white">
+    <footer className="bg-[#0B542F] text-white">
       <div
-        className={`container mx-auto px-4 ${compact ? 'py-8 grid grid-cols-1 gap-8' : 'py-14 grid md:grid-cols-3 gap-10'}`}
+        className={`container mx-auto px-4 ${compact ? 'py-10 grid grid-cols-1 gap-8' : 'py-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4'}`}
       >
         <div>
           <SiteLogo size="md" className="mb-3" />
-          <p className="text-white/75 text-sm leading-relaxed">{BRAND.tagline}</p>
-          <p className="text-white/60 text-sm mt-3">
-            Freshly made on order. Delivering happiness to your doorstep.
+          <p className="text-sm font-medium leading-relaxed text-white/80">
+            Freshly Made. Delivered With Love.
           </p>
-          <div className="mt-5">
-            <GooglePlayBadge size="md" />
-            <p className="mt-3 text-sm font-semibold text-white/70">Coming soon on iOS</p>
-          </div>
         </div>
 
         <div>
-          <h4 className="font-semibold mb-4 text-secondary">Quick Links</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {quickLinks.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="text-sm text-white/80 hover:text-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] rounded"
-              >
-                {l.label}
-              </Link>
+          <h4 className="mb-4 text-sm font-black uppercase tracking-wider text-[#F5A000]">
+            Quick Links
+          </h4>
+          <ul className="space-y-2">
+            {QUICK_LINKS.map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  className="text-sm text-white/80 transition-colors hover:text-[#F5A000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A000] rounded"
+                >
+                  {l.label}
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
         <div>
-          <h4 className="font-semibold mb-4 text-secondary">Contact</h4>
+          <h4 className="mb-4 text-sm font-black uppercase tracking-wider text-[#F5A000]">
+            Customer Service
+          </h4>
+          <ul className="space-y-2">
+            {SERVICE_LINKS.map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  className="text-sm text-white/80 transition-colors hover:text-[#F5A000] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A000] rounded"
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="mb-4 text-sm font-black uppercase tracking-wider text-[#F5A000]">
+            Contact Us
+          </h4>
           <ul className="space-y-3 text-sm text-white/80">
             <li className="flex items-start gap-2">
-              <FiMapPin className="w-4 h-4 mt-0.5 shrink-0 text-secondary" />
+              <FiMapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#F5A000]" />
               {address}
             </li>
             {phone ? (
               <li className="flex items-center gap-2">
-                <FiPhone className="w-4 h-4 shrink-0 text-secondary" />
-                <a href={`tel:${phone}`} className="hover:text-secondary transition-colors">
+                <FiPhone className="h-4 w-4 shrink-0 text-[#F5A000]" />
+                <a href={`tel:${phone}`} className="hover:text-[#F5A000]">
                   {phone}
                 </a>
               </li>
             ) : null}
             {email ? (
               <li className="flex items-center gap-2">
-                <FiMail className="w-4 h-4 shrink-0 text-secondary" />
-                <a href={`mailto:${email}`} className="hover:text-secondary transition-colors">
+                <FiMail className="h-4 w-4 shrink-0 text-[#F5A000]" />
+                <a href={`mailto:${email}`} className="hover:text-[#F5A000]">
                   {email}
                 </a>
               </li>
             ) : null}
-            {hours ? (
-              <li className="flex items-center gap-2">
-                <FiClock className="w-4 h-4 shrink-0 text-secondary" />
-                {hours}
-              </li>
-            ) : null}
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 shrink-0 text-sm text-secondary">✓</span>
-              <span>
-                <span className="block text-xs text-white/60">FSSAI Registration</span>
-                <Link href="/fssai" className="hover:text-secondary transition-colors">
-                  {fssai}
-                </Link>
-                {fssaiCertificateUrl ? (
-                  <a
-                    href={fssaiCertificateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-xs text-secondary underline"
-                  >
-                    Certificate
-                  </a>
-                ) : null}
-              </span>
-            </li>
           </ul>
           {(whatsappHref || instagram || facebook) && (
             <div className="mt-6 flex gap-3">
-              {whatsappHref ? (
+              {facebook ? (
                 <a
-                  href={whatsappHref}
+                  href={facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-secondary hover:text-[#1F2937] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]"
-                  aria-label="WhatsApp"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-[#F5A000] hover:text-[#18352A]"
+                  aria-label="Facebook"
                 >
-                  <FaWhatsapp className="w-5 h-5" />
+                  <FiFacebook className="h-5 w-5" />
                 </a>
               ) : null}
               {instagram ? (
@@ -167,21 +157,21 @@ export function SiteFooter({
                   href={instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-secondary hover:text-[#1F2937] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-[#F5A000] hover:text-[#18352A]"
                   aria-label="Instagram"
                 >
-                  <FiInstagram className="w-5 h-5" />
+                  <FiInstagram className="h-5 w-5" />
                 </a>
               ) : null}
-              {facebook ? (
+              {whatsappHref ? (
                 <a
-                  href={facebook}
+                  href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-secondary hover:text-[#1F2937] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]"
-                  aria-label="Facebook"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-[#F5A000] hover:text-[#18352A]"
+                  aria-label="WhatsApp"
                 >
-                  <FiFacebook className="w-5 h-5" />
+                  <FaWhatsapp className="h-5 w-5" />
                 </a>
               ) : null}
             </div>
@@ -190,22 +180,23 @@ export function SiteFooter({
       </div>
 
       <div className="border-t border-white/10">
-        <div className="container mx-auto px-4 py-6 space-y-5">
+        <div className="container mx-auto space-y-4 px-4 py-6">
           <LiveVisitorCounter />
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-white/50">
-            <p className="text-center sm:text-left">
-              © {new Date().getFullYear()} {BRAND.name}. All rights reserved.
+          <div className="flex flex-col gap-3 text-sm text-white/50 sm:flex-row sm:items-center sm:justify-between">
+            <p>
+              © {new Date().getFullYear()} {BRAND.name}. All Rights Reserved.
             </p>
-            <p className="text-center sm:text-right">
-              Powered by:{' '}
+            <p>
+              Made with{' '}
               <a
                 href={BASECODE_LABS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-amber-300/90 hover:text-amber-200 underline underline-offset-4 decoration-amber-300/30 hover:decoration-amber-200/60 transition-colors font-medium"
+                className="font-medium text-amber-300/90 underline underline-offset-4"
               >
-                BaseCode Labs Pvt. Ltd.
-              </a>
+                BaseCode Labs
+              </a>{' '}
+              in Tura, Meghalaya
             </p>
           </div>
         </div>

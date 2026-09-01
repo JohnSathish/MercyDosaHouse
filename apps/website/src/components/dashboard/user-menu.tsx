@@ -54,7 +54,7 @@ export function UserMenu({ transparent }: UserMenuProps) {
       <Button
         variant="ghost"
         size="sm"
-        className={`gap-1.5 ${transparent ? 'text-white hover:bg-white/10' : ''}`}
+        className={`gap-1.5 ${transparent ? 'text-white hover:bg-white/10' : 'rounded-full border border-[#0B542F]/20 bg-white px-4 font-semibold text-[#0B542F] hover:bg-[#FFF8E8]'}`}
       >
         <User className="w-4 h-4" />
         <span className="hidden sm:inline">Login</span>

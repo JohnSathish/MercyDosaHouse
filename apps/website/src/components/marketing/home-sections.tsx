@@ -48,15 +48,9 @@ export function HomeDeliverySection() {
   const title = cardAnnouncement?.title ?? 'Home Delivery';
 
   return (
-    <section className="py-4 md:py-6 bg-[#FFF8E8]">
+    <section id="home-delivery" className="scroll-mt-24 bg-[#FFF8E8] py-4 md:py-6">
       <div className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.45 }}
-          className="max-w-3xl mx-auto overflow-hidden rounded-3xl border border-[#14532D]/10 bg-white shadow-sm"
-        >
+        <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-[#0B542F]/10 bg-white shadow-sm">
           <div className="h-1.5 bg-gradient-to-r from-[#14532D] via-[#F59E0B] to-[#14532D]" />
           <div className="p-5 sm:p-7">
             <div className="flex items-center gap-3 mb-4">
@@ -121,7 +115,7 @@ export function HomeDeliverySection() {
               </Link>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

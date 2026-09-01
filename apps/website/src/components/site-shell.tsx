@@ -46,8 +46,9 @@ export function SiteShell({
 }: SiteShellProps) {
   const pathname = usePathname();
   const campaignLanding = pathname === '/chicken-dum-biryani-tura';
+  const isHome = pathname === '/';
   const showInlineAppPromo = pathname !== '/' && !campaignLanding;
-  const mainOffset = 'pt-[6.75rem] lg:pt-[7.25rem]';
+  const mainOffset = 'pt-[5.75rem] lg:pt-[6.25rem]';
   const footerProps = {
     phone,
     whatsapp,
@@ -80,7 +81,7 @@ export function SiteShell({
       <CartSheet />
 
       <main
-        className={`flex-1 ${mainOffset} ${campaignLanding ? 'pb-0' : 'pb-16 lg:pb-0'} mobile-main`}
+        className={`flex-1 ${mainOffset} ${campaignLanding ? 'pb-0' : isHome ? 'pb-32 lg:pb-0' : 'pb-16 lg:pb-0'} mobile-main`}
       >
         {showInlineAppPromo ? (
           <div className="container mx-auto px-4 pt-2">

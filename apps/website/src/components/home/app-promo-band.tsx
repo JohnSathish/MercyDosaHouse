@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Image from 'next/image';
 import type { AppPromoConfigDto, OfferDto } from '@mdh/types';
 import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
@@ -30,6 +31,18 @@ function liveAppOnlyDiscountPct(offers: OfferDto[]): number | null {
   return null;
 }
 
+function PhoneFrame({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[1.8rem] border-[6px] border-[#18352A] bg-black shadow-2xl ${className ?? ''}`}
+    >
+      <div className="relative aspect-[9/19]">
+        <Image src={src} alt={alt} fill sizes="180px" className="object-cover" />
+      </div>
+    </div>
+  );
+}
+
 export function AppPromoBand() {
   const cms = useCmsContent();
   const marketing = useMarketing();
@@ -54,22 +67,44 @@ export function AppPromoBand() {
   }
 
   return (
-    <section className="bg-[#14532D] py-10 md:py-12 text-white">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-          <div className="max-w-xl">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FDE68A]">
-              Get the app
-              {discountPct != null ? ` · ${discountPct}% OFF` : ''}
-            </p>
-            <h2 className="mt-2 text-2xl font-bold md:text-3xl">{data.title}</h2>
-            <p className="mt-2 text-sm text-white/80 md:text-base">{data.body}</p>
+    <section className="bg-[#0B542F] py-12 text-white md:py-16">
+      <div className="container mx-auto grid items-center gap-10 px-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="relative mx-auto flex h-[280px] w-full max-w-sm items-end justify-center">
+          <div className="absolute left-6 top-6 w-[42%] -rotate-6">
+            <PhoneFrame src="/images/hero-dosa.png" alt="Mercy Dosa House app menu" />
           </div>
-          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <div className="relative z-10 w-[48%] rotate-3">
+            <PhoneFrame src="/images/chicken-biryani.png" alt="Mercy Dosa House app order screen" />
+          </div>
+        </div>
+        <div>
+          <h2 className="text-3xl font-black uppercase leading-tight md:text-4xl">
+            Order faster.
+            <br />
+            Get exclusive offers.
+          </h2>
+          <p className="mt-4 max-w-lg text-white/85">
+            Download the Mercy Dosa House App and enjoy app-exclusive offers.
+          </p>
+          {discountPct != null ? (
+            <div className="mt-6 inline-flex h-28 w-28 flex-col items-center justify-center rounded-full bg-[#F5A000] text-center text-[#18352A] shadow-lg">
+              <span className="text-2xl font-black leading-none">{discountPct}% OFF</span>
+              <span className="mt-1 px-2 text-[10px] font-bold uppercase leading-tight">
+                On your first app order
+              </span>
+            </div>
+          ) : null}
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <a
+              href={playHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onPlayClick}
+              className="inline-flex min-h-12 items-center rounded-full bg-[#F5A000] px-8 text-sm font-black uppercase tracking-wide text-[#18352A]"
+            >
+              Download App
+            </a>
             <GooglePlayBadge href={playHref} size="md" onClick={onPlayClick} />
-            <span className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/85">
-              Coming soon on iOS
-            </span>
           </div>
         </div>
       </div>
