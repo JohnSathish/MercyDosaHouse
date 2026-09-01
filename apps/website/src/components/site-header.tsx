@@ -9,6 +9,7 @@ import { Button } from '@mdh/ui';
 import { SiteLogo } from '@/components/site-logo';
 import { UserMenu } from '@/components/dashboard/user-menu';
 import { HeaderBronzeBadge } from '@/components/loyalty/header-bronze-badge';
+import { GooglePlayBadge } from '@/components/google-play-badge';
 import { useCartStore } from '@/lib/cart-store';
 
 const NAV = [
@@ -117,6 +118,7 @@ export function SiteHeader({
             </Button>
           </Link>
           <UserMenu transparent={transparent} />
+          <GooglePlayBadge size="sm" />
           <Link href="/menu" className="hidden md:block">
             <Button
               size="sm"

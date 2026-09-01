@@ -88,7 +88,7 @@ export default function AppPromoSettingsPage() {
               onChange={(e) => setForm({ ...form, playStoreUrl: e.target.value })}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Leave empty until the listing is live. The Download button stays hidden without a URL.
+              Defaults to the live customer listing if left empty.
             </p>
           </div>
           <label className="flex items-center gap-2 text-sm">

@@ -3,9 +3,14 @@ export const SOCKET_IO_PATH = '/api/socket.io';
 
 export const SOCKET_IO_CLIENT_OPTIONS = {
   path: SOCKET_IO_PATH,
-  transports: ['polling', 'websocket'] as ('polling' | 'websocket')[],
+  transports: ['polling'] as ('polling' | 'websocket')[],
+  upgrade: false,
   timeout: 10_000,
 };
+
+/** Customer app on Google Play */
+export const ANDROID_PLAY_STORE_URL =
+  'https://play.google.com/store/apps/details?id=com.mercydosahouse.customer&pcampaignid=web_share';
 
 export const BRAND = {
   name: 'Mercy Dosa House',

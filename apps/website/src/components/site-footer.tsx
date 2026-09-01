@@ -4,6 +4,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { BRAND } from '@mdh/utils';
 import { SiteLogo } from '@/components/site-logo';
 import { LiveVisitorCounter } from '@/components/live-visitor-counter';
+import { GooglePlayBadge } from '@/components/google-play-badge';
 
 const BASECODE_LABS_URL = 'https://basecodelabs.com';
 
@@ -107,7 +108,9 @@ export function SiteFooter({
         )}
 
         <div className={compact ? 'col-span-1' : ''}>
-          <h4 className="font-semibold mb-4 text-secondary">Follow Us</h4>
+          <h4 className="font-semibold mb-4 text-secondary">Get the App</h4>
+          <GooglePlayBadge size="md" />
+          <h4 className="font-semibold mb-4 mt-8 text-secondary">Follow Us</h4>
           <div className="flex gap-3">
             <a
               href={`https://wa.me/${whatsapp}`}

@@ -1,3 +1,5 @@
+import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
+
 export type AppPromoConfig = {
   enabled: boolean;
   title: string;
@@ -15,7 +17,7 @@ export const DEFAULT_APP_PROMO_CONFIG: AppPromoConfig = {
   title: 'ORDER ON OUR APP & SAVE!',
   body: 'Get exclusive offers available only on the Mercy Dosa House App.',
   ctaLabel: 'Download App',
-  playStoreUrl: '',
+  playStoreUrl: ANDROID_PLAY_STORE_URL,
   showOnWebsite: true,
   showOnCheckout: true,
   showOnMenu: true,
@@ -57,7 +59,7 @@ export function parseAppPromoConfig(raw: unknown): AppPromoConfig {
     body: str(o.body, DEFAULT_APP_PROMO_CONFIG.body) || DEFAULT_APP_PROMO_CONFIG.body,
     ctaLabel:
       str(o.ctaLabel, DEFAULT_APP_PROMO_CONFIG.ctaLabel) || DEFAULT_APP_PROMO_CONFIG.ctaLabel,
-    playStoreUrl: safeUrl,
+    playStoreUrl: safeUrl || DEFAULT_APP_PROMO_CONFIG.playStoreUrl,
     showOnWebsite: bool(o.showOnWebsite, DEFAULT_APP_PROMO_CONFIG.showOnWebsite),
     showOnCheckout: bool(o.showOnCheckout, DEFAULT_APP_PROMO_CONFIG.showOnCheckout),
     showOnMenu: bool(o.showOnMenu, DEFAULT_APP_PROMO_CONFIG.showOnMenu),

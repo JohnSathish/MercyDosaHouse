@@ -2,7 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { AppPromoConfigDto } from '@mdh/types';
+import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
+import { GooglePlayBadge } from '@/components/google-play-badge';
 
 export function AppPromoBanner({ placement }: { placement: 'site' | 'menu' | 'checkout' }) {
   const { data } = useQuery({
@@ -22,16 +24,11 @@ export function AppPromoBanner({ placement }: { placement: 'site' | 'menu' | 'ch
         <p className="font-semibold mt-0.5">{data.title}</p>
         <p className="text-sm text-white/80 mt-0.5">{data.body}</p>
       </div>
-      {data.playStoreUrl ? (
-        <a
-          href={data.playStoreUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-full bg-[#F59E0B] text-[#14532D] font-bold text-sm px-4 py-2"
-        >
-          {data.ctaLabel || 'Download App'}
-        </a>
-      ) : null}
+      <GooglePlayBadge
+        href={data.playStoreUrl || ANDROID_PLAY_STORE_URL}
+        size="md"
+        className="shrink-0"
+      />
     </div>
   );
 }
