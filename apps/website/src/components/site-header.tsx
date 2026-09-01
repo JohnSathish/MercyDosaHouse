@@ -3,130 +3,92 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FiPhone, FiShoppingCart } from 'react-icons/fi';
-import { ShieldCheck } from 'lucide-react';
-import { Button } from '@mdh/ui';
+import { FiShoppingCart } from 'react-icons/fi';
+import { Menu } from 'lucide-react';
 import { SiteLogo } from '@/components/site-logo';
 import { UserMenu } from '@/components/dashboard/user-menu';
 import { HeaderBronzeBadge } from '@/components/loyalty/header-bronze-badge';
-import { GooglePlayBadge } from '@/components/google-play-badge';
 import { useCartStore } from '@/lib/cart-store';
-
-const NAV = [
-  { href: '/', label: 'Home' },
-  { href: '/menu', label: 'Menu' },
-  { href: '/#offers', label: 'Offers' },
-  { href: '/gallery', label: 'Gallery' },
-  { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
-];
+import { useUiStore } from '@/lib/ui-store';
+import { PRIMARY_NAV } from '@/lib/site-nav';
+import { formatCurrency } from '@mdh/utils';
 
 interface SiteHeaderProps {
-  phone?: string;
-  fssaiRegistrationNumber?: string | null;
   /** When true, header is inside the fixed top stack (not independently fixed) */
   embedded?: boolean;
 }
 
-export function SiteHeader({
-  phone = '9566363655',
-  fssaiRegistrationNumber,
-  embedded = false,
-}: SiteHeaderProps) {
+export function SiteHeader({ embedded = false }: SiteHeaderProps) {
   const pathname = usePathname();
-  const isHome = pathname === '/';
-  const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const cartCount = useCartStore((s) => s.totalItems());
+  const items = useCartStore((s) => s.items);
+  const setDrawerOpen = useUiStore((s) => s.setDrawerOpen);
 
-  useEffect(() => {
-    setMounted(true);
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
-  const transparent = isHome && !scrolled;
-  const count = mounted ? cartCount : 0;
+  const count = mounted ? items.reduce((n, i) => n + i.quantity, 0) : 0;
+  const subtotal = mounted ? items.reduce((n, i) => n + i.product.price * i.quantity, 0) : 0;
 
   return (
     <header
-      className={`${embedded ? 'relative' : 'fixed top-0 left-0 right-0'} z-50 transition-all duration-300 ${
-        transparent ? 'glass-nav-transparent text-white' : 'glass-nav text-[#1F2937]'
-      }`}
+      className={`${embedded ? 'relative' : 'fixed top-0 left-0 right-0'} z-50 border-b border-[#14532D]/10 bg-[#FFFDF8]/95 text-[#1F2937] shadow-sm backdrop-blur-xl`}
     >
-      <div className="container mx-auto flex h-16 md:h-[4.5rem] items-center justify-between px-4">
-        <SiteLogo size="sm" showName href="/" />
+      <div className="container mx-auto flex h-16 md:h-[4.5rem] items-center justify-between gap-3 px-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-xl text-[#14532D] transition hover:bg-[#14532D]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] xl:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          <SiteLogo size="sm" showName href="/" />
+        </div>
 
-        <nav className="hidden lg:flex items-center gap-1">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/10 ${
-                transparent ? 'hover:text-secondary' : 'hover:text-primary hover:bg-primary/5'
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="hidden xl:flex items-center gap-0.5" aria-label="Primary">
+          {PRIMARY_NAV.map((item) => {
+            const path = item.href.split('#')[0];
+            const active =
+              item.label === 'Offers'
+                ? false
+                : path === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(path);
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] ${
+                  active
+                    ? 'text-[#14532D] bg-[#14532D]/5'
+                    : 'text-[#374151] hover:bg-[#14532D]/5 hover:text-[#14532D]'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {fssaiRegistrationNumber ? (
-          <Link
-            href="/fssai"
-            title={`FSSAI Registration No. ${fssaiRegistrationNumber}`}
-            aria-label="View FSSAI registration details"
-            className={`hidden lg:inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5 ${
-              transparent
-                ? 'border-white/35 bg-white/15 text-white hover:bg-white/25'
-                : 'border-emerald-200 bg-emerald-50 text-[#14532D] hover:border-emerald-300 hover:bg-emerald-100'
-            }`}
-          >
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>FSSAI Registered</span>
-          </Link>
-        ) : null}
-
         <div className="flex items-center gap-2 md:gap-3">
-          <HeaderBronzeBadge transparent={transparent} />
-          <a
-            href={`tel:${phone}`}
-            className={`hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors ${
-              transparent ? 'hover:bg-white/10' : 'hover:bg-primary/5 text-primary'
-            }`}
+          <HeaderBronzeBadge />
+          <Link
+            href="/cart"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#14532D]/15 bg-white px-3 py-2 text-sm font-semibold text-[#14532D] shadow-sm transition hover:border-[#F59E0B]/50 hover:bg-[#FFF8E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B]"
+            aria-label={count > 0 ? `Cart, ${count} items, ${formatCurrency(subtotal)}` : 'Cart'}
           >
-            <FiPhone className="w-4 h-4" />
-            <span className="hidden md:inline">Call</span>
-          </a>
-          <Link href="/cart">
-            <Button
-              size="sm"
-              className={`relative gap-1.5 ${
-                transparent
-                  ? 'border-2 border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white'
-                  : 'border border-primary/30 bg-white text-primary hover:bg-primary/5'
-              }`}
-            >
-              <FiShoppingCart className="w-4 h-4" />
-              <span className="hidden sm:inline">Cart</span>
-              {count > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-secondary text-[#1F2937] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="relative">
+              <FiShoppingCart className="h-4 w-4" aria-hidden />
+              {count > 0 ? (
+                <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[10px] font-bold text-[#1F2937]">
                   {count}
                 </span>
-              )}
-            </Button>
+              ) : null}
+            </span>
+            <span className="hidden sm:inline">{mounted ? formatCurrency(subtotal) : '₹0'}</span>
           </Link>
-          <UserMenu transparent={transparent} />
-          <GooglePlayBadge size="sm" />
-          <Link href="/menu" className="hidden md:block">
-            <Button
-              size="sm"
-              className="btn-glow bg-secondary text-[#1F2937] hover:bg-secondary/90 font-semibold"
-            >
-              Order Now
-            </Button>
-          </Link>
+          <UserMenu />
         </div>
       </div>
     </header>

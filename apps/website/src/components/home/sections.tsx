@@ -15,14 +15,13 @@ import type { ReviewDto, ReviewSummaryDto } from '@mdh/types';
 
 const WHY_ITEMS = [
   {
-    icon: FiCoffee,
-    title: 'Fresh Batter Daily',
-    desc: 'Prepared every morning with premium ingredients',
+    icon: FiShield,
+    title: 'Hygienic Kitchen',
+    desc: 'Clean, safe & certified food preparation',
   },
-  { icon: FiTruck, title: 'Fast Delivery', desc: 'Hot food at your door in 25–30 minutes' },
-  { icon: FiShield, title: 'Hygienic Kitchen', desc: 'Clean, safe & certified food preparation' },
-  { icon: FiHeart, title: 'Homemade Taste', desc: 'Traditional recipes with love' },
-  { icon: FiStar, title: 'Customer Favourite', desc: 'Loved by our guests in Tura' },
+  { icon: FiTruck, title: 'On-Time Delivery', desc: 'Hot food at your door, on schedule' },
+  { icon: FiCoffee, title: 'Quality Ingredients', desc: 'Prepared with premium ingredients' },
+  { icon: FiHeart, title: 'Made with Love', desc: 'Traditional recipes from our kitchen' },
 ];
 
 export function WhyChooseUsSection() {
@@ -31,13 +30,20 @@ export function WhyChooseUsSection() {
     ? getSectionContent<{ items: { title: string; desc: string }[] }>(cms, 'home', 'whyChooseUs')
         ?.items
     : undefined;
-  const items = cmsItems?.length
-    ? cmsItems.map((item, i) => ({
-        ...WHY_ITEMS[i % WHY_ITEMS.length],
-        title: item.title,
-        desc: item.desc,
-      }))
-    : WHY_ITEMS;
+  const mockTitles = new Set(WHY_ITEMS.map((item) => item.title.toLowerCase()));
+  const cmsMatchesFour =
+    cmsItems?.filter((item) => mockTitles.has(item.title.trim().toLowerCase())).length === 4
+      ? cmsItems
+          .filter((item) => mockTitles.has(item.title.trim().toLowerCase()))
+          .slice(0, 4)
+          .map((item) => {
+            const fallback = WHY_ITEMS.find(
+              (w) => w.title.toLowerCase() === item.title.trim().toLowerCase(),
+            )!;
+            return { ...fallback, title: item.title, desc: item.desc || fallback.desc };
+          })
+      : null;
+  const items = cmsMatchesFour ?? WHY_ITEMS;
 
   return (
     <section className="py-16 md:py-20 bg-white">
@@ -45,7 +51,7 @@ export function WhyChooseUsSection() {
         <h2 className="text-3xl md:text-4xl font-bold text-[#14532D] text-center mb-12">
           Why Choose {BRAND.name}
         </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {items.map((item, i) => (
             <motion.div
               key={item.title}
@@ -70,7 +76,7 @@ export function WhyChooseUsSection() {
 }
 
 export function TestimonialsSection() {
-  const { data: reviews = [] } = useQuery({
+  const { data: reviews } = useQuery({
     queryKey: ['public-reviews-home'],
     queryFn: () => api.get<ReviewDto[]>('/reviews?limit=6'),
     staleTime: 60_000,
@@ -80,54 +86,73 @@ export function TestimonialsSection() {
     queryFn: () => api.get<ReviewSummaryDto>('/reviews/summary'),
     staleTime: 60_000,
   });
-
-  if (!reviews.length) return null;
+  const list = reviews ?? [];
 
   return (
     <section className="py-16 bg-[#FFF8E8]">
       <div className="container mx-auto px-4">
         <h2 className="text-3xl font-bold text-[#14532D] text-center mb-3">
-          ❤️ What Our Customers Say
+          What Our Customers Say
         </h2>
         {summary && summary.totalReviews > 0 ? (
           <p className="text-center text-gray-600 mb-10">
-            ⭐ {summary.averageRating}/5 · Based on {summary.totalReviews} customer reviews
+            {summary.averageRating}/5 · Based on {summary.totalReviews} customer reviews
           </p>
         ) : (
-          <div className="mb-10" />
+          <p className="text-center text-gray-600 mb-8">Verified reviews from delivered orders.</p>
         )}
-        <div className="grid md:grid-cols-3 gap-6">
-          {reviews.slice(0, 3).map((t) => (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="bg-white rounded-2xl p-6 shadow-md card-lift"
+        {list.length ? (
+          <>
+            <div className="grid md:grid-cols-3 gap-6">
+              {list.slice(0, 3).map((t) => (
+                <motion.div
+                  key={t.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="bg-white rounded-2xl p-6 shadow-md card-lift"
+                >
+                  <div className="flex gap-0.5 text-secondary mb-3">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <FiStar
+                        key={s}
+                        className={`w-4 h-4 ${s <= t.rating ? 'fill-current' : 'text-gray-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-gray-600 italic mb-4">
+                    &ldquo;{t.comment || 'Great food and service.'}&rdquo;
+                  </p>
+                  <p className="font-semibold text-[#14532D]">— {t.customerName}</p>
+                  {t.verified ? (
+                    <p className="text-[11px] font-bold text-emerald-700 mt-1">✓ Verified Order</p>
+                  ) : null}
+                </motion.div>
+              ))}
+            </div>
+            <div className="text-center mt-8">
+              <Link
+                href="/reviews"
+                className="text-primary font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F59E0B] rounded"
+              >
+                View All Reviews
+              </Link>
+            </div>
+          </>
+        ) : (
+          <div className="mx-auto max-w-lg rounded-2xl border border-[#14532D]/10 bg-white p-8 text-center shadow-sm">
+            <p className="text-lg font-bold text-[#14532D]">Be our first reviewer</p>
+            <p className="mt-2 text-sm text-gray-600">
+              Share feedback after a delivered order — we only publish real customer reviews.
+            </p>
+            <Link
+              href="/reviews"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#F59E0B] px-5 text-sm font-bold text-[#1F2937] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14532D]"
             >
-              <div className="flex gap-0.5 text-secondary mb-3">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <FiStar
-                    key={s}
-                    className={`w-4 h-4 ${s <= t.rating ? 'fill-current' : 'text-gray-200'}`}
-                  />
-                ))}
-              </div>
-              <p className="text-gray-600 italic mb-4">
-                &ldquo;{t.comment || 'Great food and service.'}&rdquo;
-              </p>
-              <p className="font-semibold text-[#14532D]">— {t.customerName}</p>
-              {t.verified ? (
-                <p className="text-[11px] font-bold text-emerald-700 mt-1">✓ Verified Order</p>
-              ) : null}
-            </motion.div>
-          ))}
-        </div>
-        <div className="text-center mt-8">
-          <Link href="/reviews" className="text-primary font-semibold hover:underline">
-            View All Reviews
-          </Link>
-        </div>
+              Share Your Feedback
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

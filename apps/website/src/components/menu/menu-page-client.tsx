@@ -95,7 +95,7 @@ export function MenuPageClient() {
   const hasCart = items.length > 0;
 
   return (
-    <div className="pt-4 lg:pt-24 pb-24 lg:pb-16">
+    <div id="offers" className="pt-4 lg:pt-24 pb-24 lg:pb-16">
       <div className="container mx-auto px-4">
         <div className="mb-10">
           <span className="text-secondary font-semibold text-sm uppercase tracking-wider">

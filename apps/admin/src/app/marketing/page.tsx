@@ -638,6 +638,10 @@ export default function MarketingHubPage() {
                             </option>
                           ))}
                         </select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Homepage preview: Mon–Sat shows “THIS SUNDAY’S SPECIAL”; on the promotion
+                          day it shows “TODAY’S SPECIAL”. Sold-out quantity hides the order link.
+                        </p>
                       </div>
                       <div>
                         <Label>Ready Time</Label>

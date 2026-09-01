@@ -39,7 +39,7 @@ export function OffersSection() {
   if (!cms?.offers?.length) return null;
   const offers = cmsOffersToCards(cms.offers);
   return (
-    <section id="offers" className="py-16 md:py-20 bg-[#FFF8E8]">
+    <section id="offers" className="py-8 md:py-10 bg-[#FFF8E8]">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

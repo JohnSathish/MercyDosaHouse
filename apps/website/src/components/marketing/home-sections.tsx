@@ -48,7 +48,7 @@ export function HomeDeliverySection() {
   const title = cardAnnouncement?.title ?? 'Home Delivery';
 
   return (
-    <section className="py-6 md:py-8 bg-[#FFF8E8]">
+    <section className="py-4 md:py-6 bg-[#FFF8E8]">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 16 }}

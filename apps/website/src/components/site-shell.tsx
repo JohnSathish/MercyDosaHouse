@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
+import { usePathname } from 'next/navigation';
 import { MobileTopBar } from './mobile/mobile-top-bar';
 import { MobileDrawer } from './mobile/mobile-drawer';
 import { MobileBottomNav } from './mobile/mobile-bottom-nav';
@@ -20,8 +21,10 @@ interface SiteShellProps {
   children: React.ReactNode;
   phone?: string;
   whatsapp?: string;
+  email?: string;
   address?: string;
   hours?: string;
+  socialLinks?: Record<string, string> | null;
   fssaiRegistrationNumber?: string | null;
   fssaiCertificateUrl?: string | null;
 }
@@ -34,12 +37,26 @@ export function SiteShell({
   children,
   phone,
   whatsapp,
+  email,
   address,
   hours,
+  socialLinks,
   fssaiRegistrationNumber,
   fssaiCertificateUrl,
 }: SiteShellProps) {
+  const pathname = usePathname();
+  const showInlineAppPromo = pathname !== '/';
   const mainOffset = 'pt-[6.75rem] lg:pt-[7.25rem]';
+  const footerProps = {
+    phone,
+    whatsapp,
+    email,
+    address,
+    hours,
+    socialLinks,
+    fssaiRegistrationNumber,
+    fssaiCertificateUrl,
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FFF8E8]">
@@ -53,7 +70,7 @@ export function SiteShell({
         <RestaurantClosedBanner />
         <AnnouncementBar />
         <div className="hidden lg:block">
-          <SiteHeader phone={phone} fssaiRegistrationNumber={fssaiRegistrationNumber} embedded />
+          <SiteHeader embedded />
         </div>
         <MobileTopBar embedded />
       </div>
@@ -62,32 +79,19 @@ export function SiteShell({
       <CartSheet />
 
       <main className={`flex-1 ${mainOffset} pb-16 lg:pb-0 mobile-main`}>
-        <div className="container mx-auto px-4 pt-2">
-          <AppPromoBanner placement="site" />
-        </div>
+        {showInlineAppPromo ? (
+          <div className="container mx-auto px-4 pt-2">
+            <AppPromoBanner placement="site" />
+          </div>
+        ) : null}
         {children}
       </main>
 
       <div className="hidden lg:block">
-        <SiteFooter
-          phone={phone}
-          whatsapp={whatsapp}
-          address={address}
-          hours={hours}
-          fssaiRegistrationNumber={fssaiRegistrationNumber}
-          fssaiCertificateUrl={fssaiCertificateUrl}
-        />
+        <SiteFooter {...footerProps} />
       </div>
       <div className="lg:hidden pb-16">
-        <SiteFooter
-          phone={phone}
-          whatsapp={whatsapp}
-          address={address}
-          hours={hours}
-          fssaiRegistrationNumber={fssaiRegistrationNumber}
-          fssaiCertificateUrl={fssaiCertificateUrl}
-          compact
-        />
+        <SiteFooter {...footerProps} compact />
       </div>
 
       <Suspense fallback={<BottomNavFallback />}>

@@ -101,8 +101,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <SiteShell
                 phone={settings?.phone}
                 whatsapp={settings?.whatsapp}
+                email={settings?.email}
                 address={settings?.address}
                 hours={settings?.openingHours}
+                socialLinks={settings?.socialLinks}
                 fssaiRegistrationNumber={
                   settings?.fssaiEnabled === false ? null : settings?.fssaiRegistrationNumber
                 }

@@ -2,20 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  Home,
-  UtensilsCrossed,
-  ShoppingCart,
-  Heart,
-  User,
-  ImageIcon,
-  Tag,
-  Truck,
-  Info,
-  Phone,
-  Star,
-  LogOut,
-} from 'lucide-react';
+import { Home, UtensilsCrossed, User, Tag, Truck, Info, Phone, Star, LogOut } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SiteLogo } from '@/components/site-logo';
 import { useUiStore } from '@/lib/ui-store';
@@ -27,12 +14,11 @@ import { cn } from '@mdh/ui';
 const NAV_ITEMS = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
-  { href: '/#offers', label: 'Offers', icon: Tag },
-  { href: '/gallery', label: 'Gallery', icon: ImageIcon },
-  { href: '/profile?tab=orders', label: 'Track Order', icon: Truck, matchPrefix: '/profile' },
+  { href: '/menu#offers', label: 'Offers', icon: Tag },
+  { href: '/about', label: 'About Us', icon: Info },
+  { href: '/track', label: 'Order Tracking', icon: Truck, matchPrefix: '/track' },
+  { href: '/contact', label: 'Contact Us', icon: Phone },
   { href: '/profile?tab=feedback', label: 'My Feedback', icon: Star },
-  { href: '/about', label: 'About', icon: Info },
-  { href: '/contact', label: 'Contact', icon: Phone },
 ];
 
 export function MobileDrawer() {
@@ -54,6 +40,7 @@ export function MobileDrawer() {
     <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
       <SheetContent side="left" className="p-0">
         <SheetHeader>
+          <SheetTitle className="sr-only">Site menu</SheetTitle>
           <SiteLogo size="md" showName href="/" />
           {authed && user && (
             <p className="text-sm text-gray-500 mt-1">
@@ -77,13 +64,15 @@ export function MobileDrawer() {
           {NAV_ITEMS.map(({ href, label, icon: Icon, matchPrefix }) => {
             const active = matchPrefix
               ? pathname.startsWith(matchPrefix)
-              : href === '/'
-                ? pathname === '/'
-                : pathname.startsWith(href.split('#')[0]) && href !== '/';
+              : label === 'Offers'
+                ? false
+                : href === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(href.split('#')[0]) && href !== '/';
 
             return (
               <Link
-                key={href}
+                key={label}
                 href={href}
                 onClick={close}
                 className={cn(

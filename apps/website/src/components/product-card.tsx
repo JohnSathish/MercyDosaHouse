@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiStar, FiHeart } from 'react-icons/fi';
+import { FiHeart } from 'react-icons/fi';
 import { Button, Badge } from '@mdh/ui';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
@@ -17,7 +17,7 @@ interface ProductCardProps {
   index?: number;
 }
 
-export function ProductCard({ product, badge, soldCount, index = 0 }: ProductCardProps) {
+export function ProductCard({ product, badge, index = 0 }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem);
 
   return (
@@ -63,12 +63,6 @@ export function ProductCard({ product, badge, soldCount, index = 0 }: ProductCar
           >
             <FiHeart className="w-5 h-5" />
           </button>
-        </div>
-        <div className="flex items-center gap-1 text-secondary text-sm mb-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <FiStar key={i} className="w-3.5 h-3.5 fill-current" />
-          ))}
-          <span className="text-gray-500 ml-1">({soldCount ?? 120})</span>
         </div>
         <p className="text-lg font-bold text-primary mb-1">{formatCurrency(product.price)}</p>
         <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>

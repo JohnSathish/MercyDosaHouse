@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiStar, FiHeart } from 'react-icons/fi';
+import { FiHeart } from 'react-icons/fi';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
 import { getProductImage } from '@/lib/product-images';
@@ -46,12 +46,7 @@ export function ProductSliderCard({ product, badge, index = 0 }: ProductSliderCa
         <Link href={`/menu/${product.slug}`}>
           <h3 className="font-bold text-sm text-[#1F2937] line-clamp-1">{product.name}</h3>
         </Link>
-        <div className="flex items-center gap-0.5 text-[#F59E0B] text-xs my-1">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <FiStar key={i} className="w-3 h-3 fill-current" />
-          ))}
-        </div>
-        <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center justify-between gap-1 mt-2">
           <p className="font-bold text-[#14532D]">{formatCurrency(product.price)}</p>
           <div className="flex items-center gap-1">
             <button

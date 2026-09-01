@@ -48,7 +48,7 @@ export function SundayBiryaniPromotion() {
     );
   const product = promotion?.promotionProduct;
 
-  const packing = Number(product?.packingCharge ?? settings?.packingCharge ?? 20);
+  const packing = Number(settings?.packingCharge ?? 20);
   const delivery = useMemo(() => {
     if (!product) return 0;
     return calculateDeliveryCharge(product.price, {
@@ -84,13 +84,29 @@ export function SundayBiryaniPromotion() {
   const readyLabel = formatPromotionTime(promotion.promotionReadyTime) || '1:00 PM';
   const slotLabel = promotionDeliverySlot(promotion.promotionReadyTime);
   const total = product.price + packing + delivery;
-  const thisSunday = (promotion.promotionNextAvailableLabel || '').toUpperCase().includes('THIS');
+  const weekdayInKolkata = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    weekday: 'short',
+  }).format(new Date());
+  const todayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekdayInKolkata);
+  const isPromotionDay = promotion.promotionDayOfWeek === todayIndex;
+  const specialEyebrow = soldOut
+    ? 'SUNDAY BIRYANI SOLD OUT'
+    : isPromotionDay
+      ? "TODAY'S SPECIAL"
+      : "THIS SUNDAY'S SPECIAL";
+  const specialHint = soldOut
+    ? 'Pre-orders are closed for this Sunday.'
+    : isPromotionDay
+      ? `Ready at ${readyLabel}`
+      : `Pre-order by ${cutoffDay}`;
   const cta = (promotion.ctaText || 'PRE-BOOK YOUR BIRYANI').toUpperCase();
 
-  function trackPrebook() {
-    void trackMarketingEvent(promotion.id, 'prebook_click', { surface: 'homepage_sunday_special' });
-    void trackMarketingEvent(promotion.id, 'cta_click', { surface: 'homepage_sunday_special' });
-  }
+  const promotionId = promotion.id;
+  const trackPrebook = () => {
+    void trackMarketingEvent(promotionId, 'prebook_click', { surface: 'homepage_sunday_special' });
+    void trackMarketingEvent(promotionId, 'cta_click', { surface: 'homepage_sunday_special' });
+  };
 
   const content = (
     <motion.article
@@ -123,10 +139,7 @@ export function SundayBiryaniPromotion() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#092719] via-[#092719]/20 to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-[#092719]/80" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-[#F59E0B] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#1F2937] shadow-lg">
-              {promotion.icon || '🔥'} Sunday Special
-            </span>
-            <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#14532D] shadow-lg">
-              Pre-order Required
+              Limited Sunday Special
             </span>
           </div>
         </div>
@@ -138,12 +151,13 @@ export function SundayBiryaniPromotion() {
               Every Sunday • {readyLabel}
             </p>
           </div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FBBF24]">
-            🔥 Sunday Special
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FBBF24]">
+            {specialEyebrow}
           </p>
           <h2 className="mt-1 max-w-xl text-[1.65rem] font-black leading-[1.02] tracking-tight sm:text-4xl">
             {promotion.title || 'CHICKEN DUM BIRYANI'}
           </h2>
+          <p className="mt-1 text-sm font-semibold text-[#FDE68A]">{specialHint}</p>
           <p className="mt-2 text-sm text-white/80">
             {promotion.shortMessage ||
               promotion.message ||
@@ -193,15 +207,11 @@ export function SundayBiryaniPromotion() {
                   : 'Limited Sunday quantity'}
             </span>
           </div>
-          {thisSunday && !soldOut ? (
+          {!soldOut && !isPromotionDay ? (
             <p className="mt-2 text-sm font-semibold text-[#FDE68A]">
               Pre-order now for this Sunday!
             </p>
-          ) : (
-            <p className="mt-2 text-xs text-white/65">
-              Pre-orders close {cutoffDay}. Limited Sunday quantity — pre-book early.
-            </p>
-          )}
+          ) : null}
 
           <div className="mt-4">
             {soldOut ? (

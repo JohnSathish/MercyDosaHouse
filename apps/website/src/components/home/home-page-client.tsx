@@ -1,24 +1,13 @@
 'use client';
 
 import type { BusinessSettingsDto, ProductDto } from '@mdh/types';
-import { allocateHomeCatalog } from '@mdh/utils';
 import { HeroSection } from './hero-section';
-import { CategoriesSection } from './offers-section';
-import {
-  CompactProductGrid,
-  SpecialtyTimelineSection,
-  MenuPreviewSection,
-  HomeSearchStrip,
-} from './product-sections';
-import {
-  WhyChooseUsSection,
-  TestimonialsSection,
-  GalleryPreviewSection,
-  DeliveryStepsSection,
-} from './sections';
+import { PopularFavouritesGrid, pickPopularFavourites } from './product-sections';
+import { WhyChooseUsSection, TestimonialsSection } from './sections';
 import { HomeDeliverySection } from '@/components/marketing/home-sections';
 import { SundayBiryaniPromotion } from './sunday-biryani-promotion';
-import { FssaiDetails } from '@/components/compliance/fssai-details';
+import { AppPromoBand } from './app-promo-band';
+import { CompactFssaiCard } from '@/components/compliance/compact-fssai-card';
 
 interface HomePageClientProps {
   products: ProductDto[];
@@ -26,36 +15,20 @@ interface HomePageClientProps {
 }
 
 export function HomePageClient({ products, settings }: HomePageClientProps) {
-  const catalog = allocateHomeCatalog(products, {
-    popularLimit: 4,
-    menuPreviewLimit: 6,
-    comingSoonLimit: 6,
-    preOrderLimit: 6,
-    includeRecommended: false,
-  });
+  const popular = pickPopularFavourites(products, 5);
 
   return (
     <>
-      <HeroSection />
+      <HeroSection products={products} />
       <SundayBiryaniPromotion />
-      <HomeDeliverySection />
-      <div className="container mx-auto px-4 py-8">
-        <FssaiDetails settings={settings} compact />
-      </div>
-      <CategoriesSection />
-      <HomeSearchStrip />
-      <CompactProductGrid
-        title="Popular Near You"
-        eyebrow="Customer favourites"
-        products={catalog.popular}
-        viewAllHref="/menu?popular=true"
-      />
-      <SpecialtyTimelineSection preOrder={catalog.preOrder} comingSoon={catalog.comingSoon} />
-      <MenuPreviewSection products={catalog.menuPreview} />
+      <PopularFavouritesGrid products={popular} />
       <WhyChooseUsSection />
+      <AppPromoBand />
       <TestimonialsSection />
-      <GalleryPreviewSection />
-      <DeliveryStepsSection />
+      <HomeDeliverySection />
+      <div className="container mx-auto px-4 pb-10">
+        <CompactFssaiCard settings={settings} />
+      </div>
     </>
   );
 }

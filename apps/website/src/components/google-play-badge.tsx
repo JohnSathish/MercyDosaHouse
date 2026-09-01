@@ -7,10 +7,12 @@ export function GooglePlayBadge({
   size = 'md',
   className = '',
   href = ANDROID_PLAY_STORE_URL,
+  onClick,
 }: {
   size?: BadgeSize;
   className?: string;
   href?: string;
+  onClick?: () => void;
 }) {
   const compact = size === 'sm';
 
@@ -19,8 +21,9 @@ export function GooglePlayBadge({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={onClick}
       aria-label="Download the Mercy Dosa House app on Google Play"
-      className={`inline-flex items-center gap-2 rounded-lg bg-[#01875F] text-white shadow-sm ring-1 ring-black/10 transition hover:bg-[#016b4c] hover:shadow ${
+      className={`inline-flex items-center gap-2 rounded-lg bg-[#01875F] text-white shadow-sm ring-1 ring-black/10 transition hover:bg-[#016b4c] hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FDE68A] ${
         compact ? 'px-2 py-1' : 'px-3 py-2'
       } ${className}`}
     >
