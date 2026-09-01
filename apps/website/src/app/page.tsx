@@ -1,7 +1,9 @@
 import { api } from '@/lib/api';
-import { BRAND } from '@mdh/utils';
 import type { ProductDto, BusinessSettingsDto, ReviewSummaryDto } from '@mdh/types';
 import { HomePageClient } from '@/components/home/home-page-client';
+import { buildPageMetadata } from '@/lib/seo';
+
+export const generateMetadata = () => buildPageMetadata('home', '/');
 
 async function getHomeData() {
   try {
@@ -22,33 +24,6 @@ async function getHomeData() {
 }
 
 export default async function HomePage() {
-  const { products, settings, rating } = await getHomeData();
-
-  const jsonLd: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': 'Restaurant',
-    name: BRAND.name,
-    description: BRAND.tagline,
-    servesCuisine: 'South Indian',
-    priceRange: '₹',
-    telephone: settings?.phone,
-    address: settings?.address,
-  };
-  if (rating && rating.totalReviews > 0) {
-    jsonLd.aggregateRating = {
-      '@type': 'AggregateRating',
-      ratingValue: String(rating.averageRating),
-      reviewCount: String(rating.totalReviews),
-    };
-  }
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <HomePageClient products={products} settings={settings} />
-    </>
-  );
+  const { products, settings } = await getHomeData();
+  return <HomePageClient products={products} settings={settings} />;
 }

@@ -8,7 +8,7 @@ import { Button } from '@mdh/ui';
 import { BRAND } from '@mdh/utils';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import { getHeroContent } from '@/lib/cms-content';
-import { getProductImage } from '@/lib/product-images';
+import { getProductImage, productImageAlt } from '@/lib/product-images';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { trackMarketingEvent } from '@/lib/marketing-content';
 import type { HeroSectionContent, ProductDto } from '@mdh/types';
@@ -72,19 +72,19 @@ function HeroFoodComposition({ products }: { products: ProductDto[] }) {
   const plates = [
     {
       src: dosa ? getProductImage(dosa) : '/images/plain-dosa.png',
-      alt: dosa?.name ?? 'Plain dosa',
+      alt: dosa ? productImageAlt(dosa) : 'Mercy Dosa House dosa',
       className: 'z-20 left-0 top-6 h-48 w-48 sm:h-56 sm:w-56 md:h-64 md:w-64',
       priority: true,
     },
     {
       src: biryani ? getProductImage(biryani) : '/images/chicken-biryani.png',
-      alt: biryani?.name ?? 'Chicken Dum Biryani',
+      alt: biryani ? productImageAlt(biryani) : 'Mercy Dosa House chicken dum biryani',
       className: 'z-30 right-0 top-0 h-44 w-44 sm:h-52 sm:w-52 md:h-60 md:w-60',
       priority: true,
     },
     {
       src: side ? getProductImage(side) : '/images/idli-4-pieces.png',
-      alt: side?.name ?? 'Idli',
+      alt: side ? productImageAlt(side) : 'Mercy Dosa House idli',
       className: 'z-10 bottom-0 left-1/4 h-32 w-32 sm:h-40 sm:w-40',
       priority: false,
     },

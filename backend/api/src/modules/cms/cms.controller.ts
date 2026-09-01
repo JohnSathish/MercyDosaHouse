@@ -258,6 +258,19 @@ export class CmsController {
   }
 
   // SEO
+  @Public()
+  @Get('seo/public')
+  getPublicSeo() {
+    return this.cmsService.getPublicSeo();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('cms.read')
+  @Get('seo/health')
+  getSeoHealth() {
+    return this.cmsService.getSeoHealth();
+  }
+
   @ApiBearerAuth()
   @RequirePermissions('cms.read')
   @Get('seo')

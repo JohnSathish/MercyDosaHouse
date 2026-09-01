@@ -2,6 +2,7 @@ import { api } from '@/lib/api';
 import { BRAND } from '@mdh/utils';
 import type { BusinessSettingsDto } from '@mdh/types';
 import { FssaiDetails } from '@/components/compliance/fssai-details';
+import { buildPageMetadata } from '@/lib/seo';
 
 async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
   try {
@@ -24,9 +25,8 @@ export default async function AboutPage() {
         <section>
           <h2 className="text-xl font-semibold text-foreground">Our Story</h2>
           <p>
-            {BRAND.name} began with a simple dream — to bring authentic South Indian flavors to
-            every home. What started as a small kitchen has grown into a beloved local restaurant,
-            known for crispy dosas, fluffy idlies, and aromatic biryani.
+            {BRAND.name} is a South Indian kitchen in Tura, Meghalaya. We cook dosa, idli, vada and
+            Chicken Dum Biryani to order for takeaway and home delivery where we currently serve.
           </p>
         </section>
         <section>
@@ -53,4 +53,4 @@ export default async function AboutPage() {
   );
 }
 
-export const metadata = { title: 'About' };
+export const generateMetadata = () => buildPageMetadata('about', '/about');

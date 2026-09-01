@@ -633,6 +633,9 @@ model Product {
   isComingSoon           Boolean          @default(false)
   ingredients            String?
   nutritionInfo          String?
+  seoTitle               String?
+  seoDescription         String?
+  imageAltText           String?
   stock                  Int?
   deletedAt              DateTime?
   images                 ProductImage[]
@@ -1430,6 +1433,8 @@ model BusinessSettings {
   loyaltyConfig            Json?
   /// Website/app download promo: copy, Play Store URL, placement toggles
   appPromoConfig           Json?
+  /// Site-wide SEO defaults, GSC verification, local business extra fields
+  seoConfig                Json?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
@@ -1887,6 +1892,8 @@ model SeoMetadata {
   keywords        String?
   ogImage         String?
   canonicalUrl    String?
+  noIndex         Boolean  @default(false)
+  noFollow        Boolean  @default(false)
   schemaJson      Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

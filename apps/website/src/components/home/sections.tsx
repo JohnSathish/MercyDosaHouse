@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { FiTruck, FiShield, FiHeart, FiStar, FiCoffee, FiChevronDown } from 'react-icons/fi';
-import { AnimatedCounter } from './hero-animated-counter';
 import { useCmsContent } from '@/components/cms/cms-content-provider';
 import { getSectionContent } from '@/lib/cms-content';
 import { BRAND } from '@mdh/utils';
@@ -121,7 +120,11 @@ export function TestimonialsSection() {
                     ))}
                   </div>
                   <p className="text-gray-600 italic mb-4">
-                    &ldquo;{t.comment || 'Great food and service.'}&rdquo;
+                    {t.comment ? (
+                      <>&ldquo;{t.comment}&rdquo;</>
+                    ) : (
+                      'Rated this order after delivery.'
+                    )}
                   </p>
                   <p className="font-semibold text-[#14532D]">— {t.customerName}</p>
                   {t.verified ? (
@@ -226,43 +229,6 @@ export function DeliveryStepsSection() {
                 <FiChevronDown className="w-6 h-6 text-secondary my-2 md:my-0 md:rotate-[-90deg] mx-2 shrink-0" />
               )}
             </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function StatsSection() {
-  const stats = [
-    { value: 1000, suffix: '+', label: 'Orders Served' },
-    { value: 4.9, suffix: '', label: 'Rating', isDecimal: true },
-    { value: 100, suffix: '%', label: 'Fresh Ingredients' },
-    { value: 20, suffix: ' min', label: 'Avg Delivery' },
-  ];
-
-  return (
-    <section className="py-16 bg-[#FFF8E8]">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-          {stats.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="text-center"
-            >
-              <p className="text-3xl md:text-4xl font-bold text-primary">
-                {stat.isDecimal ? (
-                  <>★ {stat.value}</>
-                ) : (
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
-                )}
-              </p>
-              <p className="text-gray-600 mt-2 font-medium">{stat.label}</p>
-            </motion.div>
           ))}
         </div>
       </div>

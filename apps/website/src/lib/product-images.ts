@@ -22,6 +22,14 @@ export function getProductImage(product: Pick<ProductDto, 'slug' | 'imageUrl' | 
   return PRODUCT_IMAGES[product.slug] ?? DEFAULT_IMAGE;
 }
 
+export function productImageAlt(
+  product: Pick<ProductDto, 'name' | 'slug'> & { imageAltText?: string | null },
+): string {
+  const custom = product.imageAltText?.trim();
+  if (custom) return custom;
+  return `Mercy Dosa House ${product.name}`;
+}
+
 /** Category card images for homepage Browse Categories section */
 export const CATEGORY_IMAGES: Record<string, string> = {
   dosa: '/images/plain-dosa.png',

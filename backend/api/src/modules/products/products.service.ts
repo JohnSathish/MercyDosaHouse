@@ -162,6 +162,9 @@ export class ProductsService {
       'isComingSoon',
       'ingredients',
       'nutritionInfo',
+      'seoTitle',
+      'seoDescription',
+      'imageAltText',
     ]);
     const decimals = new Set(['price', 'packingCharge']);
     const spiceMap: Record<string, string> = {
@@ -205,6 +208,9 @@ export class ProductsService {
     isComingSoon?: boolean;
     ingredients: string | null;
     nutritionInfo: string | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
+    imageAltText?: string | null;
     images?: { url: string }[];
     variants?: { id: string; name: string; price: Prisma.Decimal; isAvailable: boolean }[];
   }) {
@@ -236,6 +242,9 @@ export class ProductsService {
       isComingSoon: product.isComingSoon ?? false,
       ingredients: product.ingredients,
       nutritionInfo: product.nutritionInfo,
+      seoTitle: product.seoTitle ?? null,
+      seoDescription: product.seoDescription ?? null,
+      imageAltText: product.imageAltText ?? null,
       variants: product.variants?.map((v) => ({
         id: v.id,
         name: v.name,

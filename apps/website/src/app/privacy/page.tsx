@@ -1,6 +1,8 @@
 import { BRAND } from '@mdh/utils';
+import { buildPageMetadata } from '@/lib/seo';
 
-export const metadata = { title: 'Privacy Policy' };
+export const generateMetadata = () =>
+  buildPageMetadata('privacy', '/privacy', { title: 'Privacy Policy' });
 
 export default function PrivacyPage() {
   return (

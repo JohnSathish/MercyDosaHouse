@@ -16,6 +16,7 @@ import {
   Palette,
   ArrowRight,
   Smartphone,
+  Search,
 } from 'lucide-react';
 
 const QUICK_LINKS = [
@@ -36,6 +37,12 @@ const QUICK_LINKS = [
   },
   { href: '/cms/pages', label: 'Pages', icon: FileText, desc: 'About, policies' },
   { href: '/cms/theme', label: 'Theme Settings', icon: Palette, desc: 'Colors, logo, fonts' },
+  {
+    href: '/cms/seo',
+    label: 'SEO Settings',
+    icon: Search,
+    desc: 'Titles, local SEO, Search Console',
+  },
 ];
 
 export default function CmsDashboardPage() {

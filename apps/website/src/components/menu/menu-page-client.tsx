@@ -26,7 +26,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   dosa: 'Dosa',
-  idly: 'Idly',
+  idly: 'Idli',
   vada: 'Vada',
   biryani: 'Biryani',
   rice: 'Rice',

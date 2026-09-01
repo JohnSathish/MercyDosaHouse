@@ -3,6 +3,7 @@ import { APP_URLS } from '@/lib/app-urls';
 import type { BusinessSettingsDto } from '@mdh/types';
 import { resolvePublicMediaUrl } from '@mdh/utils';
 import { FssaiDetails } from '@/components/compliance/fssai-details';
+import { buildPageMetadata } from '@/lib/seo';
 
 async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
   try {
@@ -14,6 +15,9 @@ async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
     return null;
   }
 }
+
+export const generateMetadata = () =>
+  buildPageMetadata('fssai', '/fssai', { title: 'FSSAI | Mercy Dosa House' });
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

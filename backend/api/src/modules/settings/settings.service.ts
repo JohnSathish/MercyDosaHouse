@@ -11,6 +11,7 @@ import {
 } from './feedback-config';
 import { DEFAULT_INVOICE_CONFIG, parseInvoiceConfig } from './invoice-config';
 import { DEFAULT_APP_PROMO_CONFIG, parseAppPromoConfig } from './app-promo-config';
+import { DEFAULT_SITE_SEO_CONFIG, parseSiteSeoConfig } from './seo-config';
 import { resolvePublicAssetUrl, resolveWebsiteUrl } from '../notifications/email-branding';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -472,6 +473,31 @@ export class SettingsService {
     await this.prisma.businessSettings.update({
       where: { id: settings.id },
       data: { appPromoConfig: next as Prisma.InputJsonValue },
+    });
+    return next;
+  }
+
+  async getSeoConfig() {
+    const settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) {
+      await this.prisma.businessSettings.create({
+        data: { seoConfig: DEFAULT_SITE_SEO_CONFIG as Prisma.InputJsonValue },
+      });
+      return { ...DEFAULT_SITE_SEO_CONFIG };
+    }
+    return parseSiteSeoConfig(settings.seoConfig);
+  }
+
+  async updateSeoConfig(patch: Record<string, unknown>) {
+    let settings = await this.prisma.businessSettings.findFirst();
+    if (!settings) settings = await this.prisma.businessSettings.create({ data: {} });
+    const next = parseSiteSeoConfig({
+      ...parseSiteSeoConfig(settings.seoConfig),
+      ...patch,
+    });
+    await this.prisma.businessSettings.update({
+      where: { id: settings.id },
+      data: { seoConfig: next as Prisma.InputJsonValue },
     });
     return next;
   }

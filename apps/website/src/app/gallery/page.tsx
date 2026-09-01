@@ -3,7 +3,9 @@ import { api } from '@/lib/api';
 import { GALLERY_ITEMS } from '@/lib/gallery-images';
 import type { GalleryItemDto } from '@mdh/types';
 
-export const metadata = { title: 'Gallery' };
+import { buildPageMetadata } from '@/lib/seo';
+
+export const generateMetadata = () => buildPageMetadata('gallery', '/gallery');
 
 async function getGalleryItems() {
   try {

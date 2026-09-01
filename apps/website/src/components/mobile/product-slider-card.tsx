@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { FiHeart } from 'react-icons/fi';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
-import { getProductImage } from '@/lib/product-images';
+import { getProductImage, productImageAlt } from '@/lib/product-images';
 import type { ProductDto } from '@mdh/types';
 
 interface ProductSliderCardProps {
@@ -30,7 +30,7 @@ export function ProductSliderCard({ product, badge, index = 0 }: ProductSliderCa
         <div className="relative h-32 food-gradient overflow-hidden">
           <Image
             src={getProductImage(product)}
-            alt={product.name}
+            alt={productImageAlt(product)}
             fill
             className="object-cover"
             sizes="180px"

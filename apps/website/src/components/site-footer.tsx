@@ -35,11 +35,11 @@ function socialHref(
 }
 
 export function SiteFooter({
-  phone = '9566363655',
+  phone,
   whatsapp,
   email,
   address = 'Tura, Meghalaya',
-  hours = '7:00 AM - 10:00 PM',
+  hours,
   socialLinks,
   fssaiRegistrationNumber,
   fssaiCertificateUrl,
@@ -59,7 +59,9 @@ export function SiteFooter({
     { href: '/about', label: 'About Us' },
     { href: '/track', label: 'Order Tracking' },
     { href: '/gallery', label: 'Gallery' },
-    { href: '/faq', label: 'FAQ' },
+    { href: '/south-indian-restaurant-tura', label: 'South Indian in Tura' },
+    { href: '/south-indian-food-tura', label: 'South Indian food' },
+    { href: '/chicken-dum-biryani-tura', label: 'Chicken Dum Biryani' },
     { href: '/terms', label: 'Terms' },
     { href: '/refunds', label: 'Returns' },
     { href: '/privacy', label: 'Privacy' },
@@ -121,10 +123,12 @@ export function SiteFooter({
                 </a>
               </li>
             ) : null}
-            <li className="flex items-center gap-2">
-              <FiClock className="w-4 h-4 shrink-0 text-secondary" />
-              {hours}
-            </li>
+            {hours ? (
+              <li className="flex items-center gap-2">
+                <FiClock className="w-4 h-4 shrink-0 text-secondary" />
+                {hours}
+              </li>
+            ) : null}
             <li className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-sm text-secondary">✓</span>
               <span>

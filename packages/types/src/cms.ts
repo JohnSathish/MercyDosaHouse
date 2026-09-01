@@ -121,6 +121,53 @@ export interface SeoMetadataDto {
   keywords?: string | null;
   ogImage?: string | null;
   canonicalUrl?: string | null;
+  noIndex?: boolean;
+  noFollow?: boolean;
+}
+
+export interface SiteSeoConfigDto {
+  defaultTitle: string;
+  defaultDescription: string;
+  defaultKeywords: string;
+  defaultOgImage: string;
+  canonicalDomain: string;
+  googleVerification: string;
+  cuisine: string;
+  businessCategory: string;
+  city: string;
+  region: string;
+  country: string;
+  postalCode: string;
+  googleBusinessUrl: string;
+  googleMapsUrl: string;
+  facebookUrl: string;
+  instagramUrl: string;
+}
+
+export interface SeoHealthWarningDto {
+  id: string;
+  message: string;
+  href: string;
+  count?: number;
+}
+
+export interface SeoHealthDto {
+  checks: {
+    sitemap: boolean;
+    robots: boolean;
+    https: boolean;
+    canonicalTags: number;
+    metaTitles: number;
+    metaDescriptions: number;
+    structuredData: boolean;
+    defaultOgImage: boolean;
+    googleVerification: boolean;
+  };
+  indexablePages: string[];
+  noIndexPages: string[];
+  duplicateTitles: { title: string; pageKeys: string[] }[];
+  duplicateSlugs: string[];
+  warnings: SeoHealthWarningDto[];
 }
 
 export interface MediaAssetDto {

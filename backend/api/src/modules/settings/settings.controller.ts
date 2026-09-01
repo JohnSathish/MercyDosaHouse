@@ -104,6 +104,19 @@ export class SettingsController {
     return this.settingsService.getAppPromoConfig();
   }
 
+  @Public()
+  @Get('seo-config')
+  getSeoConfig() {
+    return this.settingsService.getSeoConfig();
+  }
+
+  @ApiBearerAuth()
+  @RequirePermissions('settings.write')
+  @Patch('seo-config')
+  updateSeoConfig(@Body() body: Record<string, unknown>) {
+    return this.settingsService.updateSeoConfig(body);
+  }
+
   @ApiBearerAuth()
   @RequirePermissions('settings.write')
   @Patch('app-promo')

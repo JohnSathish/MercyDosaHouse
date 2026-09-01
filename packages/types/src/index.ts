@@ -87,6 +87,9 @@ export interface ProductDto {
   packingCharge?: number;
   ingredients?: string | null;
   nutritionInfo?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  imageAltText?: string | null;
   variants?: ProductVariantDto[];
 }
 

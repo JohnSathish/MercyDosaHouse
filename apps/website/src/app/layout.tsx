@@ -12,8 +12,9 @@ import { api } from '@/lib/api';
 import { getPublishedSiteContent } from '@/lib/cms-content';
 import { getMarketingBundle } from '@/lib/marketing-content';
 import { RestaurantJsonLd } from '@/components/seo/restaurant-jsonld';
-import type { BusinessSettingsDto } from '@mdh/types';
+import type { BusinessSettingsDto, ReviewSummaryDto } from '@mdh/types';
 import { resolvePublicMediaUrl } from '@mdh/utils';
+import { absoluteAsset, getPublicSeo } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -37,35 +38,43 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(APP_URLS.website),
-  title: {
-    default: `${BRAND.name} — ${BRAND.tagline}`,
-    template: `%s | ${BRAND.name}`,
-  },
-  description:
-    'Order fresh dosas, idly, vada and chicken biryani online in Tura, Meghalaya. Delivered with love.',
-  keywords: ['dosa', 'idly', 'biryani', 'food delivery', 'tura', 'meghalaya', 'south indian'],
-  twitter: { card: 'summary_large_image', title: BRAND.name, description: BRAND.tagline },
-  robots: { index: true, follow: true },
-  manifest: '/manifest.json',
-  icons: {
-    icon: '/favicon.png',
-    apple: '/icon-192.png',
-  },
-  openGraph: {
-    title: BRAND.name,
-    description: BRAND.tagline,
-    type: 'website',
-    locale: 'en_IN',
-    url: APP_URLS.website,
-    siteName: BRAND.name,
-    images: [{ url: '/images/logo.png', width: 512, height: 512, alt: BRAND.name }],
-  },
-  alternates: {
-    canonical: APP_URLS.website,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { config } = await getPublicSeo();
+  const image = absoluteAsset(config.defaultOgImage, config);
+  return {
+    metadataBase: new URL(config.canonicalDomain || APP_URLS.website),
+    title: {
+      default: config.defaultTitle,
+      template: `%s | ${BRAND.name}`,
+    },
+    description: config.defaultDescription,
+    keywords: config.defaultKeywords
+      .split(',')
+      .map((k: string) => k.trim())
+      .filter(Boolean),
+    twitter: {
+      card: 'summary_large_image',
+      title: config.defaultTitle,
+      description: config.defaultDescription,
+      images: [image],
+    },
+    robots: { index: true, follow: true },
+    manifest: '/manifest.json',
+    icons: {
+      icon: '/favicon.png',
+      apple: '/icon-192.png',
+    },
+    openGraph: {
+      title: config.defaultTitle,
+      description: config.defaultDescription,
+      type: 'website',
+      locale: 'en_IN',
+      siteName: BRAND.name,
+      images: [{ url: image, alt: BRAND.name }],
+    },
+    verification: config.googleVerification ? { google: config.googleVerification } : undefined,
+  };
+}
 
 async function getSettings() {
   try {
@@ -79,19 +88,22 @@ async function getSettings() {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [settings, cmsContent, marketing] = await Promise.all([
+  const [settings, cmsContent, marketing, seo, rating] = await Promise.all([
     getSettings(),
     getPublishedSiteContent(),
     getMarketingBundle(),
+    getPublicSeo(),
+    api.get<ReviewSummaryDto>('/reviews/summary').catch(() => null),
   ]);
 
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         <RestaurantJsonLd
-          phone={settings?.phone}
-          address={settings?.address}
-          hours={settings?.openingHours}
+          settings={settings}
+          seo={seo.config}
+          rating={rating}
+          logoUrl={cmsContent.theme?.logoUrl}
         />
       </head>
       <body suppressHydrationWarning>

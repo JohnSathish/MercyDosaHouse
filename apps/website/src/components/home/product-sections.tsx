@@ -14,7 +14,7 @@ import { ProductSliderCard, HorizontalScrollRow } from '@/components/mobile/prod
 import type { ProductDto } from '@mdh/types';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { getProductImage } from '@/lib/product-images';
+import { getProductImage, productImageAlt } from '@/lib/product-images';
 import { useMarketing } from '@/components/marketing/marketing-provider';
 import { trackMarketingEvent } from '@/lib/marketing-content';
 
@@ -136,7 +136,7 @@ function FavouriteCard({ product, index }: { product: ProductDto; index: number 
       <div className="relative h-40">
         <Image
           src={getProductImage(product)}
-          alt={product.name}
+          alt={productImageAlt(product)}
           fill
           sizes="(max-width: 768px) 70vw, 20vw"
           className="object-cover"

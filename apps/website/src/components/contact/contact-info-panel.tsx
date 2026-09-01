@@ -9,15 +9,8 @@ import { FssaiDetails } from '@/components/compliance/fssai-details';
 interface ContactInfoPanelProps {
   settings: BusinessSettingsDto | null;
   delivery: DeliveryConfigDto | null;
+  mapsUrl?: string;
 }
-
-const FALLBACK = {
-  phone: '9563636365',
-  whatsapp: '919563636365',
-  email: 'info@mercydosahouse.com',
-  address: 'Tura, Meghalaya',
-  hours: '7:00 AM - 10:00 PM',
-};
 
 function InfoCard({
   icon,
@@ -43,12 +36,12 @@ function InfoCard({
   );
 }
 
-export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) {
-  const phone = settings?.phone || FALLBACK.phone;
-  const whatsapp = settings?.whatsapp || FALLBACK.whatsapp;
-  const email = settings?.email || FALLBACK.email;
-  const address = settings?.address || FALLBACK.address;
-  const hours = settings?.openingHours || FALLBACK.hours;
+export function ContactInfoPanel({ settings, delivery, mapsUrl }: ContactInfoPanelProps) {
+  const phone = settings?.phone?.trim() || '';
+  const whatsapp = settings?.whatsapp?.trim() || '';
+  const email = settings?.email?.trim() || '';
+  const address = settings?.address?.trim() || 'Tura, Meghalaya';
+  const hours = settings?.openingHours?.trim() || '';
 
   const deliveryActive = isHomeDeliveryActive(delivery);
   const deliveryAreas = delivery?.areas?.length ? delivery.areas.slice(0, 2).join(' & ') : null;
@@ -73,40 +66,49 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
       </p>
 
       <div className="space-y-3">
-        <InfoCard
-          icon={<Phone className="h-5 w-5 text-[#14532D]" />}
-          iconBg="bg-[#14532D]/10"
-          title="Phone"
-        >
-          <a href={`tel:${phone}`} className="hover:text-[#14532D] transition-colors">
-            {phone}
-          </a>
-        </InfoCard>
-
-        <InfoCard
-          icon={<FaWhatsapp className="h-5 w-5 text-[#25D366]" />}
-          iconBg="bg-[#25D366]/10"
-          title="WhatsApp"
-        >
-          <Link
-            href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#14532D] font-medium hover:underline"
+        {phone ? (
+          <InfoCard
+            icon={<Phone className="h-5 w-5 text-[#14532D]" />}
+            iconBg="bg-[#14532D]/10"
+            title="Phone"
           >
-            Chat on WhatsApp
-          </Link>
-        </InfoCard>
+            <a href={`tel:${phone}`} className="hover:text-[#14532D] transition-colors">
+              {phone}
+            </a>
+          </InfoCard>
+        ) : null}
 
-        <InfoCard
-          icon={<Mail className="h-5 w-5 text-[#F7941D]" />}
-          iconBg="bg-[#F7941D]/15"
-          title="Email"
-        >
-          <a href={`mailto:${email}`} className="hover:text-[#14532D] transition-colors break-all">
-            {email}
-          </a>
-        </InfoCard>
+        {whatsapp ? (
+          <InfoCard
+            icon={<FaWhatsapp className="h-5 w-5 text-[#25D366]" />}
+            iconBg="bg-[#25D366]/10"
+            title="WhatsApp"
+          >
+            <Link
+              href={`https://wa.me/${whatsapp.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#14532D] font-medium hover:underline"
+            >
+              Chat on WhatsApp
+            </Link>
+          </InfoCard>
+        ) : null}
+
+        {email ? (
+          <InfoCard
+            icon={<Mail className="h-5 w-5 text-[#F7941D]" />}
+            iconBg="bg-[#F7941D]/15"
+            title="Email"
+          >
+            <a
+              href={`mailto:${email}`}
+              className="hover:text-[#14532D] transition-colors break-all"
+            >
+              {email}
+            </a>
+          </InfoCard>
+        ) : null}
 
         <InfoCard
           icon={<MapPin className="h-5 w-5 text-[#14532D]" />}
@@ -114,15 +116,29 @@ export function ContactInfoPanel({ settings, delivery }: ContactInfoPanelProps) 
           title="Address"
         >
           {address}
+          {mapsUrl ? (
+            <p className="mt-2">
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-[#14532D] underline"
+              >
+                Directions / Google Maps
+              </a>
+            </p>
+          ) : null}
         </InfoCard>
 
-        <InfoCard
-          icon={<Clock className="h-5 w-5 text-[#F7941D]" />}
-          iconBg="bg-[#F7941D]/15"
-          title="Opening Hours"
-        >
-          {hours}
-        </InfoCard>
+        {hours ? (
+          <InfoCard
+            icon={<Clock className="h-5 w-5 text-[#F7941D]" />}
+            iconBg="bg-[#F7941D]/15"
+            title="Opening Hours"
+          >
+            {hours}
+          </InfoCard>
+        ) : null}
 
         <div className="flex items-start gap-4 rounded-2xl bg-[#FFF8E8] p-4 border border-[#F7941D]/20">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#14532D]/10">

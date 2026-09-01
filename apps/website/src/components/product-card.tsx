@@ -7,7 +7,7 @@ import { FiHeart } from 'react-icons/fi';
 import { Button, Badge } from '@mdh/ui';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
-import { getProductImage } from '@/lib/product-images';
+import { getProductImage, productImageAlt } from '@/lib/product-images';
 import type { ProductDto } from '@mdh/types';
 
 interface ProductCardProps {
@@ -32,7 +32,7 @@ export function ProductCard({ product, badge, index = 0 }: ProductCardProps) {
         <div className="relative h-44 food-gradient overflow-hidden">
           <Image
             src={getProductImage(product)}
-            alt={product.name}
+            alt={productImageAlt(product)}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
             className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"

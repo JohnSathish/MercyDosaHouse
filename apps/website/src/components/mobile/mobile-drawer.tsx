@@ -14,7 +14,7 @@ import { cn } from '@mdh/ui';
 const NAV_ITEMS = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
-  { href: '/menu#offers', label: 'Offers', icon: Tag },
+  { href: '/offers', label: 'Offers', icon: Tag },
   { href: '/about', label: 'About Us', icon: Info },
   { href: '/track', label: 'Order Tracking', icon: Truck, matchPrefix: '/track' },
   { href: '/contact', label: 'Contact Us', icon: Phone },

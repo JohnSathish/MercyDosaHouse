@@ -1,8 +1,9 @@
 import { getPublishedSiteContent } from '@/lib/cms-content';
 import { BRAND } from '@mdh/utils';
 import Link from 'next/link';
+import { buildPageMetadata } from '@/lib/seo';
 
-export const metadata = { title: 'FAQ' };
+export const generateMetadata = () => buildPageMetadata('faq', '/faq');
 
 export default async function FaqPage() {
   const cms = await getPublishedSiteContent();

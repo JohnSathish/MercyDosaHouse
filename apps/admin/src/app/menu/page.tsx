@@ -31,6 +31,10 @@ type ItemDraft = {
   foodType: string;
   spiceLevel: string;
   prepTimeMinutes: string;
+  seoTitle: string;
+  seoDescription: string;
+  imageAltText: string;
+  slug: string;
 };
 
 const emptyForm = {
@@ -57,6 +61,10 @@ function toItemDraft(p: MenuProduct): ItemDraft {
     foodType: p.foodType ?? FoodType.VEG,
     spiceLevel: p.spiceLevel ?? SpiceLevel.MILD,
     prepTimeMinutes: String(p.prepTimeMinutes ?? 15),
+    seoTitle: p.seoTitle ?? '',
+    seoDescription: p.seoDescription ?? '',
+    imageAltText: p.imageAltText ?? '',
+    slug: p.slug ?? '',
   };
 }
 
@@ -161,6 +169,10 @@ export default function MenuManagementPage() {
         foodType: draft.foodType,
         spiceLevel: draft.spiceLevel,
         prepTimeMinutes: parseInt(draft.prepTimeMinutes, 10) || 15,
+        seoTitle: draft.seoTitle.trim() || null,
+        seoDescription: draft.seoDescription.trim() || null,
+        imageAltText: draft.imageAltText.trim() || null,
+        slug: draft.slug.trim() || p.slug,
       },
     });
   }
@@ -498,6 +510,34 @@ export default function MenuManagementPage() {
                         <Textarea
                           value={draft.description}
                           onChange={(e) => updateDraft(p.id, { description: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>SEO slug</Label>
+                        <Input
+                          value={draft.slug}
+                          onChange={(e) => updateDraft(p.id, { slug: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Image alt text</Label>
+                        <Input
+                          value={draft.imageAltText}
+                          onChange={(e) => updateDraft(p.id, { imageAltText: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>SEO title</Label>
+                        <Input
+                          value={draft.seoTitle}
+                          onChange={(e) => updateDraft(p.id, { seoTitle: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>SEO description</Label>
+                        <Input
+                          value={draft.seoDescription}
+                          onChange={(e) => updateDraft(p.id, { seoDescription: e.target.value })}
                         />
                       </div>
                     </div>

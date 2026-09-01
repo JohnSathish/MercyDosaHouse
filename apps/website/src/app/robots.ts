@@ -1,14 +1,23 @@
 import type { MetadataRoute } from 'next';
+import { canonicalOrigin, getPublicSeo } from '@/lib/seo';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://mercydosahouse.com';
-
-export default function robots(): MetadataRoute.Robots {
-  const base = SITE_URL.replace(/\/$/, '');
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const { config } = await getPublicSeo();
+  const base = canonicalOrigin(config);
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/checkout', '/cart', '/profile', '/api/'],
+      disallow: [
+        '/checkout',
+        '/cart',
+        '/profile',
+        '/dashboard',
+        '/admin',
+        '/account',
+        '/api/',
+        '/login',
+      ],
     },
     sitemap: `${base}/sitemap.xml`,
     host: base,
