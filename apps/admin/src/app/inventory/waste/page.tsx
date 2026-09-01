@@ -10,6 +10,14 @@ import type { InventoryItemDto } from '@mdh/types';
 import { WasteReason } from '@mdh/types';
 import { useToastStore } from '@/lib/toast-store';
 
+type WasteReport = {
+  wastes: Array<Record<string, unknown>>;
+  totalLoss: number;
+  wasteToday?: number;
+  wasteThisMonth?: number;
+  topWasted?: Array<{ name: string; quantity: number; cost: number }>;
+};
+
 export default function WastePage() {
   const queryClient = useQueryClient();
   const toast = useToastStore((s) => s.show);
@@ -25,10 +33,7 @@ export default function WastePage() {
 
   const { data: report } = useQuery({
     queryKey: ['inventory-waste'],
-    queryFn: () =>
-      api.get<{ wastes: Array<Record<string, unknown>>; totalLoss: number }>(
-        '/inventory/waste?days=30',
-      ),
+    queryFn: () => api.get<WasteReport>('/inventory/waste?days=30'),
   });
 
   const recordWaste = useMutation({

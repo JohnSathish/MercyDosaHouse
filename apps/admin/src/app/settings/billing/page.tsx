@@ -16,24 +16,7 @@ export default function BillingSettingsPage() {
   });
   const [form, setForm] = useState<InvoiceConfigDto | null>(null);
   useEffect(() => {
-    if (!data) return;
-    setForm({
-      ...data,
-      email: {
-        autoSend: false,
-        senderName: 'Mercy Dosa House',
-        senderEmail: '',
-        replyTo: '',
-        phone: '',
-        address: '',
-        website: '',
-        logoUrl: '',
-        subject: 'Invoice {{invoice_number}} | Mercy Dosa House',
-        overdueSubject: 'Payment Reminder — Invoice {{invoice_number}} | Mercy Dosa House',
-        footer: 'Thank you for your trust and continued support!',
-        ...data.email,
-      },
-    });
+    if (data) setForm(data);
   }, [data]);
 
   const save = useMutation({
