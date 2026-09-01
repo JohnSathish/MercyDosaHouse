@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AppPromoConfigDto } from '@mdh/types';
+import { FaGooglePlay } from 'react-icons/fa';
 import { ANDROID_PLAY_STORE_URL } from '@mdh/utils';
 import { api } from '@/lib/api';
-import { GooglePlayBadge } from '@/components/google-play-badge';
 
 const KEY = 'mdh_app_promo_popup_v1';
 
@@ -44,15 +44,15 @@ export function AppPromoPopup() {
           on the website.
         </p>
         <div className="mt-4 flex flex-col gap-3">
-          <GooglePlayBadge href={playUrl} size="md" className="w-full justify-center" />
           <a
             href={playUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full text-center rounded-xl bg-[#14532D] text-white font-semibold py-2.5"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#14532D] py-3 text-center font-semibold text-white"
             onClick={close}
           >
-            {data.ctaLabel || 'Download App'}
+            <FaGooglePlay className="h-5 w-5 shrink-0" aria-hidden />
+            Download Now
           </a>
           <button
             type="button"
