@@ -404,7 +404,7 @@ export class CmsService {
       pageKey: 'chicken-dum-biryani-tura',
       metaTitle: 'Chicken Dum Biryani in Tura | Mercy Dosa House',
       metaDescription:
-        'Chicken Dum Biryani from Mercy Dosa House in Tura. See live price, Sunday availability and pre-order details.',
+        'Order authentic Chicken Dum Biryani in Tura from Mercy Dosa House. Available every Sunday at 1 PM. Pre-order one day in advance. Home delivery available.',
       canonicalUrl: 'https://mercydosahouse.com/chicken-dum-biryani-tura',
     },
   ];

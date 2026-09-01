@@ -891,6 +891,7 @@ export class MarketingService {
       a.promotionDayOfWeek != null && a.promotionReadyTime
         ? nextPromotionDate({
             dayOfWeek: a.promotionDayOfWeek,
+            readyTime: a.promotionReadyTime ?? '13:00',
             preOrderRequired: a.promotionPreOrderRequired,
             preOrderCutoffDay: a.promotionPreOrderCutoffDay,
           })

@@ -45,7 +45,8 @@ export function SiteShell({
   fssaiCertificateUrl,
 }: SiteShellProps) {
   const pathname = usePathname();
-  const showInlineAppPromo = pathname !== '/';
+  const campaignLanding = pathname === '/chicken-dum-biryani-tura';
+  const showInlineAppPromo = pathname !== '/' && !campaignLanding;
   const mainOffset = 'pt-[6.75rem] lg:pt-[7.25rem]';
   const footerProps = {
     phone,
@@ -78,7 +79,9 @@ export function SiteShell({
       <MobileDrawer />
       <CartSheet />
 
-      <main className={`flex-1 ${mainOffset} pb-16 lg:pb-0 mobile-main`}>
+      <main
+        className={`flex-1 ${mainOffset} ${campaignLanding ? 'pb-0' : 'pb-16 lg:pb-0'} mobile-main`}
+      >
         {showInlineAppPromo ? (
           <div className="container mx-auto px-4 pt-2">
             <AppPromoBanner placement="site" />
@@ -90,14 +93,16 @@ export function SiteShell({
       <div className="hidden lg:block">
         <SiteFooter {...footerProps} />
       </div>
-      <div className="lg:hidden pb-16">
+      <div className={`lg:hidden ${campaignLanding ? '' : 'pb-16'}`}>
         <SiteFooter {...footerProps} compact />
       </div>
 
-      <Suspense fallback={<BottomNavFallback />}>
-        <MobileBottomNav />
-      </Suspense>
-      <FloatingActions phone={phone} whatsapp={whatsapp} />
+      {campaignLanding ? null : (
+        <Suspense fallback={<BottomNavFallback />}>
+          <MobileBottomNav />
+        </Suspense>
+      )}
+      {campaignLanding ? null : <FloatingActions phone={phone} whatsapp={whatsapp} />}
     </div>
   );
 }

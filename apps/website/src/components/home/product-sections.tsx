@@ -3,12 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@mdh/ui';
-import {
-  CHICKEN_BIRYANI_SLUG,
-  formatCurrency,
-  isChickenDumBiryaniProduct,
-  productHomeBadge,
-} from '@mdh/utils';
+import { formatCurrency, isChickenDumBiryaniProduct, productHomeBadge } from '@mdh/utils';
 import { ProductCard } from '@/components/product-card';
 import { ProductSliderCard, HorizontalScrollRow } from '@/components/mobile/product-slider-card';
 import type { ProductDto } from '@mdh/types';
@@ -118,13 +113,8 @@ function FavouriteCard({ product, index }: { product: ProductDto; index: number 
     (isBiryani &&
       biryaniPromo?.promotionRemainingQuantity != null &&
       biryaniPromo.promotionRemainingQuantity <= 0);
-  const prebookHref =
-    biryaniPromo && !soldOut
-      ? biryaniPromo.ctaUrl?.trim() ||
-        `/checkout?product=${encodeURIComponent(product.slug || CHICKEN_BIRYANI_SLUG)}&promotion=${encodeURIComponent(biryaniPromo.id)}&preorder=1`
-      : `/checkout?product=${encodeURIComponent(product.slug || CHICKEN_BIRYANI_SLUG)}&preorder=1`;
 
-  const href = isBiryani ? prebookHref : `/menu/${product.slug}`;
+  const href = isBiryani ? '/chicken-dum-biryani-tura' : `/menu/${product.slug}`;
   const cta = isBiryani ? 'Pre-book Now' : 'Order Now';
 
   return (

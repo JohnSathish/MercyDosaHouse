@@ -9,7 +9,19 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   async redirects() {
-    return [{ source: '/favicon.ico', destination: '/favicon.png', permanent: true }];
+    return [
+      { source: '/favicon.ico', destination: '/favicon.png', permanent: true },
+      {
+        source: '/menu/chicken-dum-biryani',
+        destination: '/chicken-dum-biryani-tura',
+        permanent: true,
+      },
+      {
+        source: '/menu/chicken-dum-biryani/',
+        destination: '/chicken-dum-biryani-tura',
+        permanent: true,
+      },
+    ];
   },
   async rewrites() {
     const internal = process.env.API_INTERNAL_URL;

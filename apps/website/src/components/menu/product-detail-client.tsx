@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiStar, FiClock, FiArrowLeft } from 'react-icons/fi';
 import { Button, Badge } from '@mdh/ui';
-import { CHICKEN_BIRYANI_SLUG, formatCurrency, SPICE_LEVEL_LABELS } from '@mdh/utils';
+import { formatCurrency, isChickenDumBiryaniProduct, SPICE_LEVEL_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { getProductImage, productImageAlt } from '@/lib/product-images';
 import { useCartStore } from '@/lib/cart-store';
@@ -131,7 +131,7 @@ export function ProductDetailClient({ slug }: { slug: string }) {
               </div>
             )}
 
-            {product.slug === CHICKEN_BIRYANI_SLUG ? (
+            {isChickenDumBiryaniProduct(product) ? (
               <Link
                 href="/chicken-dum-biryani-tura"
                 className="mb-4 inline-block text-sm font-semibold text-[#14532D] underline"

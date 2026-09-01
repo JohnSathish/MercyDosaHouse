@@ -38,12 +38,18 @@ export function promotionTimeParts(date: Date, timeZone = PROMOTION_TIMEZONE) {
 }
 
 export function nextPromotionDate(
-  schedule: Pick<PromotionSchedule, 'dayOfWeek' | 'preOrderRequired' | 'preOrderCutoffDay'>,
+  schedule: Pick<
+    PromotionSchedule,
+    'dayOfWeek' | 'preOrderRequired' | 'preOrderCutoffDay' | 'readyTime'
+  >,
   now = new Date(),
 ): NextPromotionDate {
   const today = promotionTimeParts(now);
   const targetDay = Math.min(6, Math.max(0, Math.trunc(schedule.dayOfWeek)));
-  const minimumDays = schedule.preOrderRequired ? 1 : 0;
+  const readyMinutes = promotionTimeToMinutes(schedule.readyTime) ?? 13 * 60;
+  const todayMinutes = today.hour * 60 + today.minute;
+  const sameDayOpen = today.weekday === targetDay && todayMinutes < readyMinutes;
+  const minimumDays = sameDayOpen ? 0 : schedule.preOrderRequired ? 1 : 0;
   const cutoffDay =
     schedule.preOrderCutoffDay == null
       ? (targetDay + 6) % 7
@@ -54,9 +60,10 @@ export function nextPromotionDate(
   for (let daysAhead = 0; daysAhead <= 14; daysAhead += 1) {
     const candidate = new Date(todayKey + daysAhead * DAY_MS);
     const cutoff = candidate.getTime() - cutoffOffset * DAY_MS;
-    if (candidate.getUTCDay() !== targetDay || daysAhead < minimumDays || cutoff < todayKey) {
-      continue;
-    }
+    if (candidate.getUTCDay() !== targetDay) continue;
+    if (daysAhead === 0 && !sameDayOpen) continue;
+    if (daysAhead < minimumDays) continue;
+    if (daysAhead > 0 && cutoff < todayKey) continue;
     const date = `${candidate.getUTCFullYear()}-${String(candidate.getUTCMonth() + 1).padStart(2, '0')}-${String(candidate.getUTCDate()).padStart(2, '0')}`;
     const weekday = candidate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
     return {
@@ -115,6 +122,11 @@ export function isPromotionScheduleMatch(
   const currentKey = Date.UTC(current.year, current.month - 1, current.day);
   const scheduledKey = Date.UTC(parts.year, parts.month - 1, parts.day);
   const daysAhead = Math.round((scheduledKey - currentKey) / DAY_MS);
+  if (daysAhead === 0) {
+    const nowMinutes = current.hour * 60 + current.minute;
+    const deadline = readyMinutes ?? 13 * 60;
+    return nowMinutes < deadline;
+  }
   const cutoffDay =
     schedule.preOrderCutoffDay == null
       ? (schedule.dayOfWeek + 6) % 7

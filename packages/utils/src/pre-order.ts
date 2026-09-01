@@ -1,15 +1,24 @@
 const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 export const CHICKEN_BIRYANI_SLUG = 'chicken-biryani';
+export const CHICKEN_BIRYANI_SLUG_ALIASES = [
+  CHICKEN_BIRYANI_SLUG,
+  'chicken-dum-biryani',
+  'chicken-dum-biryani-tura',
+] as const;
 export const CHICKEN_BIRYANI_TIME_SLOT = '1:00 PM - 2:00 PM';
 export const CHICKEN_BIRYANI_VALIDATION_MESSAGE =
   'Chicken Dum Biryani is available only on Sundays between 1:00 PM and 2:00 PM.';
+
+export function isChickenDumBiryaniSlug(slug?: string | null): boolean {
+  const value = slug?.trim().toLowerCase() ?? '';
+  return (CHICKEN_BIRYANI_SLUG_ALIASES as readonly string[]).includes(value);
+}
 
 export function isChickenDumBiryaniProduct(product: {
   slug?: string | null;
   name?: string | null;
 }): boolean {
-  const slug = product.slug?.trim().toLowerCase();
-  if (slug === CHICKEN_BIRYANI_SLUG) return true;
+  if (isChickenDumBiryaniSlug(product.slug)) return true;
   const name = product.name?.trim().toLowerCase() ?? '';
   return name.includes('chicken') && name.includes('biryani');
 }
@@ -118,6 +127,7 @@ export function getChickenBiryaniScheduleOptions(
   count = 7,
   now = new Date(),
   firstDate?: string | null,
+  readyTime?: string | null,
 ): ScheduleDateOption[] {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: DEFAULT_TIMEZONE,
@@ -125,10 +135,17 @@ export function getChickenBiryaniScheduleOptions(
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
   }).formatToParts(now);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(values.weekday ?? '');
-  const daysUntilSunday = weekday === 0 ? 7 : 7 - Math.max(0, weekday);
+  const readyMatch = String(readyTime ?? '13:00').match(/^(\d{1,2}):(\d{2})$/);
+  const readyMinutes = readyMatch ? Number(readyMatch[1]) * 60 + Number(readyMatch[2]) : 13 * 60;
+  const nowMinutes = Number(values.hour) * 60 + Number(values.minute);
+  const sundayStillOpen = weekday === 0 && nowMinutes < readyMinutes;
+  const daysUntilSunday = weekday === 0 ? (sundayStillOpen ? 0 : 7) : 7 - Math.max(0, weekday);
   const todayKey = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
 
   const dates = Array.from({ length: count }, (_, index) => {

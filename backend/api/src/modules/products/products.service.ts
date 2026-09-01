@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, FoodType, SpiceLevel } from '@prisma/client';
+import { CHICKEN_BIRYANI_SLUG, isChickenDumBiryaniSlug } from '@mdh/utils';
 import { PrismaService } from '../../prisma/prisma.service';
 import { displayCategoryName } from '../categories/category-display-name';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
   constructor(private prisma: PrismaService) {}
 
   async findAll(filters?: {
@@ -71,11 +73,44 @@ export class ProductsService {
   }
 
   async findBySlug(slug: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { slug },
-      include: { category: true, images: true, variants: true, reviews: { take: 10 } },
+    const include = {
+      category: true,
+      images: true,
+      variants: true,
+      reviews: { take: 10 },
+    } as const;
+    const raw = decodeURIComponent(slug || '').trim();
+    let product = await this.prisma.product.findFirst({
+      where: { deletedAt: null, slug: raw },
+      include,
     });
-    if (!product || product.deletedAt) throw new NotFoundException('Product not found');
+    if (!product && isChickenDumBiryaniSlug(raw)) {
+      product = await this.prisma.product.findFirst({
+        where: {
+          deletedAt: null,
+          OR: [
+            { slug: CHICKEN_BIRYANI_SLUG },
+            {
+              AND: [
+                { name: { contains: 'chicken', mode: 'insensitive' } },
+                { name: { contains: 'biryani', mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+        include,
+        orderBy: { createdAt: 'asc' },
+      });
+      if (product) {
+        this.logger.warn(
+          `Resolved Chicken Dum Biryani alias "${raw}" to product slug "${product.slug}" (${product.id})`,
+        );
+      }
+    }
+    if (!product) {
+      this.logger.warn(`Product not found for slug "${raw}"`);
+      throw new NotFoundException('Product not found');
+    }
     return this.mapProduct(product);
   }
 

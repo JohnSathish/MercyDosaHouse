@@ -8,7 +8,7 @@ import { useUiStore } from '@/lib/ui-store';
 import { cn } from '@mdh/ui';
 import { useEffect, useState } from 'react';
 
-const HIDDEN_PATHS = ['/login', '/checkout', '/order/success'];
+const HIDDEN_PATHS = ['/login', '/checkout', '/order/success', '/chicken-dum-biryani-tura'];
 
 export function MobileBottomNav() {
   const pathname = usePathname();

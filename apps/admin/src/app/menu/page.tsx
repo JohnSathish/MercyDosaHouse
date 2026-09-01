@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, CardContent, Input, Label, Select, Textarea } from '@mdh/ui';
-import { formatCurrency } from '@mdh/utils';
+import { formatCurrency, isChickenDumBiryaniProduct } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { useToastStore } from '@/lib/toast-store';
 import type { BusinessSettingsDto, ProductDto } from '@mdh/types';
 import { FoodType, SpiceLevel } from '@mdh/types';
+import Link from 'next/link';
 
 const FLAG_KEYS = [
   ['isPopular', 'Popular'],
@@ -191,6 +192,61 @@ export default function MenuManagementPage() {
           {showForm ? 'Cancel' : 'Add Product'}
         </Button>
       </div>
+
+      {products?.data.find((p) => isChickenDumBiryaniProduct(p)) ? (
+        <Card className="mb-6 border-[#F59E0B]/40" id="chicken-dum-biryani">
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <h2 className="font-semibold">Chicken Dum Biryani</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Landing page: <code className="text-[11px]">/chicken-dum-biryani-tura</code>. Price,
+                image, description and SEO are this product. Sunday time, cutoff and quantity live
+                on Marketing → announcements. Packing is on this item; delivery is store-wide below.
+              </p>
+            </div>
+            {(() => {
+              const biryani = products.data.find((p) => isChickenDumBiryaniProduct(p))!;
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold mr-auto">
+                    {biryani.name} · {formatCurrency(biryani.price)} ·{' '}
+                    {biryani.isAvailable ? 'Active' : 'Inactive'}
+                  </p>
+                  <Button size="sm" variant="outline" onClick={() => openEditor(biryani)}>
+                    Edit product
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      patchProduct.mutate({
+                        id: biryani.id,
+                        body: { isAvailable: !isProductAvailable(biryani) },
+                      })
+                    }
+                  >
+                    {isProductAvailable(biryani) ? 'Hide from landing CTA' : 'Make available'}
+                  </Button>
+                  <Link
+                    href="/marketing"
+                    className="inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold"
+                  >
+                    Sunday schedule
+                  </Link>
+                  <a
+                    href="https://mercydosahouse.com/chicken-dum-biryani-tura"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-semibold"
+                  >
+                    View landing
+                  </a>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="mb-6">
         <CardContent className="p-4 space-y-3">

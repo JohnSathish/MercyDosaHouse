@@ -11,6 +11,7 @@ const PRODUCT_IMAGES: Record<string, string> = {
   'mysore-masala-dosa': '/images/mysore-masala-dosa.png',
   'ghee-roast-dosa': '/images/ghee-roast-dosa.png',
   'chicken-biryani': '/images/chicken-biryani.png',
+  'chicken-dum-biryani': '/images/chicken-biryani.png',
   'cheese-dosa': '/images/cheese-dosa.png',
   'idli-4-pieces': '/images/idli-4-pieces.png',
   'vada-4-pieces': '/images/vada-4-pieces.png',

@@ -73,10 +73,7 @@ export function SundayBiryaniPromotion() {
   const soldOut =
     !product.isAvailable ||
     (promotion.promotionRemainingQuantity != null && promotion.promotionRemainingQuantity <= 0);
-  const href = soldOut
-    ? undefined
-    : promotion.ctaUrl?.trim() ||
-      `/checkout?product=${encodeURIComponent(product.slug)}&promotion=${encodeURIComponent(promotion.id)}&preorder=1`;
+  const href = soldOut ? undefined : '/chicken-dum-biryani-tura';
   const cutoffDay =
     promotion.promotionPreOrderCutoffDay != null
       ? WEEKDAYS[promotion.promotionPreOrderCutoffDay]

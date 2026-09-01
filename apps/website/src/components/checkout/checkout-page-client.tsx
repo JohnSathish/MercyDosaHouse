@@ -147,6 +147,7 @@ export function CheckoutPageClient() {
 
   const items = useCartStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
   const getSubtotal = useCartStore((s) => s.subtotal);
   const packingTotalFn = useCartStore((s) => s.packingTotal);
   const packedItemCountFn = useCartStore((s) => s.packedItemCount);
@@ -156,6 +157,10 @@ export function CheckoutPageClient() {
   const marketing = useMarketing();
   const promotionSlug = searchParams.get('product');
   const promotionId = searchParams.get('promotion');
+  const promotionQty = Math.min(
+    20,
+    Math.max(1, Number.parseInt(searchParams.get('qty') || '1', 10) || 1),
+  );
   const promotionProductAdded = useRef<string | null>(null);
   const [authed, setAuthed] = useState(false);
   const checkoutUserId = authed ? getStoredUser()?.id : undefined;
@@ -231,7 +236,12 @@ export function CheckoutPageClient() {
   );
   const chickenScheduleDates = useMemo(
     () =>
-      getChickenBiryaniScheduleOptions(7, new Date(), linkedPromotion?.promotionNextAvailableDate),
+      getChickenBiryaniScheduleOptions(
+        7,
+        new Date(),
+        linkedPromotion?.promotionNextAvailableDate,
+        linkedPromotion?.promotionReadyTime,
+      ),
     [linkedPromotion?.promotionNextAvailableDate],
   );
   const chickenSlot = promotionDeliverySlot(linkedPromotion?.promotionReadyTime);
@@ -462,11 +472,14 @@ export function CheckoutPageClient() {
 
   useEffect(() => {
     if (!promotionProduct || promotionProductAdded.current === promotionProduct.id) return;
-    if (!items.some((item) => item.productId === promotionProduct.id)) {
-      addItem(promotionProduct);
+    const existing = items.find((item) => item.productId === promotionProduct.id);
+    if (!existing) {
+      addItem(promotionProduct, undefined, promotionQty);
+    } else if (existing.quantity < promotionQty) {
+      updateQuantity(promotionProduct.id, promotionQty);
     }
     promotionProductAdded.current = promotionProduct.id;
-  }, [addItem, items, promotionProduct]);
+  }, [addItem, updateQuantity, items, promotionProduct, promotionQty]);
 
   useEffect(() => {
     if (
