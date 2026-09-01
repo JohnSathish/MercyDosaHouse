@@ -17,7 +17,10 @@ async function getBusinessSettings(): Promise<BusinessSettingsDto | null> {
 }
 
 export const generateMetadata = () =>
-  buildPageMetadata('fssai', '/fssai', { title: 'FSSAI | Mercy Dosa House' });
+  buildPageMetadata('fssai', '/fssai', {
+    title: 'FSSAI | Mercy Dosa House',
+    description: 'Mercy Dosa House food safety registration details.',
+  });
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -67,8 +70,3 @@ export default async function FssaiPage() {
     </div>
   );
 }
-
-export const metadata = {
-  title: 'FSSAI Registration',
-  description: 'Mercy Dosa House food safety registration details.',
-};
