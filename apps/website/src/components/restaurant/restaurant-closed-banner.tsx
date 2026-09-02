@@ -13,9 +13,9 @@ export function RestaurantClosedBanner() {
       role="alert"
       className="bg-red-700 text-white px-4 py-3 text-center text-sm shadow-md border-b border-red-800"
     >
-      <div className="flex items-center justify-center gap-2 font-bold text-base">
+      <div className="flex flex-wrap items-center justify-center gap-2 font-bold text-base">
         <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden />
-        <span>🔴 {headline}</span>
+        <span className="min-w-0 break-words">🔴 {headline}</span>
       </div>
       <p className="mt-1 opacity-95 max-w-2xl mx-auto">{body}</p>
       {reopenHint ? <p className="mt-1 font-semibold text-amber-200">{reopenHint}</p> : null}

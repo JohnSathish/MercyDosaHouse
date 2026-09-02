@@ -40,7 +40,7 @@ export function FeedbackPanel() {
       {reviews.map((review) => (
         <Card key={review.id} className="rounded-2xl shadow-md border-0">
           <CardContent className="p-4 space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
               <Stars rating={review.rating} />
               {review.verified ? (
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">

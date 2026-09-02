@@ -61,15 +61,18 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <motion.div
+      className="min-w-0"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
     >
       <Card className="rounded-2xl border-0 shadow-md card-lift bg-white hover:shadow-xl transition-all duration-300">
-        <CardContent className="p-5">
+        <CardContent className="p-4 sm:p-5">
           <span className="text-2xl mb-3 block">{icon}</span>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-          <p className="text-2xl font-bold text-[#14532D]">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-500 sm:text-xs">
+            {label}
+          </p>
+          <p className="break-words text-xl font-bold text-[#14532D] sm:text-2xl">
             <Counter value={value} suffix={suffix} prefix={prefix} />
           </p>
         </CardContent>

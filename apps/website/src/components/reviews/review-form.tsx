@@ -262,7 +262,12 @@ export function RateOrderButton({ order }: { order: OrderDto }) {
 
   return (
     <>
-      <Button size="sm" variant="outline" className="shrink-0" onClick={() => setOpen(true)}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full md:w-auto"
+        onClick={() => setOpen(true)}
+      >
         {order.reviewId || existing ? 'Edit Review' : 'Rate & Review'}
       </Button>
       {open ? (

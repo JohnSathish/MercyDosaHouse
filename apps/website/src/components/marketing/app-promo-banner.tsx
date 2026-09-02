@@ -18,13 +18,13 @@ export function AppPromoBanner({ placement }: { placement: 'site' | 'menu' | 'ch
   if (placement === 'checkout' && !data.showOnCheckout) return null;
 
   return (
-    <div className="rounded-xl border border-[#14532D]/20 bg-[#14532D] text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div>
+    <div className="rounded-xl border border-[#14532D]/20 bg-[#14532D] text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 min-w-0 w-full">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-bold tracking-wide text-[#FDE68A]">📱 APP EXCLUSIVE</p>
         <p className="font-semibold mt-0.5">{data.title}</p>
         <p className="text-sm text-white/80 mt-0.5">{data.body}</p>
       </div>
-      <GooglePlayBadge href={ANDROID_APP_URL} size="md" className="shrink-0" />
+      <GooglePlayBadge href={ANDROID_APP_URL} size="md" className="max-w-full" />
     </div>
   );
 }

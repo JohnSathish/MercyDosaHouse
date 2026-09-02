@@ -88,8 +88,8 @@ export function DashboardSidebar({
 
   return (
     <aside
-      className={`flex flex-col w-full lg:w-72 shrink-0 bg-white rounded-2xl shadow-md border border-gray-100 h-fit ${
-        mobile ? '' : 'hidden lg:flex sticky top-28'
+      className={`w-full shrink-0 flex-col bg-white rounded-2xl shadow-md border border-gray-100 h-fit lg:w-72 ${
+        mobile ? 'flex' : 'hidden lg:flex lg:sticky lg:top-28'
       }`}
     >
       <div className="p-6 border-b border-gray-100">

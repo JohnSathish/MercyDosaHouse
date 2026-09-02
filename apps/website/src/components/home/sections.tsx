@@ -172,7 +172,7 @@ export function DeliveryStepsSection() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.15 }}
-                className="bg-white/10 backdrop-blur rounded-2xl p-6 text-center min-w-[140px] card-lift"
+                className="w-full bg-white/10 backdrop-blur rounded-2xl p-6 text-center min-w-0 md:min-w-[140px] card-lift"
               >
                 <span className="text-3xl mb-2 block">{step.icon}</span>
                 <p className="font-semibold">{step.title}</p>

@@ -60,19 +60,19 @@ export function DashboardOverview({
   }, [orders, favorites]);
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-8 w-full min-w-0">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard icon="📦" label="Total Orders" value={orderCount} index={0} />
         <StatCard icon="❤️" label="Favourite Items" value={favoriteCount} index={1} />
         <StatCard icon="🪙" label="Bronze Coins" value={rewardPoints} suffix=" coins" index={2} />
         <StatCard icon="💰" label="Saved" value={totalSaved || 0} prefix="₹" index={3} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 rounded-2xl shadow-md border-0">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-[#14532D]">Recent Orders</h2>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-3">
+        <Card className="min-w-0 rounded-2xl border-0 shadow-md lg:col-span-2">
+          <CardContent className="p-4 sm:p-6">
+            <div className="mb-4 flex min-w-0 items-center justify-between gap-3">
+              <h2 className="min-w-0 truncate font-bold text-[#14532D]">Recent Orders</h2>
               {orders.length > 0 && (
                 <button
                   type="button"
@@ -101,15 +101,15 @@ export function DashboardOverview({
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-lg border-0 bg-gradient-to-br from-[#14532D] to-amber-800 text-white overflow-hidden">
-          <CardContent className="p-6">
-            <p className="text-white/80 text-sm font-medium mb-1">🪙 Bronze Coins</p>
-            <p className="text-3xl font-bold mb-1">{rewardPoints}</p>
-            <p className="text-white/90 text-sm mb-6">
+        <Card className="min-w-0 w-full max-w-full overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-[#14532D] to-amber-800 text-white shadow-lg max-md:mx-auto">
+          <CardContent className="p-5 sm:p-6">
+            <p className="mb-1 text-sm font-medium text-white/80">🪙 Bronze Coins</p>
+            <p className="mb-1 break-words text-3xl font-bold">{rewardPoints}</p>
+            <p className="mb-6 text-sm text-white/90">
               Worth ₹{loyalty?.account.valueAvailable ?? rewardPoints}
             </p>
             <Button
-              className="w-full bg-white text-[#14532D] hover:bg-white/90 font-semibold"
+              className="w-full max-w-full whitespace-normal bg-white font-semibold text-[#14532D] hover:bg-white/90"
               onClick={() => onSectionChange('loyalty')}
             >
               View Rewards
@@ -118,8 +118,8 @@ export function DashboardOverview({
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="rounded-2xl shadow-md border-0">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <Card className="min-w-0 rounded-2xl border-0 shadow-md">
           <CardContent className="p-6">
             <h2 className="font-bold text-[#14532D] mb-4">Favourite Items</h2>
             {favorites.length === 0 ? (
@@ -140,18 +140,18 @@ export function DashboardOverview({
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl shadow-md border-0">
+        <Card className="min-w-0 rounded-2xl border-0 shadow-md">
           <CardContent className="p-6">
-            <h2 className="font-bold text-[#14532D] mb-4">Recent Activity</h2>
+            <h2 className="mb-4 font-bold text-[#14532D]">Recent Activity</h2>
             {activity.length === 0 ? (
               <p className="text-gray-500 text-sm">Your activity will appear here.</p>
             ) : (
               <ul className="space-y-3">
                 {activity.map((a, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[#1F2937]">{a.text}</p>
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div className="min-w-0">
+                      <p className="break-words text-[#1F2937]">{a.text}</p>
                       <p className="text-xs text-gray-400">{formatDate(a.time)}</p>
                     </div>
                   </li>
@@ -209,36 +209,49 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
   }
 
   return (
-    <div className="flex items-center gap-4 p-3 rounded-xl bg-[#FFF8E8]/60 hover:bg-[#FFF8E8] transition-colors">
-      <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-gray-100">
-        <Image src="/images/hero-dosa.png" alt="" fill sizes="56px" className="object-cover" />
+    <div className="flex w-full min-w-0 flex-col gap-3 rounded-xl bg-[#FFF8E8]/60 p-3 transition-colors hover:bg-[#FFF8E8] md:flex-row md:items-center md:gap-4">
+      <div className="flex min-w-0 w-full flex-1 items-center gap-3">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+          <Image src="/images/hero-dosa.png" alt="" fill sizes="56px" className="object-cover" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-[#1F2937]">
+            {firstItem?.productName || order.orderNumber}
+          </p>
+          <p className="text-sm font-bold text-primary">{formatCurrency(order.grandTotal)}</p>
+          {!compact && <p className="text-xs text-gray-400">{formatDate(order.createdAt)}</p>}
+          <Badge
+            variant={statusColor as 'success' | 'destructive' | 'secondary'}
+            className="mt-1.5 inline-flex max-w-full px-2 py-0.5 text-center text-[10px] leading-tight whitespace-normal md:hidden"
+          >
+            {order.status.replace(/_/g, ' ')}
+          </Badge>
+        </div>
+        <Badge
+          variant={statusColor as 'success' | 'destructive' | 'secondary'}
+          className="hidden shrink-0 md:inline-flex"
+        >
+          {order.status.replace(/_/g, ' ')}
+        </Badge>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-[#1F2937] truncate">
-          {firstItem?.productName || order.orderNumber}
-        </p>
-        <p className="text-sm text-primary font-bold">{formatCurrency(order.grandTotal)}</p>
-        {!compact && <p className="text-xs text-gray-400">{formatDate(order.createdAt)}</p>}
+      <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center md:justify-end">
+        {!compact && <RateOrderButton order={order} />}
+        {!compact && (
+          <Link href={`/track/${order.orderNumber}`} className="w-full md:w-auto">
+            <Button size="sm" variant="outline" className="w-full md:w-auto">
+              Track
+            </Button>
+          </Link>
+        )}
+        <Button
+          size="sm"
+          className="w-full gap-1 bg-primary md:w-auto md:shrink-0"
+          disabled={reordering || !order.items.length}
+          onClick={() => void reorderAll()}
+        >
+          <RotateCcw className="h-3 w-3" /> {reordering ? 'Adding…' : 'Reorder'}
+        </Button>
       </div>
-      <Badge variant={statusColor as 'success' | 'destructive' | 'secondary'}>
-        {order.status.replace('_', ' ')}
-      </Badge>
-      {!compact && <RateOrderButton order={order} />}
-      {!compact && (
-        <Link href={`/track/${order.orderNumber}`}>
-          <Button size="sm" variant="outline" className="shrink-0">
-            Track
-          </Button>
-        </Link>
-      )}
-      <Button
-        size="sm"
-        className="shrink-0 bg-primary gap-1"
-        disabled={reordering || !order.items.length}
-        onClick={() => void reorderAll()}
-      >
-        <RotateCcw className="w-3 h-3" /> {reordering ? 'Adding…' : 'Reorder'}
-      </Button>
     </div>
   );
 }
@@ -246,7 +259,7 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
 function FavoriteMiniCard({ product }: { product: ProductDto }) {
   const addItem = useCartStore((s) => s.addItem);
   return (
-    <div className="rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm card-lift">
+    <div className="min-w-0 rounded-xl overflow-hidden bg-white border border-gray-100 shadow-sm card-lift">
       <div className="relative h-24">
         <Image
           src={getProductImage(product)}
@@ -284,7 +297,7 @@ export function OrdersPanel({ orders }: { orders: OrderDto[] }) {
   return (
     <div className="space-y-3">
       {orders.map((order) => (
-        <Card key={order.id} className="rounded-2xl shadow-md border-0 card-lift">
+        <Card key={order.id} className="min-w-0 w-full rounded-2xl shadow-md border-0 card-lift">
           <CardContent className="p-4">
             <OrderRow order={order} />
           </CardContent>
@@ -336,8 +349,8 @@ export function InvoicesPanel() {
     <div className="space-y-3">
       {invoices.map((inv) => (
         <Card key={inv.id} className="rounded-2xl shadow-md border-0">
-          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 min-w-0">
+            <div className="min-w-0">
               <p className="font-bold text-[#14532D]">{inv.invoiceNumber}</p>
               <p className="text-sm text-gray-500">{formatDate(inv.invoiceDate)}</p>
               <p className="text-xs mt-1">{INVOICE_STATUS_LABELS[inv.status]}</p>
@@ -696,7 +709,7 @@ export function DashboardHeader({ userName }: { userName?: string | null }) {
   return (
     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
       <p className="text-secondary font-semibold text-sm mb-1">Welcome Back 👋</p>
-      <h1 className="text-2xl md:text-3xl font-bold text-[#14532D]">
+      <h1 className="break-words text-2xl md:text-3xl font-bold text-[#14532D]">
         {getHeaderDisplayName(userName) || 'Guest'}
       </h1>
       <p className="text-gray-500 mt-1">Enjoy your favourite South Indian meals.</p>
@@ -723,7 +736,7 @@ export function LoyaltyPanel() {
   const cfg = data.config;
   return (
     <div className="space-y-6">
-      <Card className="rounded-2xl border-0 bg-gradient-to-br from-[#14532D] to-amber-800 text-white">
+      <Card className="min-w-0 overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-[#14532D] to-amber-800 text-white">
         <CardContent className="p-6">
           <p className="text-sm text-white/80">
             {a.coinSymbol} {a.coinName}
@@ -733,14 +746,14 @@ export function LoyaltyPanel() {
           <p className="text-white/80 text-sm mt-4">Keep ordering & earn more rewards!</p>
         </CardContent>
       </Card>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-4">
         {[
           { label: 'Available', value: a.available },
           { label: 'Pending', value: a.pending },
           { label: 'Total Earned', value: a.totalEarned },
           { label: 'Redeemed', value: a.totalRedeemed },
         ].map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className="min-w-0">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-amber-700">{s.value}</p>
               <p className="text-xs text-muted-foreground">{s.label}</p>

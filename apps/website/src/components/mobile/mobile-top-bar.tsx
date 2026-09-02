@@ -23,16 +23,16 @@ export function MobileTopBar({ embedded = false }: { embedded?: boolean }) {
     <header
       className={`lg:hidden ${embedded ? 'relative' : 'fixed top-0 left-0 right-0'} z-50 h-14 border-b border-[#0B542F]/10 bg-[#FFF8E8]/95 text-[#18352A] shadow-sm backdrop-blur-md`}
     >
-      <div className="flex h-14 items-center justify-between px-3">
+      <div className="flex h-14 min-w-0 items-center justify-between gap-2 px-3">
         <button
           type="button"
           onClick={() => router.push('/')}
-          className="inline-flex rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A000]"
+          className="inline-flex min-w-0 flex-1 overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5A000]"
           aria-label={`${BRAND.name} home`}
         >
-          <SiteLogoMark size="sm" showName />
+          <SiteLogoMark size="sm" showName className="max-w-full" />
         </button>
-        <div className="flex items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-0.5">
           <a
             href={ANDROID_APP_URL}
             target="_blank"

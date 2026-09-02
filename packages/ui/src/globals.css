@@ -32,9 +32,19 @@
   * {
     @apply border-border;
   }
+  html {
+    width: 100%;
+    max-width: 100%;
+  }
   body {
     @apply bg-[#FFF8E8] text-[#1F2937];
     font-family: var(--font-inter), var(--font-poppins), system-ui, sans-serif;
+    width: 100%;
+    max-width: 100%;
+  }
+  img,
+  video {
+    max-width: 100%;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-poppins), system-ui, sans-serif;

@@ -45,7 +45,7 @@ function AnimatedDigits({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center gap-1.5 min-w-0">
       <div
-        className="flex items-center gap-0.5 sm:gap-1 font-mono tracking-wider"
+        className="flex max-w-full flex-wrap items-center justify-center gap-0.5 font-mono tracking-wider sm:gap-1"
         aria-label={`${label}: ${formatCount(display)}`}
       >
         {digits.map((ch, i) =>
@@ -176,7 +176,7 @@ export function LiveVisitorCounter() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center sm:justify-end gap-5 sm:gap-8">
+        <div className="flex min-w-0 w-full flex-wrap items-center justify-center gap-3 sm:justify-end sm:gap-8">
           <AnimatedDigits value={stats.online} label="Online now" />
           <div className="h-10 w-px bg-gradient-to-b from-transparent via-white/25 to-transparent" />
           <AnimatedDigits value={stats.total} label="Total visits" />

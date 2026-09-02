@@ -127,7 +127,7 @@ export function MenuPageClient() {
               <Select
                 value={foodType}
                 onChange={(e) => setFoodType(e.target.value)}
-                className="bg-white rounded-xl h-11 min-w-[140px]"
+                className="bg-white rounded-xl h-11 w-full lg:w-auto lg:min-w-[140px]"
               >
                 <option value="">All Types</option>
                 <option value={FoodType.VEG}>Veg</option>

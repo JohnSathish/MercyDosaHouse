@@ -21,7 +21,7 @@ const HERO_FOOD_IMAGE = '/images/hero-dosa-biryani.jpg';
 
 function HeroFoodComposition() {
   return (
-    <div className="relative mx-auto w-full max-w-[640px]">
+    <div className="relative mx-auto w-full max-w-[640px] overflow-hidden">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.75rem] sm:aspect-[5/4] lg:min-h-[460px] lg:h-[500px] lg:aspect-auto">
         <Image
           src={HERO_FOOD_IMAGE}
@@ -58,7 +58,7 @@ export function HeroSection({ products: _products = [] }: { products?: ProductDt
             </p>
             <h1
               aria-label={title}
-              className="font-[family-name:var(--font-poppins)] text-5xl font-black leading-[0.92] tracking-tight text-[#0B542F] sm:text-6xl lg:text-[4.5rem]"
+              className="font-[family-name:var(--font-poppins)] text-5xl font-black leading-[0.92] tracking-tight text-[#0B542F] break-words sm:text-6xl lg:text-[4.5rem]"
             >
               <span className="block text-[#0B542F]">{first}</span>
               {second ? <span className="block text-[#C62828]">{second}</span> : null}

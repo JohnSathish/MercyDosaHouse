@@ -184,7 +184,7 @@ function DashboardInner() {
 
   return (
     <>
-      <div className="flex gap-8 pb-24 lg:pb-12">
+      <div className="flex w-full min-w-0 flex-col gap-6 pb-24 lg:flex-row lg:gap-8 lg:pb-12">
         <DashboardSidebar
           user={user as UserProfile | null}
           active={section}

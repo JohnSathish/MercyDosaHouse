@@ -61,7 +61,7 @@ export function SiteShell({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF8E8]">
+    <div className="min-h-screen flex w-full min-w-0 max-w-full flex-col bg-[#FFF8E8]">
       <PwaRegister />
       <DeliveryPopup />
       <PromotionalPopup />
@@ -81,7 +81,7 @@ export function SiteShell({
       <CartSheet />
 
       <main
-        className={`flex-1 ${mainOffset} ${campaignLanding ? 'pb-0' : isHome ? 'pb-32 lg:pb-0' : 'pb-16 lg:pb-0'} mobile-main`}
+        className={`flex-1 min-w-0 w-full max-w-full ${mainOffset} ${campaignLanding ? 'pb-0' : isHome ? 'pb-32 lg:pb-0' : 'pb-16 lg:pb-0'} mobile-main`}
       >
         {showInlineAppPromo ? (
           <div className="container mx-auto px-4 pt-2">

@@ -28,7 +28,7 @@ export function SiteLogoMark({ size = 'md', showName = false, className = '' }: 
   const { img, text } = sizes[size];
 
   return (
-    <span className={`inline-flex items-center gap-2.5 group ${className}`}>
+    <span className={`inline-flex min-w-0 max-w-full items-center gap-2.5 group ${className}`}>
       <Image
         src={LOGO_SRC}
         alt={`${BRAND.name} logo`}
@@ -39,7 +39,7 @@ export function SiteLogoMark({ size = 'md', showName = false, className = '' }: 
       />
       {showName && (
         <span
-          className={`font-bold tracking-tight group-hover:opacity-90 transition-opacity ${text}`}
+          className={`min-w-0 truncate font-bold tracking-tight group-hover:opacity-90 transition-opacity ${text}`}
         >
           {BRAND.name}
         </span>
