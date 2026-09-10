@@ -13,7 +13,7 @@ export const GALLERY_ITEMS: GalleryItem[] = [
   },
   {
     src: '/images/idli-4-pieces.png',
-    title: 'Soft Idli',
+    title: 'Soft Idly',
     span: 'md:col-span-1 md:row-span-1',
   },
   {
@@ -62,7 +62,7 @@ export const GALLERY_ITEMS: GalleryItem[] = [
 export const GALLERY_PREVIEW_ITEMS: GalleryItem[] = [
   {
     src: '/images/idli-4-pieces.png',
-    title: 'Soft Idli',
+    title: 'Soft Idly',
     span: 'col-span-1 row-span-1',
   },
   {

@@ -2,6 +2,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/stores/cart-store';
+import { hapticTap } from '@/lib/haptics';
 import { useThemeColors } from '@/providers/config-context';
 import { WEBSITE_URL } from '@/lib/constants';
 import { FavoriteButton } from '@/components/favorite-button';
@@ -74,15 +75,16 @@ export function FoodCard({
             </Text>
             <Pressable
               style={[styles.addBtn, { borderColor: colors.primary }]}
-              onPress={() =>
+              onPress={() => {
+                hapticTap();
                 addItem({
                   productId: product.id,
                   name: product.name,
                   price: product.price,
                   packingCharge: product.packingCharge ?? 20,
                   imageUrl: product.imageUrl,
-                })
-              }
+                });
+              }}
             >
               <Text style={[styles.addText, { color: colors.primary }]}>ADD</Text>
             </Pressable>
@@ -137,15 +139,16 @@ export function FoodCard({
           </Text>
           <Pressable
             style={[styles.addBtn, { borderColor: colors.primary }]}
-            onPress={() =>
+            onPress={() => {
+              hapticTap();
               addItem({
                 productId: product.id,
                 name: product.name,
                 price: product.price,
                 packingCharge: product.packingCharge ?? 20,
                 imageUrl: product.imageUrl,
-              })
-            }
+              });
+            }}
           >
             <Text style={[styles.addText, { color: colors.primary }]}>ADD</Text>
           </Pressable>

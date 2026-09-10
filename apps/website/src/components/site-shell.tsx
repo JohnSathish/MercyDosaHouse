@@ -16,6 +16,7 @@ import { PromotionalPopup } from '@/components/marketing/promotional-popup';
 import { AppPromoPopup } from '@/components/marketing/app-promo-popup';
 import { AppPromoBanner } from '@/components/marketing/app-promo-banner';
 import { RestaurantClosedBanner } from '@/components/restaurant/restaurant-closed-banner';
+import { OfflineBanner } from '@/components/offline-banner';
 
 interface SiteShellProps {
   children: React.ReactNode;
@@ -70,6 +71,7 @@ export function SiteShell({
       {/* Fixed top stack: announcement + nav — always visible, never overlapped */}
       <div className="fixed top-0 left-0 right-0 z-50">
         <RestaurantClosedBanner />
+        <OfflineBanner />
         <AnnouncementBar />
         <div className="hidden lg:block">
           <SiteHeader embedded />

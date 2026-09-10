@@ -5,7 +5,13 @@ const TRACK_TOKEN_PREFIX = 'mdh_track_token:';
 
 export function saveLastOrder(order: OrderDto) {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify(order));
+  const payload = JSON.stringify(order);
+  sessionStorage.setItem(LAST_ORDER_KEY, payload);
+  try {
+    localStorage.setItem(LAST_ORDER_KEY, payload);
+  } catch {
+    /* quota / private mode */
+  }
   if (order.trackToken && order.orderNumber) {
     sessionStorage.setItem(`${TRACK_TOKEN_PREFIX}${order.orderNumber}`, order.trackToken);
   }
@@ -13,7 +19,7 @@ export function saveLastOrder(order: OrderDto) {
 
 export function loadLastOrder(): OrderDto | null {
   if (typeof window === 'undefined') return null;
-  const raw = sessionStorage.getItem(LAST_ORDER_KEY);
+  const raw = sessionStorage.getItem(LAST_ORDER_KEY) ?? localStorage.getItem(LAST_ORDER_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as OrderDto;

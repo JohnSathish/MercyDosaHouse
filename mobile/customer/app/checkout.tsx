@@ -32,7 +32,8 @@ import {
   isChickenDumBiryaniProduct,
 } from '@mdh/utils';
 import { api } from '@/lib/api';
-import { getStoredUser, isAuthenticated, saveTrackToken } from '@/lib/auth-storage';
+import { saveTrackToken } from '@/lib/auth-storage';
+import { useAuth } from '@/providers/auth-provider';
 import { useCartStore } from '@/stores/cart-store';
 import { useCheckoutStore } from '@/stores/checkout-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
@@ -92,12 +93,13 @@ function CheckoutScreenBody() {
   const scheduleEnabled = useFeatureFlag('scheduled_orders');
   const storeOpen = config.store.storeOpen !== false;
 
-  const [authed, setAuthed] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, loading: authLoading } = useAuth();
+  const authed = Boolean(user);
 
   const pricing = useOrderPricing(couponDiscount);
   const hasChickenBiryani = items.some((item) => isChickenDumBiryaniProduct({ name: item.name }));
@@ -136,16 +138,14 @@ function CheckoutScreenBody() {
   ]);
 
   useEffect(() => {
-    void isAuthenticated().then((ok) => {
-      setAuthed(ok);
-      if (!ok) {
-        router.replace({
-          pathname: '/(auth)/login',
-          params: { returnTo: '/checkout' },
-        });
-      }
-    });
-  }, []);
+    if (authLoading) return;
+    if (!authed) {
+      router.replace({
+        pathname: '/(auth)/login',
+        params: { returnTo: '/checkout' },
+      });
+    }
+  }, [authLoading, authed]);
 
   useEffect(() => {
     if (!items.length) router.replace('/(tabs)/cart');
@@ -307,7 +307,7 @@ function CheckoutScreenBody() {
     setError(null);
 
     try {
-      const user = await getStoredUser();
+      const signedInUser = user;
       let payload: Record<string, unknown>;
       const couponCode = couponsEnabled ? (session.couponCode ?? undefined) : undefined;
 
@@ -326,8 +326,8 @@ function CheckoutScreenBody() {
       } else if (session.guestAddressDraft?.line1) {
         const g = session.guestAddressDraft;
         payload = {
-          customerName: g.contactName || user?.name || 'Guest',
-          customerPhone: g.mobileNumber || user?.phone || '',
+          customerName: g.contactName || signedInUser?.name || 'Guest',
+          customerPhone: g.mobileNumber || signedInUser?.phone || '',
           address: g,
           paymentMethod: session.paymentMethod,
           couponCode,

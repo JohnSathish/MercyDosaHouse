@@ -6,5 +6,5 @@ export { FoodCard, type FoodCardProduct } from './food-card';
 export { AppHeader } from './app-header';
 export { StoreStatusCard } from './store-status-card';
 export { FloatingCartBar } from './floating-cart-bar';
-export { SearchBar } from './search-bar';
+export { EmptyState } from './empty-state';
 export { MarkdownNotice } from './markdown-notice';

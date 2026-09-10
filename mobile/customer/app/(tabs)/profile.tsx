@@ -1,12 +1,19 @@
-import { type Href, router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type Href, router } from 'expo-router';
+import {
+  Alert,
+  Linking,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { logout } from '@/lib/auth-api';
-import { getStoredUser } from '@/lib/auth-storage';
-import type { AuthUser, LoyaltyMeDto } from '@mdh/types';
+import type { LoyaltyMeDto } from '@mdh/types';
 import { SupportLinks } from '@/components/support-links';
 import { api } from '@/lib/api';
+import { useAuth } from '@/providers/auth-provider';
 import { useAppConfig, useFeatureFlag, useThemeColors } from '@/providers/config-context';
 
 function MenuLink({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
@@ -25,22 +32,24 @@ export default function ProfileScreen() {
   const loyaltyEnabled = useFeatureFlag('loyalty');
   const wishlistEnabled = useFeatureFlag('wishlist');
   const notificationsEnabled = useFeatureFlag('push_notifications');
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const { user, logout, sessionMessage } = useAuth();
   const { data: loyalty } = useQuery({
     queryKey: ['loyalty-me'],
     queryFn: () => api.get<LoyaltyMeDto>('/loyalty/me'),
     enabled: Boolean(user),
   });
 
-  useFocusEffect(
-    useCallback(() => {
-      void getStoredUser().then(setUser);
-    }, []),
-  );
-
-  async function handleLogout() {
-    await logout();
-    router.replace('/(auth)/login');
+  function handleLogout() {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          void logout().then(() => router.replace('/(auth)/login'));
+        },
+      },
+    ]);
   }
 
   return (
@@ -49,6 +58,12 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.primary }]}>Profile</Text>
         </View>
+
+        {sessionMessage ? (
+          <View style={styles.sessionBanner}>
+            <Text style={styles.sessionBannerText}>{sessionMessage}</Text>
+          </View>
+        ) : null}
 
         {config.business.fssaiEnabled !== false && config.business.fssaiRegistrationNumber ? (
           <View style={styles.fssaiCard}>
@@ -162,6 +177,15 @@ const styles = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 32 },
   header: { marginBottom: 12 },
   title: { fontSize: 22, fontWeight: '800' },
+  sessionBanner: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  sessionBannerText: { color: '#92400E', fontSize: 13, fontWeight: '600' },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,

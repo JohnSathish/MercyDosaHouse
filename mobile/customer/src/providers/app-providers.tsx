@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AuthProvider } from '@/providers/auth-provider';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -23,7 +24,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        <QueryClientProvider client={client}>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryClientProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );

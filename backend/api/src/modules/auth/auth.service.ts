@@ -41,6 +41,19 @@ interface CustomerEmailOtpSession {
   resends: number;
 }
 
+type AuthPayload = {
+  tokens: { accessToken: string; refreshToken: string };
+  user: {
+    id: string;
+    email: string | null;
+    phone: string | null;
+    name: string | null;
+    roles: string[];
+    permissions: string[];
+    isSuperAdmin: boolean;
+  };
+};
+
 @Injectable()
 export class AuthService {
   private redis: Redis | null = null;
@@ -902,7 +915,67 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
+  private refreshInflight = new Map<string, Promise<AuthPayload>>();
+  private recentRefreshGrace = new Map<string, { payload: AuthPayload; expiresAt: number }>();
+
+  private refreshGraceKey(token: string) {
+    return `refresh-grace:${crypto.createHash('sha256').update(token).digest('hex')}`;
+  }
+
+  private async readRefreshGrace(refreshToken: string): Promise<AuthPayload | null> {
+    const local = this.recentRefreshGrace.get(refreshToken);
+    if (local) {
+      if (local.expiresAt > Date.now()) return local.payload;
+      this.recentRefreshGrace.delete(refreshToken);
+    }
+    if (this.redis) {
+      try {
+        const raw = await this.redis.get(this.refreshGraceKey(refreshToken));
+        if (raw) return JSON.parse(raw) as AuthPayload;
+      } catch {
+        /* ignore redis grace lookup */
+      }
+    }
+    return null;
+  }
+
+  private async saveRefreshGrace(refreshToken: string, payload: AuthPayload) {
+    this.recentRefreshGrace.set(refreshToken, { payload, expiresAt: Date.now() + 30_000 });
+    if (this.recentRefreshGrace.size > 500) {
+      const now = Date.now();
+      for (const [key, value] of this.recentRefreshGrace) {
+        if (value.expiresAt <= now) this.recentRefreshGrace.delete(key);
+      }
+    }
+    if (!this.redis) return;
+    try {
+      await this.redis.setex(this.refreshGraceKey(refreshToken), 30, JSON.stringify(payload));
+    } catch {
+      /* same-instance inflight lock still covers refresh races */
+    }
+  }
+
   async refresh(refreshToken: string) {
+    const token = refreshToken?.trim();
+    if (!token) throw new UnauthorizedException('Invalid refresh token');
+
+    const reused = await this.readRefreshGrace(token);
+    if (reused) return reused;
+
+    const inflight = this.refreshInflight.get(token);
+    if (inflight) return inflight;
+
+    const job = this.rotateRefreshToken(token).finally(() => {
+      this.refreshInflight.delete(token);
+    });
+    this.refreshInflight.set(token, job);
+    return job;
+  }
+
+  private async rotateRefreshToken(refreshToken: string): Promise<AuthPayload> {
+    const reused = await this.readRefreshGrace(refreshToken);
+    if (reused) return reused;
+
     const stored = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: {
@@ -920,8 +993,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    if (!stored.user.isActive || stored.user.isBlocked) {
+      await this.prisma.refreshToken.deleteMany({ where: { userId: stored.user.id } });
+      throw new UnauthorizedException('Account is blocked or not found.');
+    }
+
     await this.prisma.refreshToken.delete({ where: { id: stored.id } });
-    return this.buildAuthResponse(stored.user);
+    const payload = await this.buildAuthResponse(stored.user);
+    await this.saveRefreshGrace(refreshToken, payload);
+    return payload;
   }
 
   async logout(refreshToken: string) {

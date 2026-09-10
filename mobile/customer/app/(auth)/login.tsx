@@ -222,6 +222,7 @@ function LoginScreenBody() {
     setError(null);
     try {
       await verifyEmailOtp({ sessionId, otp });
+      setOtp('');
       router.replace(returnTo as '/(tabs)');
     } catch (err) {
       setError(friendlyAuthError(err, "That code doesn't match. Please try again."));

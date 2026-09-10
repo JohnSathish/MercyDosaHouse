@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Menu } from 'lucide-react';
@@ -51,6 +51,7 @@ const SECTION_TITLES: Record<DashboardSection, string> = {
 
 function DashboardInner() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const tab = (searchParams.get('tab') as DashboardSection) || 'dashboard';
@@ -88,9 +89,10 @@ function DashboardInner() {
     (s: DashboardSection) => {
       setSection(s);
       setDrawerOpen(false);
-      router.push(s === 'dashboard' ? '/dashboard' : `/dashboard?tab=${s}`, { scroll: false });
+      const base = pathname.startsWith('/profile') ? '/profile' : '/dashboard';
+      router.push(s === 'dashboard' ? base : `${base}?tab=${s}`, { scroll: false });
     },
-    [router],
+    [pathname, router],
   );
 
   const authed = mounted && isAuthenticated();

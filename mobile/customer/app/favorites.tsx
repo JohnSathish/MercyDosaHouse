@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { ProductRow } from '@/components/product-row';
 import { api } from '@/lib/api';
+import { EmptyState } from '@/ui/empty-state';
 import { useThemeColors } from '@/providers/config-context';
+import { useAuth } from '@/providers/auth-provider';
 
 interface Product {
   id: string;
@@ -23,6 +25,8 @@ interface Product {
 export default function FavoritesScreen() {
   const colors = useThemeColors();
 
+  const { user } = useAuth();
+
   const {
     data: favorites = [],
     isLoading,
@@ -31,6 +35,7 @@ export default function FavoritesScreen() {
     queryKey: ['favorites'],
     queryFn: () => api.get<Product[]>('/users/me/favorites'),
     retry: false,
+    enabled: Boolean(user),
   });
 
   return (
@@ -44,15 +49,29 @@ export default function FavoritesScreen() {
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
-      ) : error ? (
-        <Text style={styles.empty}>Sign in to save favorites.</Text>
+      ) : !user ? (
+        <EmptyState
+          emoji="❤️"
+          title="Sign in to save favorites"
+          body="Tap the heart on any dish and find it here later."
+          actionLabel="Login"
+          onAction={() =>
+            router.push({ pathname: '/(auth)/login', params: { returnTo: '/favorites' } })
+          }
+        />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {favorites.map((p) => (
             <ProductRow key={p.id} product={p} />
           ))}
           {!favorites.length ? (
-            <Text style={styles.empty}>No favorites yet. Tap ❤️ on any dish!</Text>
+            <EmptyState
+              emoji="🤍"
+              title="No favorites yet"
+              body="Tap the heart on any dish from the menu."
+              actionLabel="Browse menu"
+              onAction={() => router.push('/(tabs)/menu')}
+            />
           ) : null}
         </ScrollView>
       )}

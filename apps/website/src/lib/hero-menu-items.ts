@@ -114,10 +114,10 @@ export const HERO_MENU_ITEMS: HeroMenuItem[] = [
   {
     id: 'idli-4-pieces',
     slug: 'idli-4-pieces',
-    name: 'Idli (4)',
+    name: 'Idly (5)',
     image: '/images/idli-4-pieces.png',
     price: 70,
-    description: 'Soft, fluffy steamed rice cakes with chutney.',
+    description: 'Soft, fluffy steamed rice cakes — 5 pieces with chutney.',
     rating: 4.8,
     category: 'Breakfast',
     emoji: '🥥',

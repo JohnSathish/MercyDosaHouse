@@ -1,4 +1,4 @@
-import { getAccessToken, refreshTokens, clearAuth } from '@mdh/auth-client';
+import { getAccessToken, getRefreshToken, refreshTokens, clearAuth } from '@mdh/auth-client';
 import type { PaginatedResult } from '@mdh/types';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -35,9 +35,13 @@ export class MdhApiClient {
     }
 
     if (res.status === 401 && !retried) {
-      const refreshed = await refreshTokens(this.baseUrl);
-      if (refreshed) return this.request<T>(path, options, true);
-      clearAuth();
+      if (token) {
+        const refreshed = await refreshTokens(this.baseUrl);
+        if (refreshed) return this.request<T>(path, options, true);
+        if (!getRefreshToken()) {
+          clearAuth();
+        }
+      }
     }
 
     if (!res.ok) {
@@ -109,9 +113,13 @@ export class MdhApiClient {
       timeoutMs,
     );
     if (res.status === 401 && !retried) {
-      const refreshed = await refreshTokens(this.baseUrl);
-      if (refreshed) return this.requestBlob(path, options, true, timeoutMs);
-      clearAuth();
+      if (token) {
+        const refreshed = await refreshTokens(this.baseUrl);
+        if (refreshed) return this.requestBlob(path, options, true, timeoutMs);
+        if (!getRefreshToken()) {
+          clearAuth();
+        }
+      }
     }
     if (!res.ok) {
       throw new Error('Download failed');

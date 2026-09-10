@@ -12,13 +12,16 @@ import {
 import type { LoyaltyMeDto } from '@mdh/types';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
+import { useAuth } from '@/providers/auth-provider';
 
 export default function LoyaltyScreen() {
   const colors = useThemeColors();
+  const { user } = useAuth();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['loyalty-me'],
     queryFn: () => api.get<LoyaltyMeDto>('/loyalty/me'),
     retry: false,
+    enabled: Boolean(user),
   });
 
   const a = data?.account;

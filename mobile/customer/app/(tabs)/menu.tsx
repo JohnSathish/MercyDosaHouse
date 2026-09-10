@@ -10,7 +10,8 @@ import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
 import { useCartStore } from '@/stores/cart-store';
 import { useOrderPricing } from '@/hooks/use-order-pricing';
-import { COLORS, RADIUS } from '@/ui/theme';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { EmptyState } from '@/ui/empty-state';
 
 interface Category {
   id: string;
@@ -44,6 +45,7 @@ export default function MenuScreen() {
   const subtotal = useCartStore((s) => s.subtotal());
   const pricing = useOrderPricing();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [categoryId, setCategoryId] = useState<string | undefined>(
     typeof params.categoryId === 'string' ? params.categoryId : undefined,
   );
@@ -65,11 +67,11 @@ export default function MenuScreen() {
   );
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['products', categoryId, search, foodFilter],
+    queryKey: ['products', categoryId, debouncedSearch, foodFilter],
     queryFn: () => {
       const q = new URLSearchParams({ available: 'true', limit: '50' });
       if (categoryId) q.set('categoryId', categoryId);
-      if (search.trim()) q.set('search', search.trim());
+      if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
       if (foodFilter !== 'ALL') q.set('foodType', foodFilter);
       return api.list<FoodCardProduct>(`/products?${q.toString()}`);
     },
@@ -151,7 +153,17 @@ export default function MenuScreen() {
                 <Text style={styles.empty}>Couldn’t load the menu. Tap to retry.</Text>
               </Pressable>
             ) : !products.length ? (
-              <Text style={styles.empty}>No items found.</Text>
+              <EmptyState
+                emoji="🍽️"
+                title="No dishes found"
+                body="Try another search, category, or veg filter."
+                actionLabel="Clear filters"
+                onAction={() => {
+                  setSearch('');
+                  setCategoryId(undefined);
+                  setFoodFilter('ALL');
+                }}
+              />
             ) : null}
           </>
         )}

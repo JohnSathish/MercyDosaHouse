@@ -5,15 +5,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReviewDto } from '@mdh/types';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
+import { useAuth } from '@/providers/auth-provider';
 import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
 
 export default function MyFeedbackScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const { data: reviews = [], isError } = useQuery({
     queryKey: ['my-reviews'],
     queryFn: () => api.get<ReviewDto[]>('/reviews/mine'),
     retry: false,
+    enabled: Boolean(user),
   });
 
   return (

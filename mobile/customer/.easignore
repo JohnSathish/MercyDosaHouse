@@ -32,3 +32,4 @@
 **/.env
 **/.env.*
 !**/.env.example
+!google-services.json

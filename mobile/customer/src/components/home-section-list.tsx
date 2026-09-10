@@ -1,8 +1,8 @@
-import type { BannerDto, MobileHomeSectionDto, CheckoutProfileDto } from '@mdh/types';
+import type { BannerDto, MobileHomeSectionDto, OrderDto } from '@mdh/types';
 import { allocateHomeCatalog, formatCurrency } from '@mdh/utils';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -16,8 +16,11 @@ import {
   View,
 } from 'react-native';
 import { api } from '@/lib/api';
-import { isAuthenticated } from '@/lib/auth-storage';
 import { WEBSITE_URL } from '@/lib/constants';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { reorderOrderToCart } from '@/lib/reorder';
+import { useRecentlyViewedStore } from '@/stores/recently-viewed-store';
+import { useAuth } from '@/providers/auth-provider';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import { AnnouncementBar, HomeDeliverySection } from './announcement-bar';
 import { AppExclusiveBadge } from './app-exclusive-badge';
@@ -103,15 +106,16 @@ function FssaiTrustCard() {
 function InlineHomeSearch() {
   const colors = useThemeColors();
   const [query, setQuery] = useState('');
+  const debounced = useDebouncedValue(query, 300);
 
   const { data, isFetching } = useQuery({
-    queryKey: ['home-search', query],
+    queryKey: ['home-search', debounced],
     queryFn: () => {
       const params = new URLSearchParams({ available: 'true', limit: '12' });
-      params.set('search', query.trim());
+      params.set('search', debounced.trim());
       return api.list<FoodCardProduct>(`/products?${params.toString()}`);
     },
-    enabled: query.trim().length >= 1,
+    enabled: debounced.trim().length >= 1,
   });
 
   const products = data?.data ?? [];
@@ -510,33 +514,70 @@ function MenuPreviewSection({
 
 function RecentlyOrderedSection() {
   const colors = useThemeColors();
-  const [authed, setAuthed] = useState(false);
+  const { user } = useAuth();
+  const authed = Boolean(user);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    void isAuthenticated().then(setAuthed);
-  }, []);
-
-  const { data: profile } = useQuery({
-    queryKey: ['checkout-profile'],
-    queryFn: () => api.get<CheckoutProfileDto>('/users/me/checkout-profile'),
+  const { data: orders = [] } = useQuery({
+    queryKey: ['orders'],
+    queryFn: () => api.get<OrderDto[]>('/users/me/orders'),
     enabled: authed,
   });
 
-  if (!authed || !profile?.recentOrders?.length) return null;
+  const recent = orders.slice(0, 3);
+  if (!authed || !recent.length) return null;
 
   return (
     <View style={styles.section}>
       <SectionHeader title="Recently Ordered" />
-      {profile.recentOrders.slice(0, 3).map((o) => (
-        <Pressable
-          key={o.id}
-          style={styles.recentCard}
-          onPress={() => router.push(`/track/${encodeURIComponent(o.orderNumber)}`)}
-        >
-          <Text style={[styles.recentNum, { color: colors.primary }]}>#{o.orderNumber}</Text>
-          <Text style={styles.recentMeta}>{o.deliveryAddress}</Text>
-          <Text style={styles.recentTotal}>₹{o.grandTotal}</Text>
-        </Pressable>
+      {recent.map((o) => (
+        <View key={o.id} style={styles.recentCard}>
+          <Pressable onPress={() => router.push(`/track/${encodeURIComponent(o.orderNumber)}`)}>
+            <Text style={[styles.recentNum, { color: colors.primary }]}>#{o.orderNumber}</Text>
+            <Text style={styles.recentMeta} numberOfLines={1}>
+              {o.items.map((i) => i.productName).join(', ')}
+            </Text>
+            <Text style={styles.recentTotal}>₹{o.grandTotal}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.orderAgainBtn}
+            disabled={busyId === o.id}
+            onPress={async () => {
+              setBusyId(o.id);
+              try {
+                const { added } = await reorderOrderToCart(o);
+                if (added > 0) router.push('/(tabs)/cart');
+              } finally {
+                setBusyId(null);
+              }
+            }}
+          >
+            <Text style={styles.orderAgainText}>{busyId === o.id ? 'Adding…' : 'Order again'}</Text>
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function RecentlyViewedSection() {
+  const items = useRecentlyViewedStore((s) => s.items);
+  if (!items.length) return null;
+
+  return (
+    <View style={styles.section}>
+      <SectionHeader title="Recently viewed" />
+      {items.slice(0, 5).map((p) => (
+        <FoodCard
+          key={p.id}
+          product={{
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            imageUrl: p.imageUrl,
+            packingCharge: p.packingCharge,
+          }}
+        />
       ))}
     </View>
   );
@@ -596,8 +637,6 @@ export function HomeSectionList() {
     enabledKeys.has('festival_specials') ||
     enabledKeys.has('todays_offers') ||
     !sections.length;
-  const showRecently = enabledKeys.has('recently_ordered');
-
   const heroSection = sections.find((s) => s.sectionKey === 'hero_banner');
   const heroSlides = useMemo(
     () => buildHeroSlides(heroSection, config.banners ?? [], config),
@@ -617,6 +656,7 @@ export function HomeSectionList() {
       <FssaiTrustCard />
 
       <HeroCarousel slides={heroSlides} />
+      <InlineHomeSearch />
 
       {!sections.length || hasCategories ? <CategoriesSection /> : null}
 
@@ -642,7 +682,8 @@ export function HomeSectionList() {
             </View>
           )}
 
-          {showRecently ? <RecentlyOrderedSection /> : null}
+          <RecentlyOrderedSection />
+          <RecentlyViewedSection />
         </>
       )}
 
@@ -781,6 +822,15 @@ const styles = StyleSheet.create({
   recentNum: { fontWeight: '800' },
   recentMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
   recentTotal: { fontWeight: '700', marginTop: 4 },
+  orderAgainBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.secondary,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  orderAgainText: { fontWeight: '800', color: '#1F2937', fontSize: 12 },
   fullMenuCta: {
     marginTop: 4,
     alignItems: 'center',

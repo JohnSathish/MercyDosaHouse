@@ -7,17 +7,20 @@ import type { OrderDto } from '@mdh/types';
 import type { FeedbackConfigDto } from '@mdh/types';
 import { formatCurrency, ORDER_STATUS_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
-import { useCartStore } from '@/stores/cart-store';
+import { reorderOrderToCart } from '@/lib/reorder';
+import { hapticTap } from '@/lib/haptics';
+import { EmptyState } from '@/ui/empty-state';
 import { useThemeColors } from '@/providers/config-context';
+import { useAuth } from '@/providers/auth-provider';
 import { RateOrderSheet } from '@/components/review-sheet';
 import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
 
 export default function OrdersScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const addItem = useCartStore((s) => s.addItem);
   const [reorderMsg, setReorderMsg] = useState<string | null>(null);
   const [rateOrder, setRateOrder] = useState<OrderDto | null>(null);
+  const { user } = useAuth();
 
   const {
     data: orders = [],
@@ -27,6 +30,7 @@ export default function OrdersScreen() {
     queryKey: ['orders'],
     queryFn: () => api.get<OrderDto[]>('/users/me/orders'),
     retry: false,
+    enabled: Boolean(user),
   });
   const { data: feedbackConfig } = useQuery({
     queryKey: ['settings-feedback'],
@@ -35,44 +39,11 @@ export default function OrdersScreen() {
   });
 
   async function reorder(order: OrderDto) {
+    hapticTap();
     setReorderMsg(null);
-    let added = 0;
-    const skipped: string[] = [];
-
-    for (const item of order.items) {
-      try {
-        // Verify product still available
-        const product = await api.get<{
-          id: string;
-          name: string;
-          price: number;
-          isAvailable?: boolean;
-          packingCharge?: number;
-        }>(`/products/${item.productId}`);
-        if (product.isAvailable === false) {
-          skipped.push(item.productName);
-          continue;
-        }
-        addItem(
-          {
-            productId: item.productId,
-            variantId: item.variantId,
-            name: item.variantName ? `${item.productName} (${item.variantName})` : item.productName,
-            price: product.price ?? item.unitPrice,
-            packingCharge: product.packingCharge ?? item.unitPackingCharge,
-          },
-          item.quantity,
-        );
-        added += 1;
-      } catch {
-        skipped.push(item.productName);
-      }
-    }
-
+    const { added, skipped } = await reorderOrderToCart(order);
     if (added > 0) {
-      if (skipped.length) {
-        setReorderMsg(`${skipped.length} item(s) unavailable and were skipped.`);
-      }
+      if (skipped.length) setReorderMsg(`${skipped.length} item(s) unavailable and were skipped.`);
       router.push('/(tabs)/cart');
     } else {
       setReorderMsg('None of the items from this order are available right now.');
@@ -90,21 +61,28 @@ export default function OrdersScreen() {
         </View>
       ) : null}
       <ScrollView contentContainerStyle={styles.content}>
-        {isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} /> : null}
-        {error ? (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.muted}>Sign in to view your order history.</Text>
-            <Pressable
-              onPress={() =>
-                router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/orders' } })
-              }
-            >
-              <Text style={[styles.link, { color: colors.primary }]}>Login</Text>
-            </Pressable>
-          </View>
+        {user && isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
         ) : null}
-        {!isLoading && !error && !orders.length ? (
-          <Text style={styles.muted}>No orders yet. Place your first order!</Text>
+        {!user || error ? (
+          <EmptyState
+            emoji="🔐"
+            title="Sign in to see orders"
+            body="Your order history and live tracking live here after you log in."
+            actionLabel="Login"
+            onAction={() =>
+              router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/orders' } })
+            }
+          />
+        ) : null}
+        {!isLoading && user && !error && !orders.length ? (
+          <EmptyState
+            emoji="🥘"
+            title="No orders yet"
+            body="Your first South Indian meal is a tap away."
+            actionLabel="Browse menu"
+            onAction={() => router.push('/(tabs)/menu')}
+          />
         ) : null}
         {orders.map((order) => (
           <View key={order.id} style={styles.card}>

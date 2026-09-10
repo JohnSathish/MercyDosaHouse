@@ -3,12 +3,15 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useEffect } from 'react';
 import { FiStar, FiClock, FiArrowLeft } from 'react-icons/fi';
 import { Button, Badge } from '@mdh/ui';
 import { formatCurrency, isChickenDumBiryaniProduct, SPICE_LEVEL_LABELS } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { getProductImage, productImageAlt } from '@/lib/product-images';
 import { useCartStore } from '@/lib/cart-store';
+import { recordRecentlyViewed } from '@/lib/recently-viewed';
+import { FavoriteHeart } from '@/components/favorite-heart';
 import { ProductDetailSkeleton } from '@/components/skeletons/product-detail-skeleton';
 import type { ProductDto, ReviewSummaryDto } from '@mdh/types';
 
@@ -25,6 +28,17 @@ export function ProductDetailClient({ slug }: { slug: string }) {
     queryFn: () => api.get<ReviewSummaryDto>(`/reviews/summary?productId=${product!.id}`),
     enabled: Boolean(product?.id),
   });
+
+  useEffect(() => {
+    if (!product) return;
+    recordRecentlyViewed({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      price: product.price,
+      imageUrl: getProductImage(product),
+    });
+  }, [product]);
 
   if (isLoading) return <ProductDetailSkeleton />;
 
@@ -94,7 +108,10 @@ export function ProductDetailClient({ slug }: { slug: string }) {
               <Badge variant="outline">{SPICE_LEVEL_LABELS[product.spiceLevel]}</Badge>
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-bold text-[#14532D] mb-2">{product.name}</h1>
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <h1 className="text-3xl md:text-4xl font-bold text-[#14532D]">{product.name}</h1>
+              <FavoriteHeart productId={product.id} iconClassName="h-6 w-6" />
+            </div>
 
             <div className="flex items-center gap-1 text-secondary mb-4">
               {[1, 2, 3, 4, 5].map((i) => (

@@ -21,7 +21,7 @@ export function MobileBottomNav() {
   useEffect(() => setMounted(true), []);
 
   if (HIDDEN_PATHS.some((p) => pathname.startsWith(p))) return null;
-  if (pathname.startsWith('/profile')) return null;
+  if (pathname.startsWith('/profile') || pathname.startsWith('/dashboard')) return null;
 
   const count = mounted ? cartCount : 0;
 
@@ -29,8 +29,8 @@ export function MobileBottomNav() {
     { href: '/', label: 'Home', icon: Home },
     { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
     { action: 'cart' as const, label: 'Cart', icon: ShoppingCart, badge: count },
-    { href: '/profile?tab=favorites', label: 'Favorites', icon: Heart, match: '/profile' },
-    { href: '/profile', label: 'Profile', icon: User, match: '/profile' },
+    { href: '/dashboard?tab=favorites', label: 'Favorites', icon: Heart, match: '/dashboard' },
+    { href: '/dashboard', label: 'Profile', icon: User, match: '/dashboard' },
   ];
 
   return (
@@ -38,7 +38,7 @@ export function MobileBottomNav() {
       <div className="flex justify-around items-center h-16 px-1">
         {links.map(({ href, label, icon: Icon, badge, action, match }) => {
           const active = match
-            ? pathname.startsWith('/profile') &&
+            ? (pathname.startsWith('/profile') || pathname.startsWith('/dashboard')) &&
               (label === 'Favorites'
                 ? tab === 'favorites'
                 : label === 'Profile'

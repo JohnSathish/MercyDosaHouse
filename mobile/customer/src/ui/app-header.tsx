@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AddressDto } from '@mdh/types';
 import { api } from '@/lib/api';
+import { useAuth } from '@/providers/auth-provider';
 import { useAppConfig, useThemeColors } from '@/providers/config-context';
 import { useCartStore } from '@/stores/cart-store';
 import { useCheckoutStore } from '@/stores/checkout-store';
@@ -26,10 +27,12 @@ export function AppHeader({ locationLabel }: { locationLabel?: string }) {
   const cartCount = useCartStore((s) => s.itemCount());
   const selectedAddressId = useCheckoutStore((s) => s.selectedAddressId);
   const guestDraft = useCheckoutStore((s) => s.guestAddressDraft);
+  const { user } = useAuth();
   const { data: addressesRaw = [] } = useQuery({
     queryKey: ['addresses'],
     queryFn: () => api.get<AddressDto[]>('/users/me/addresses'),
     retry: false,
+    enabled: Boolean(user),
   });
   const addresses = Array.isArray(addressesRaw) ? addressesRaw : [];
   const saved =

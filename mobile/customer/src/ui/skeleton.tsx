@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import { COLORS, RADIUS } from './theme';
 
 export function Skeleton({
@@ -12,7 +13,22 @@ export function Skeleton({
   radius?: number;
   style?: object;
 }) {
-  return <View style={[styles.base, { height, width, borderRadius: radius }, style]} />;
+  const opacity = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.45, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View style={[styles.base, { height, width, borderRadius: radius, opacity }, style]} />
+  );
 }
 
 export function FoodCardSkeleton() {

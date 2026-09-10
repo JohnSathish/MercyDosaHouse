@@ -8,7 +8,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'MDH Admin',
   slug: 'mercy-dosa-house-admin',
-  version: '1.0.8',
+  version: '1.0.9',
   orientation: 'default',
   scheme: 'mercydosa-admin',
   userInterfaceStyle: 'light',
@@ -26,7 +26,7 @@ module.exports = ({ config }) => ({
     },
     package: 'com.mercydosahouse.admin',
     googleServicesFile: './google-services.json',
-    versionCode: 9,
+    versionCode: 10,
     permissions: [
       'INTERNET',
       'ACCESS_NETWORK_STATE',

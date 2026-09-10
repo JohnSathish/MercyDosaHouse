@@ -1,8 +1,9 @@
 import type { PaginatedResult } from '@mdh/types';
 import { API_URL } from './constants';
-import { clearAuth, getAccessToken } from './auth-storage';
-import { refreshTokens } from './auth-api';
+import { getAccessToken, isAccessTokenExpired } from './auth-storage';
+import { refreshSession } from './auth-api';
 import { getAppChannelToken } from './app-channel';
+import { setNetworkOnline } from './network-status';
 
 export class ApiClient {
   private async request<T>(
@@ -11,7 +12,16 @@ export class ApiClient {
     retried = false,
     skipAuth = false,
   ): Promise<T> {
-    const token = skipAuth ? null : await getAccessToken();
+    let token = skipAuth ? null : await getAccessToken();
+    if (token && isAccessTokenExpired(token) && !retried && !skipAuth) {
+      const refreshed = await refreshSession();
+      if (refreshed.status === 'success') {
+        token = refreshed.tokens.accessToken;
+      } else if (refreshed.status === 'invalid') {
+        token = null;
+      }
+    }
+
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string> | undefined),
     };
@@ -33,20 +43,26 @@ export class ApiClient {
     let res: Response;
     try {
       res = await fetch(`${API_URL}${path}`, { ...options, headers });
+      setNetworkOnline(true);
     } catch {
+      setNetworkOnline(false);
       throw new Error('Network error. Check your internet connection and try again.');
     }
 
     if (res.status === 401 && !retried) {
-      if (!skipAuth) {
-        const refreshed = await refreshTokens();
-        if (refreshed) return this.request<T>(path, options, true);
-        const method = (options.method || 'GET').toUpperCase();
-        if (method === 'GET' && token) {
-          return this.request<T>(path, options, true, true);
+      if (token && !skipAuth) {
+        const refreshed = await refreshSession();
+        if (refreshed.status === 'success') {
+          return this.request<T>(path, options, true);
+        }
+        if (refreshed.status === 'unavailable') {
+          throw new Error('Network error. Check your internet connection and try again.');
         }
       }
-      await clearAuth();
+      const method = (options.method || 'GET').toUpperCase();
+      if (method === 'GET' && !skipAuth) {
+        return this.request<T>(path, options, true, true);
+      }
     }
 
     if (!res.ok) {

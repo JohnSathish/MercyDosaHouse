@@ -3,10 +3,10 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiHeart } from 'react-icons/fi';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
 import { getProductImage, productImageAlt } from '@/lib/product-images';
+import { FavoriteHeart } from '@/components/favorite-heart';
 import type { ProductDto } from '@mdh/types';
 
 interface ProductSliderCardProps {
@@ -49,13 +49,11 @@ export function ProductSliderCard({ product, badge, index = 0 }: ProductSliderCa
         <div className="flex items-center justify-between gap-1 mt-2">
           <p className="font-bold text-[#14532D]">{formatCurrency(product.price)}</p>
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 active:scale-95"
-              aria-label="Favorite"
-            >
-              <FiHeart className="w-4 h-4" />
-            </button>
+            <FavoriteHeart
+              productId={product.id}
+              className="flex h-9 w-9 items-center justify-center rounded-xl"
+              iconClassName="w-4 h-4"
+            />
             <button
               type="button"
               onClick={() => addItem(product)}

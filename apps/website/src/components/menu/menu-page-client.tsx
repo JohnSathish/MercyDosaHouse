@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { FiSearch } from 'react-icons/fi';
 import { Input, Select, Button } from '@mdh/ui';
@@ -45,11 +45,14 @@ function categoryLabel(cat: { name: string; slug: string }) {
 }
 
 export function MenuPageClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialCategorySlug = searchParams.get('category') ?? '';
   const showPopular = searchParams.get('popular') === 'true';
+  const initialSearch = searchParams.get('search') ?? '';
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [categorySlug, setCategorySlug] = useState(initialCategorySlug);
   const [foodType, setFoodType] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -62,8 +65,39 @@ export function MenuPageClient() {
   const charges = useOrderCharges(subtotal, packingTotal);
 
   useEffect(() => {
-    searchRef.current?.focus();
-  }, []);
+    const fromUrl = searchParams.get('search') ?? '';
+    setSearch(fromUrl);
+    setDebouncedSearch(fromUrl);
+    setCategorySlug(searchParams.get('category') ?? '');
+  }, [searchParams]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    if (initialSearch) searchRef.current?.focus();
+  }, [initialSearch]);
+
+  const syncMenuUrl = (next: { category?: string; popular?: boolean; search?: string }) => {
+    const params = new URLSearchParams();
+    const category = next.category ?? categorySlug;
+    const popular = next.popular ?? showPopular;
+    const term = next.search ?? debouncedSearch;
+    if (category) params.set('category', category);
+    if (popular) params.set('popular', 'true');
+    if (term) params.set('search', term);
+    const qs = params.toString();
+    router.replace(qs ? `/menu?${qs}` : '/menu', { scroll: false });
+  };
+
+  useEffect(() => {
+    const current = searchParams.get('search') ?? '';
+    if (debouncedSearch === current) return;
+    syncMenuUrl({ search: debouncedSearch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- URL write from debounce only
+  }, [debouncedSearch]);
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -76,12 +110,12 @@ export function MenuPageClient() {
   }, [categorySlug, categories]);
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', categoryId, foodType, search],
+    queryKey: ['products', categoryId, foodType, debouncedSearch],
     queryFn: () => {
       const params = new URLSearchParams({ available: 'true' });
       if (categoryId) params.set('categoryId', categoryId);
       if (foodType) params.set('foodType', foodType);
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       return api.get<{ data: ProductDto[] }>(`/products?${params}`);
     },
   });
@@ -136,10 +170,13 @@ export function MenuPageClient() {
             </div>
 
             {categories && categories.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-6">
+              <div className="sticky top-[5.75rem] z-20 -mx-4 mb-6 flex flex-wrap gap-2 bg-[#FFF8E8]/95 px-4 py-3 backdrop-blur-md lg:top-24">
                 <button
                   type="button"
-                  onClick={() => setCategorySlug('')}
+                  onClick={() => {
+                    setCategorySlug('');
+                    syncMenuUrl({ category: '', popular: false });
+                  }}
                   className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
                     !categorySlug && !showPopular
                       ? 'bg-primary text-white shadow-md'
@@ -148,13 +185,30 @@ export function MenuPageClient() {
                 >
                   All Items
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategorySlug('');
+                    syncMenuUrl({ category: '', popular: true });
+                  }}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                    showPopular
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white text-[#1F2937] border border-gray-200 hover:border-primary hover:text-primary'
+                  }`}
+                >
+                  ⭐ Popular
+                </button>
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setCategorySlug(cat.slug)}
+                    onClick={() => {
+                      setCategorySlug(cat.slug);
+                      syncMenuUrl({ category: cat.slug, popular: false });
+                    }}
                     className={`px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
-                      categorySlug === cat.slug
+                      categorySlug === cat.slug && !showPopular
                         ? 'bg-primary text-white shadow-md'
                         : 'bg-white text-[#1F2937] border border-gray-200 hover:border-primary hover:text-primary'
                     }`}

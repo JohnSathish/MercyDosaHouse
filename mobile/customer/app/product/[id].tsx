@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import {
@@ -14,6 +14,8 @@ import {
 import { formatCurrency } from '@mdh/utils';
 import { api } from '@/lib/api';
 import { useCartStore } from '@/stores/cart-store';
+import { useRecentlyViewedStore } from '@/stores/recently-viewed-store';
+import { hapticSuccess } from '@/lib/haptics';
 import { FavoriteButton } from '@/components/favorite-button';
 import { useThemeColors } from '@/providers/config-context';
 
@@ -41,6 +43,7 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useThemeColors();
   const addItem = useCartStore((s) => s.addItem);
+  const recordView = useRecentlyViewedStore((s) => s.record);
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [notes, setNotes] = useState('');
   const [qty, setQty] = useState(1);
@@ -56,6 +59,16 @@ export default function ProductDetailScreen() {
   const unitPrice = activeVariant?.price ?? product?.price ?? 0;
   const packingCharge = product?.packingCharge ?? 20;
 
+  useEffect(() => {
+    if (!product) return;
+    recordView({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      packingCharge: product.packingCharge,
+    });
+  }, [product, recordView]);
+
   if (isLoading || !product) {
     return (
       <View style={styles.center}>
@@ -66,6 +79,7 @@ export default function ProductDetailScreen() {
   const loadedProduct = product;
 
   function handleAdd() {
+    hapticSuccess();
     addItem(
       {
         productId: loadedProduct.id,

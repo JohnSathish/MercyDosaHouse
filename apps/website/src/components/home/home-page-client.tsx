@@ -2,12 +2,13 @@
 
 import type { BusinessSettingsDto, ProductDto } from '@mdh/types';
 import { HeroSection } from './hero-section';
-import { PopularFavouritesGrid, pickPopularFavourites } from './product-sections';
+import { PopularFavouritesGrid, pickPopularFavourites, HomeSearchStrip } from './product-sections';
 import { WhyChooseUsSection, TestimonialsSection } from './sections';
 import { HomeDeliverySection } from '@/components/marketing/home-sections';
 import { SundayBiryaniPromotion } from './sunday-biryani-promotion';
 import { AppPromoBand } from './app-promo-band';
 import { CompactFssaiCard } from '@/components/compliance/compact-fssai-card';
+import { HomeReorderBanner, RecentlyViewedStrip } from './home-quick-actions';
 
 interface HomePageClientProps {
   products: ProductDto[];
@@ -20,6 +21,9 @@ export function HomePageClient({ products, settings }: HomePageClientProps) {
   return (
     <>
       <HeroSection products={products} />
+      <HomeSearchStrip />
+      <HomeReorderBanner />
+      <RecentlyViewedStrip />
       <SundayBiryaniPromotion products={products} />
       <PopularFavouritesGrid products={popular} />
       <WhyChooseUsSection />

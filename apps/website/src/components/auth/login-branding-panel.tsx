@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import type { ReviewSummaryDto } from '@mdh/types';
 
 const SHOWCASE_ITEMS = [
-  { src: '/images/idli-4-pieces.png', label: 'Soft Idli', tag: '4 pcs' },
+  { src: '/images/idli-4-pieces.png', label: 'Soft Idly', tag: '5 pcs' },
   { src: '/images/vada-4-pieces.png', label: 'Crispy Vada', tag: '4 pcs' },
   { src: '/images/ghee-roast-dosa.png', label: 'Ghee Roast', tag: 'Premium' },
   {

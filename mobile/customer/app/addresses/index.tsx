@@ -13,15 +13,19 @@ import {
 import type { AddressDto } from '@mdh/types';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
+import { useAuth } from '@/providers/auth-provider';
 
 export default function AddressesScreen() {
   const colors = useThemeColors();
   const queryClient = useQueryClient();
 
+  const { user } = useAuth();
+
   const { data: addresses = [], isLoading } = useQuery({
     queryKey: ['addresses'],
     queryFn: () => api.get<AddressDto[]>('/users/me/addresses'),
     retry: false,
+    enabled: Boolean(user),
   });
 
   async function removeAddress(id: string) {

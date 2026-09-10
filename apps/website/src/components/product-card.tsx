@@ -3,11 +3,11 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiHeart } from 'react-icons/fi';
 import { Button, Badge } from '@mdh/ui';
 import { formatCurrency } from '@mdh/utils';
 import { useCartStore } from '@/lib/cart-store';
 import { getProductImage, productImageAlt } from '@/lib/product-images';
+import { FavoriteHeart } from '@/components/favorite-heart';
 import type { ProductDto } from '@mdh/types';
 
 interface ProductCardProps {
@@ -56,13 +56,7 @@ export function ProductCard({ product, badge, index = 0 }: ProductCardProps) {
               {product.name}
             </h3>
           </Link>
-          <button
-            type="button"
-            className="text-gray-400 hover:text-red-500 transition-colors shrink-0"
-            aria-label="Favorite"
-          >
-            <FiHeart className="w-5 h-5" />
-          </button>
+          <FavoriteHeart productId={product.id} />
         </div>
         <p className="text-lg font-bold text-primary mb-1">{formatCurrency(product.price)}</p>
         <p className="text-sm text-gray-500 line-clamp-2 mb-3">{product.description}</p>

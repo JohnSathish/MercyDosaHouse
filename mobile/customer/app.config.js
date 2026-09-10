@@ -7,7 +7,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'Mercy Dosa House',
   slug: 'mercy-dosa-house',
-  version: '1.0.14',
+  version: '1.0.15',
   orientation: 'portrait',
   scheme: 'mercydosa',
   userInterfaceStyle: 'automatic',
@@ -25,7 +25,7 @@ module.exports = ({ config }) => ({
     },
     package: 'com.mercydosahouse.customer',
     googleServicesFile: './google-services.json',
-    versionCode: 15,
+    versionCode: 16,
     permissions: ['INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
     blockedPermissions: [
       'android.permission.SYSTEM_ALERT_WINDOW',
@@ -55,6 +55,7 @@ module.exports = ({ config }) => ({
   },
   plugins: [
     'expo-router',
+    'expo-secure-store',
     'expo-asset',
     'expo-font',
     'expo-web-browser',

@@ -15,6 +15,20 @@ import type {
 const ACCESS_KEY = 'mdh_access_token';
 const REFRESH_KEY = 'mdh_refresh_token';
 const USER_KEY = 'mdh_user';
+export const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please log in again.';
+
+let refreshInflight: Promise<AuthTokens | null> | null = null;
+
+function parseAuthPayload(data: unknown): { tokens: AuthTokens; user: AuthUser } {
+  const root = (data ?? {}) as Record<string, unknown>;
+  const nested = (root.data ?? {}) as Record<string, unknown>;
+  const tokens = (root.tokens ?? nested.tokens) as AuthTokens | undefined;
+  const user = (root.user ?? nested.user) as AuthUser | undefined;
+  if (!tokens?.accessToken || !tokens?.refreshToken || !user?.id) {
+    throw new Error('Login failed. Please try again.');
+  }
+  return { tokens, user };
+}
 
 export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -70,11 +84,9 @@ export async function login(
     ? body.message.join(', ')
     : body?.message || data.message || 'Login failed';
   if (!res.ok) throw new Error(message);
-  if (!body?.tokens?.accessToken) {
-    throw new Error(message === 'Login failed' ? 'Login failed. Please try again.' : message);
-  }
-  storeAuth(body.tokens, body.user);
-  return body;
+  const parsed = parseAuthPayload(body);
+  storeAuth(parsed.tokens, parsed.user);
+  return parsed;
 }
 
 export async function sendOtp(apiBase: string, payload: OtpSendRequest): Promise<void> {
@@ -123,8 +135,9 @@ export async function verifyEmailOtp(
   const data = await res.json().catch(() => ({}));
   const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
   if (!res.ok) throw new Error(message || "We couldn't verify that code. Please try again.");
-  storeAuth(data.tokens, data.user);
-  return data;
+  const parsed = parseAuthPayload(data);
+  storeAuth(parsed.tokens, parsed.user);
+  return parsed;
 }
 
 export async function resendEmailOtp(
@@ -156,8 +169,9 @@ export async function googleLogin(
   if (!res.ok) {
     throw new Error(message || "We couldn't complete Google sign-in. Please try again.");
   }
-  storeAuth(data.tokens, data.user);
-  return data;
+  const parsed = parseAuthPayload(data);
+  storeAuth(parsed.tokens, parsed.user);
+  return parsed;
 }
 
 export async function verifyOtp(
@@ -171,11 +185,20 @@ export async function verifyOtp(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Invalid OTP');
-  storeAuth(data.tokens, data.user);
-  return data;
+  const parsed = parseAuthPayload(data);
+  storeAuth(parsed.tokens, parsed.user);
+  return parsed;
 }
 
 export async function refreshTokens(apiBase: string): Promise<AuthTokens | null> {
+  if (refreshInflight) return refreshInflight;
+  refreshInflight = refreshTokensOnce(apiBase).finally(() => {
+    refreshInflight = null;
+  });
+  return refreshInflight;
+}
+
+async function refreshTokensOnce(apiBase: string): Promise<AuthTokens | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
   const controller = new AbortController();
@@ -189,18 +212,22 @@ export async function refreshTokens(apiBase: string): Promise<AuthTokens | null>
       signal: controller.signal,
     });
   } catch {
-    clearAuth();
     return null;
   } finally {
     clearTimeout(timeoutId);
   }
-  if (!res.ok) {
+  if (res.status === 401 || res.status === 403) {
     clearAuth();
     return null;
   }
-  const data = (await res.json()) as { tokens: AuthTokens; user: AuthUser };
-  storeAuth(data.tokens, data.user);
-  return data.tokens;
+  if (!res.ok) return null;
+  try {
+    const parsed = parseAuthPayload(await res.json().catch(() => ({})));
+    storeAuth(parsed.tokens, parsed.user);
+    return parsed.tokens;
+  } catch {
+    return null;
+  }
 }
 
 export async function logout(apiBase: string): Promise<void> {
@@ -246,6 +273,7 @@ export async function ensureAuthenticated(apiBase: string): Promise<AuthUser | n
   if (refresh) {
     const tokens = await refreshTokens(apiBase);
     if (tokens) return getStoredUser();
+    if (getRefreshToken()) return getStoredUser();
   }
 
   clearAuth();

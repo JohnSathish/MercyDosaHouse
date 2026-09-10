@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { href: '/about', label: 'About Us', icon: Info },
   { href: '/track', label: 'Order Tracking', icon: Truck, matchPrefix: '/track' },
   { href: '/contact', label: 'Contact Us', icon: Phone },
-  { href: '/profile?tab=feedback', label: 'My Feedback', icon: Star },
+  { href: '/dashboard?tab=feedback', label: 'My Feedback', icon: Star },
 ];
 
 export function MobileDrawer() {
@@ -53,7 +53,7 @@ export function MobileDrawer() {
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           {authed && (
             <Link
-              href="/profile"
+              href="/dashboard"
               onClick={close}
               className="flex items-center gap-3 rounded-2xl px-4 py-3.5 mb-2 bg-[#14532D]/5 text-[#14532D] font-semibold min-h-[48px] active:scale-[0.98] transition-transform"
             >
@@ -63,13 +63,12 @@ export function MobileDrawer() {
           )}
 
           {NAV_ITEMS.map(({ href, label, icon: Icon, matchPrefix }) => {
+            const path = href.split('?')[0];
             const active = matchPrefix
               ? pathname.startsWith(matchPrefix)
-              : label === 'Offers'
-                ? false
-                : href === '/'
-                  ? pathname === '/'
-                  : pathname.startsWith(href.split('#')[0]) && href !== '/';
+              : path === '/'
+                ? pathname === '/'
+                : pathname.startsWith(path);
 
             return (
               <Link

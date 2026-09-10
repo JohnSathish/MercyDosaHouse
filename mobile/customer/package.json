@@ -1,6 +1,6 @@
 {
   "name": "@mdh/customer-app",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "private": true,
   "main": "index.js",
   "scripts": {
@@ -43,6 +43,7 @@
     "expo-modules-autolinking": "2.1.15",
     "expo-notifications": "~0.31.5",
     "expo-router": "~5.1.11",
+    "expo-secure-store": "~14.2.4",
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
     "expo-task-manager": "^13.1.6",

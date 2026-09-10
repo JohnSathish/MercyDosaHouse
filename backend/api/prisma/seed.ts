@@ -389,15 +389,16 @@ async function main() {
       imageUrl: '/images/cheese-dosa.png',
     },
     {
-      name: 'Idli (4 Pieces)',
+      name: 'Idly (5 Pieces)',
       slug: 'idli-4-pieces',
-      description: 'Soft & fluffy steamed rice cakes.',
+      description: 'Soft & fluffy steamed rice cakes. Five pieces, served with sambar and chutney.',
       price: 70,
       categoryId: idlyCat!.id,
       foodType: FoodType.VEG,
       spiceLevel: SpiceLevel.MILD,
       prepTimeMinutes: 8,
       isPopular: true,
+      ingredients: dosaSides,
       imageUrl: '/images/idli-4-pieces.png',
     },
     {
@@ -470,6 +471,8 @@ async function main() {
         ingredients: product.ingredients,
         isPreOrder: (product as { isPreOrder?: boolean }).isPreOrder ?? false,
         isAvailable: true,
+        isComingSoon: false,
+        deletedAt: null,
       },
       create: {
         ...product,

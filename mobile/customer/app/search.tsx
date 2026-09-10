@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FoodCard, FoodCardSkeleton, SearchBar, type FoodCardProduct } from '@/ui';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
-import { COLORS } from '@/ui/theme';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { EmptyState } from '@/ui/empty-state';
 
 const SUGGESTIONS = ['Dosa', 'Idli', 'Biryani', 'Chicken', 'Vada', 'Masala'];
 
@@ -15,15 +16,16 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ q?: string }>();
   const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
+  const debounced = useDebouncedValue(query, 300);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['search', query],
+    queryKey: ['search', debounced],
     queryFn: () => {
       const p = new URLSearchParams({ available: 'true', limit: '30' });
-      if (query.trim()) p.set('search', query.trim());
+      if (debounced.trim()) p.set('search', debounced.trim());
       return api.list<FoodCardProduct>(`/products?${p.toString()}`);
     },
-    enabled: query.trim().length >= 2,
+    enabled: debounced.trim().length >= 2,
   });
 
   const products = data?.data ?? [];
@@ -62,7 +64,11 @@ export default function SearchScreen() {
             ))}
           </>
         ) : (
-          <Text style={styles.hint}>No results for “{query}”</Text>
+          <EmptyState
+            emoji="🔎"
+            title={`No results for “${query}”`}
+            body="Try dosa, idli, or biryani."
+          />
         )}
       </ScrollView>
     </View>

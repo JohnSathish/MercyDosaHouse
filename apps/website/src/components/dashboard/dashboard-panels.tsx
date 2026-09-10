@@ -22,6 +22,7 @@ import { api, API_URL } from '@/lib/api';
 import { getAccessToken } from '@mdh/auth-client';
 import { useToastStore } from '@/lib/toast-store';
 import { useLoyaltyMe } from '@/lib/use-loyalty';
+import { reorderOrderToCart } from '@/lib/reorder-order';
 
 interface DashboardContentProps {
   section: DashboardSection;
@@ -166,7 +167,6 @@ export function DashboardOverview({
 }
 
 function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
-  const addItem = useCartStore((s) => s.addItem);
   const toast = useToastStore((s) => s.show);
   const router = useRouter();
   const [reordering, setReordering] = useState(false);
@@ -180,22 +180,8 @@ function OrderRow({ order, compact }: { order: OrderDto; compact?: boolean }) {
 
   async function reorderAll() {
     setReordering(true);
-    let added = 0;
-    const skipped: string[] = [];
     try {
-      for (const item of order.items) {
-        try {
-          const product = await api.get<ProductDto>(`/products/${item.productId}`);
-          if (product.isAvailable === false) {
-            skipped.push(item.productName);
-            continue;
-          }
-          addItem(product, item.variantId ?? undefined, item.quantity);
-          added += 1;
-        } catch {
-          skipped.push(item.productName);
-        }
-      }
+      const { added, skipped } = await reorderOrderToCart(order);
       if (added > 0) {
         if (skipped.length) toast(`${skipped.length} item(s) unavailable and were skipped.`);
         else toast('Items added to your cart.');

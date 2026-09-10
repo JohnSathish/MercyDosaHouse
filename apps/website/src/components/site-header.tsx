@@ -49,12 +49,7 @@ export function SiteHeader({ embedded = false }: SiteHeaderProps) {
         <nav className="hidden lg:flex items-center gap-0.5" aria-label="Primary">
           {PRIMARY_NAV.map((item) => {
             const path = item.href.split('#')[0];
-            const active =
-              item.label === 'Offers'
-                ? false
-                : path === '/'
-                  ? pathname === '/'
-                  : pathname.startsWith(path);
+            const active = path === '/' ? pathname === '/' : pathname.startsWith(path);
             return (
               <Link
                 key={item.label}

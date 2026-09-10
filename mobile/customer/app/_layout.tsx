@@ -5,9 +5,21 @@ import { useEffect, useState } from 'react';
 import { AppProviders } from '@/providers/app-providers';
 import { BootstrapProvider, useBootstrap } from '@/providers/bootstrap-context';
 import { resetConfigStore } from '@/lib/config-store';
+import { subscribeNetwork } from '@/lib/network-status';
 import { StoreClosedBanner } from '@/components/store-closed-banner';
 import { RemoteSplashOverlay } from '@/components/remote-splash-overlay';
 import { useCustomerPush } from '@/hooks/use-customer-push';
+
+function RuntimeOfflineBanner() {
+  const [offline, setOffline] = useState(false);
+  useEffect(() => subscribeNetwork(setOffline), []);
+  if (!offline) return null;
+  return (
+    <View style={styles.offlineBanner}>
+      <Text style={styles.offlineText}>You're offline — reconnect to place or track orders.</Text>
+    </View>
+  );
+}
 
 function OfflineBanner() {
   const { offline, retry } = useBootstrap();
@@ -49,6 +61,7 @@ function BootstrapShell({ children }: { children: React.ReactNode }) {
       ) : (
         <OfflineBanner />
       )}
+      <RuntimeOfflineBanner />
       <StoreClosedBanner />
       {children}
       {/* Mounted last so it always paints above the navigator on Android */}

@@ -4,7 +4,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
-import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
+import { useAuth } from '@/providers/auth-provider';
+import { EmptyState } from '@/ui/empty-state';
 
 interface Notification {
   id: string;
@@ -31,6 +32,7 @@ export default function NotificationsScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const {
     data: notifications = [],
@@ -40,6 +42,7 @@ export default function NotificationsScreen() {
     queryKey: ['notifications'],
     queryFn: () => api.get<Notification[]>('/notifications'),
     retry: false,
+    enabled: Boolean(user),
   });
 
   async function markRead(id: string) {
@@ -68,22 +71,21 @@ export default function NotificationsScreen() {
         </Pressable>
       ) : null}
 
-      {isLoading ? (
+      {user && isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
-      ) : error ? (
-        <View style={styles.emptyWrap}>
-          <Text style={styles.empty}>Sign in to view notifications.</Text>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: '/(auth)/login',
-                params: { returnTo: '/notifications' },
-              })
-            }
-          >
-            <Text style={[styles.link, { color: colors.primary }]}>Login</Text>
-          </Pressable>
-        </View>
+      ) : !user || error ? (
+        <EmptyState
+          emoji="🔔"
+          title="Sign in for alerts"
+          body="Order updates and kitchen status will show up here."
+          actionLabel="Login"
+          onAction={() =>
+            router.push({
+              pathname: '/(auth)/login',
+              params: { returnTo: '/notifications' },
+            })
+          }
+        />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           {notifications.map((n) => (
@@ -108,7 +110,13 @@ export default function NotificationsScreen() {
               ) : null}
             </Pressable>
           ))}
-          {!notifications.length ? <Text style={styles.empty}>No notifications yet.</Text> : null}
+          {!notifications.length ? (
+            <EmptyState
+              emoji="🌿"
+              title="You're all caught up"
+              body="New order alerts will appear here."
+            />
+          ) : null}
         </ScrollView>
       )}
     </View>

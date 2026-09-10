@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { calculatePackingTotal } from '@mdh/utils';
 
 export interface CartLine {
@@ -29,57 +31,70 @@ interface CartState {
   toOrderItems: () => { productId: string; variantId?: string; quantity: number }[];
 }
 
-export const useCartStore = create<CartState>((set, get) => ({
-  items: [],
-  addItem: (item, qty = 1) =>
-    set((state) => {
-      const key = lineKey(item.productId, item.variantId);
-      const existing = state.items.find((i) => lineKey(i.productId, i.variantId) === key);
-      if (existing) {
-        return {
-          items: state.items.map((i) =>
-            lineKey(i.productId, i.variantId) === key ? { ...i, quantity: i.quantity + qty } : i,
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      addItem: (item, qty = 1) =>
+        set((state) => {
+          const key = lineKey(item.productId, item.variantId);
+          const existing = state.items.find((i) => lineKey(i.productId, i.variantId) === key);
+          if (existing) {
+            return {
+              items: state.items.map((i) =>
+                lineKey(i.productId, i.variantId) === key
+                  ? { ...i, quantity: i.quantity + qty }
+                  : i,
+              ),
+            };
+          }
+          return { items: [...state.items, { ...item, quantity: qty }] };
+        }),
+      removeItem: (productId, variantId) =>
+        set((state) => ({
+          items: state.items.filter(
+            (i) => lineKey(i.productId, i.variantId) !== lineKey(productId, variantId),
           ),
-        };
-      }
-      return { items: [...state.items, { ...item, quantity: qty }] };
+        })),
+      updateQuantity: (productId, quantity, variantId) =>
+        set((state) => ({
+          items:
+            quantity <= 0
+              ? state.items.filter(
+                  (i) => lineKey(i.productId, i.variantId) !== lineKey(productId, variantId),
+                )
+              : state.items.map((i) =>
+                  lineKey(i.productId, i.variantId) === lineKey(productId, variantId)
+                    ? { ...i, quantity }
+                    : i,
+                ),
+        })),
+      updateNotes: (productId, notes, variantId) =>
+        set((state) => ({
+          items: state.items.map((i) =>
+            lineKey(i.productId, i.variantId) === lineKey(productId, variantId)
+              ? { ...i, notes }
+              : i,
+          ),
+        })),
+      clear: () => set({ items: [] }),
+      subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+      packingTotal: () =>
+        calculatePackingTotal(
+          get().items.map((i) => ({ quantity: i.quantity, packingCharge: i.packingCharge ?? 20 })),
+        ),
+      itemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+      toOrderItems: () =>
+        get().items.map((i) => ({
+          productId: i.productId,
+          variantId: i.variantId ?? undefined,
+          quantity: i.quantity,
+        })),
     }),
-  removeItem: (productId, variantId) =>
-    set((state) => ({
-      items: state.items.filter(
-        (i) => lineKey(i.productId, i.variantId) !== lineKey(productId, variantId),
-      ),
-    })),
-  updateQuantity: (productId, quantity, variantId) =>
-    set((state) => ({
-      items:
-        quantity <= 0
-          ? state.items.filter(
-              (i) => lineKey(i.productId, i.variantId) !== lineKey(productId, variantId),
-            )
-          : state.items.map((i) =>
-              lineKey(i.productId, i.variantId) === lineKey(productId, variantId)
-                ? { ...i, quantity }
-                : i,
-            ),
-    })),
-  updateNotes: (productId, notes, variantId) =>
-    set((state) => ({
-      items: state.items.map((i) =>
-        lineKey(i.productId, i.variantId) === lineKey(productId, variantId) ? { ...i, notes } : i,
-      ),
-    })),
-  clear: () => set({ items: [] }),
-  subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-  packingTotal: () =>
-    calculatePackingTotal(
-      get().items.map((i) => ({ quantity: i.quantity, packingCharge: i.packingCharge ?? 20 })),
-    ),
-  itemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
-  toOrderItems: () =>
-    get().items.map((i) => ({
-      productId: i.productId,
-      variantId: i.variantId ?? undefined,
-      quantity: i.quantity,
-    })),
-}));
+    {
+      name: 'mdh-mobile-cart',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ items: state.items }),
+    },
+  ),
+);

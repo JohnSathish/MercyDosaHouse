@@ -6,9 +6,11 @@ import { INVOICE_STATUS_LABELS } from '@mdh/types';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@mdh/utils';
 import { COLORS } from '@/ui/theme';
+import { useAuth } from '@/providers/auth-provider';
 
 export default function CustomerInvoicesScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const {
     data = [],
     isLoading,
@@ -17,6 +19,7 @@ export default function CustomerInvoicesScreen() {
   } = useQuery({
     queryKey: ['my-invoices'],
     queryFn: () => api.get<InvoiceListItemDto[]>('/invoices/mine'),
+    enabled: Boolean(user),
   });
 
   async function openPdf(id: string) {
