@@ -44,8 +44,11 @@ export class ApiClient {
     try {
       res = await fetch(`${API_URL}${path}`, { ...options, headers });
       setNetworkOnline(true);
-    } catch {
-      setNetworkOnline(false);
+    } catch (err) {
+      const aborted =
+        (err instanceof Error && err.name === 'AbortError') ||
+        (typeof err === 'object' && err !== null && 'name' in err && err.name === 'AbortError');
+      if (!aborted) setNetworkOnline(false);
       throw new Error('Network error. Check your internet connection and try again.');
     }
 

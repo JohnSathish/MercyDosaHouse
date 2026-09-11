@@ -23,7 +23,7 @@ export const SOCKET_URL = API_URL.replace(/\/api\/v1$/, '');
 
 export const WEBSITE_URL = resolveWebsiteUrl();
 
-export const APP_VERSION = '1.0.18';
+export const APP_VERSION = '1.0.19';
 
 export const BRAND = {
   primary: '#14532D',

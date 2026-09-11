@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FoodCard, FoodCardSkeleton, SearchBar, type FoodCardProduct } from '@/ui';
+import { COLORS, FoodCard, FoodCardSkeleton, SearchBar, type FoodCardProduct } from '@/ui';
 import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
 import { useDebouncedValue } from '@/lib/use-debounced-value';

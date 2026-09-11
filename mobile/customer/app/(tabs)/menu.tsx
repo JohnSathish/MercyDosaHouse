@@ -3,7 +3,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FoodCard, FoodCardSkeleton, SearchBar, type FoodCardProduct } from '@/ui';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { COLORS, RADIUS, FoodCard, FoodCardSkeleton, SearchBar, type FoodCardProduct } from '@/ui';
 import { OrderChargesCard } from '@/components/order-charges-card';
 import { AppExclusiveBadge } from '@/components/app-exclusive-badge';
 import { api } from '@/lib/api';
@@ -80,96 +81,101 @@ export default function MenuScreen() {
   const products = data?.data ?? [];
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.primary }]}>Menu</Text>
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Search for dosa…" />
-      </View>
+    <ErrorBoundary>
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.primary }]}>Menu</Text>
+          <SearchBar value={search} onChangeText={setSearch} placeholder="Search for dosa…" />
+        </View>
 
-      <View style={styles.chargesWrap}>
-        <AppExclusiveBadge />
-        <OrderChargesCard deliveryIsFree={subtotal > 0 ? pricing.deliveryIsFree : false} compact />
-      </View>
+        <View style={styles.chargesWrap}>
+          <AppExclusiveBadge />
+          <OrderChargesCard
+            deliveryIsFree={subtotal > 0 ? pricing.deliveryIsFree : false}
+            compact
+          />
+        </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersContent}
-        style={styles.filters}
-      >
-        <Pressable
-          onPress={() => setCategoryId(undefined)}
-          style={[styles.filterChip, !categoryId && { backgroundColor: colors.primary }]}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersContent}
+          style={styles.filters}
         >
-          <Text style={[styles.filterText, !categoryId && styles.filterTextActive]}>All</Text>
-        </Pressable>
-        {categories.map((cat) => (
           <Pressable
-            key={cat.id}
-            onPress={() => setCategoryId(cat.id)}
-            style={[
-              styles.filterChip,
-              categoryId === cat.id && { backgroundColor: colors.primary },
-            ]}
+            onPress={() => setCategoryId(undefined)}
+            style={[styles.filterChip, !categoryId && { backgroundColor: colors.primary }]}
           >
-            <Text
-              style={[styles.filterText, categoryId === cat.id && styles.filterTextActive]}
-              numberOfLines={1}
+            <Text style={[styles.filterText, !categoryId && styles.filterTextActive]}>All</Text>
+          </Pressable>
+          {categories.map((cat) => (
+            <Pressable
+              key={cat.id}
+              onPress={() => setCategoryId(cat.id)}
+              style={[
+                styles.filterChip,
+                categoryId === cat.id && { backgroundColor: colors.primary },
+              ]}
             >
-              {categoryLabel(cat)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+              <Text
+                style={[styles.filterText, categoryId === cat.id && styles.filterTextActive]}
+                numberOfLines={1}
+              >
+                {categoryLabel(cat)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
-      <View style={styles.vegRow}>
-        {(['ALL', 'VEG', 'NON_VEG'] as const).map((f) => (
-          <Pressable
-            key={f}
-            onPress={() => setFoodFilter(f)}
-            style={[styles.vegChip, foodFilter === f && { backgroundColor: colors.primary }]}
-          >
-            <Text style={[styles.filterText, foodFilter === f && styles.filterTextActive]}>
-              {f === 'ALL' ? '🍽️ All' : f === 'VEG' ? '🟢 Veg' : '🔴 Non-Veg'}
-            </Text>
-          </Pressable>
-        ))}
+        <View style={styles.vegRow}>
+          {(['ALL', 'VEG', 'NON_VEG'] as const).map((f) => (
+            <Pressable
+              key={f}
+              onPress={() => setFoodFilter(f)}
+              style={[styles.vegChip, foodFilter === f && { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.filterText, foodFilter === f && styles.filterTextActive]}>
+                {f === 'ALL' ? '🍽️ All' : f === 'VEG' ? '🟢 Veg' : '🔴 Non-Veg'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <ScrollView contentContainerStyle={styles.list}>
+          {isLoading ? (
+            <>
+              <FoodCardSkeleton />
+              <FoodCardSkeleton />
+              <FoodCardSkeleton />
+            </>
+          ) : (
+            <>
+              {products.map((p) => (
+                <FoodCard key={p.id} product={p} showFavorite />
+              ))}
+              {isError ? (
+                <Pressable onPress={() => void refetch()} style={styles.retry}>
+                  <Text style={styles.empty}>Couldn’t load the menu. Tap to retry.</Text>
+                </Pressable>
+              ) : !products.length ? (
+                <EmptyState
+                  emoji="🍽️"
+                  title="No dishes found"
+                  body="Try another search, category, or veg filter."
+                  actionLabel="Clear filters"
+                  onAction={() => {
+                    setSearch('');
+                    setCategoryId(undefined);
+                    setFoodFilter('ALL');
+                  }}
+                />
+              ) : null}
+            </>
+          )}
+          <View style={{ height: 96 }} />
+        </ScrollView>
       </View>
-
-      <ScrollView contentContainerStyle={styles.list}>
-        {isLoading ? (
-          <>
-            <FoodCardSkeleton />
-            <FoodCardSkeleton />
-            <FoodCardSkeleton />
-          </>
-        ) : (
-          <>
-            {products.map((p) => (
-              <FoodCard key={p.id} product={p} showFavorite />
-            ))}
-            {isError ? (
-              <Pressable onPress={() => void refetch()} style={styles.retry}>
-                <Text style={styles.empty}>Couldn’t load the menu. Tap to retry.</Text>
-              </Pressable>
-            ) : !products.length ? (
-              <EmptyState
-                emoji="🍽️"
-                title="No dishes found"
-                body="Try another search, category, or veg filter."
-                actionLabel="Clear filters"
-                onAction={() => {
-                  setSearch('');
-                  setCategoryId(undefined);
-                  setFoodFilter('ALL');
-                }}
-              />
-            ) : null}
-          </>
-        )}
-        <View style={{ height: 96 }} />
-      </ScrollView>
-    </View>
+    </ErrorBoundary>
   );
 }
 

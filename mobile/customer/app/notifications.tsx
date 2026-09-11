@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useThemeColors } from '@/providers/config-context';
 import { useAuth } from '@/providers/auth-provider';
 import { EmptyState } from '@/ui/empty-state';
+import { COLORS, RADIUS, SHADOW } from '@/ui/theme';
 
 interface Notification {
   id: string;
