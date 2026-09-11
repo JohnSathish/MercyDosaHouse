@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { theme } from '@/ui/theme';
 import { useOrdersSocket } from '@/hooks/use-orders-socket';
 import { useInboxSocket } from '@/hooks/use-inbox-socket';
+import { useTabBarBottomInset } from '@/hooks/use-tab-bar-inset';
 import { useAuth } from '@/providers/auth-provider';
 
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
@@ -25,6 +26,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 export default function TabsLayout() {
   const { user } = useAuth();
   const AdminTabs = Tabs as any;
+  const bottomInset = useTabBarBottomInset();
   useOrdersSocket(!!user);
   useInboxSocket(!!user);
 
@@ -34,14 +36,19 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.secondary,
         tabBarInactiveTintColor: 'rgba(255,255,255,0.65)',
+        tabBarHideOnKeyboard: true,
+        safeAreaInsets: { bottom: 0 },
         tabBarStyle: {
           backgroundColor: theme.colors.primary,
           borderTopColor: 'rgba(255,255,255,0.08)',
-          height: 62,
-          paddingBottom: 8,
+          height: 56 + bottomInset,
+          paddingBottom: bottomInset,
           paddingTop: 6,
+          elevation: 24,
+          zIndex: 100,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarItemStyle: { paddingVertical: 2 },
       }}
     >
       <AdminTabs.Screen

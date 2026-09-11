@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Leaf, ShieldCheck, Clock, Award, Star, Users, Flame } from 'lucide-react';
 import { BRAND } from '@mdh/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
@@ -10,13 +11,35 @@ import { api } from '@/lib/api';
 import type { ReviewSummaryDto } from '@mdh/types';
 
 const SHOWCASE_ITEMS = [
-  { src: '/images/idli-4-pieces.png', label: 'Soft Idly', tag: '5 pcs' },
-  { src: '/images/vada-4-pieces.png', label: 'Crispy Vada', tag: '4 pcs' },
-  { src: '/images/ghee-roast-dosa.png', label: 'Ghee Roast', tag: 'Premium' },
+  {
+    src: '/images/hero-dosa.png',
+    label: 'Masala Dosa',
+    tag: 'Best Seller',
+    caption: 'Crispy & spiced potato filling',
+  },
+  {
+    src: '/images/idli-4-pieces.png',
+    label: 'Soft Idly',
+    tag: '5 pcs',
+    caption: 'Fluffy steamed rice cakes',
+  },
   {
     src: '/images/chicken-biryani.png',
-    label: 'Mercy Special Chicken Dum Biryani',
+    label: 'Chicken Dum Biryani',
+    tag: 'Sunday Special',
+    caption: 'Fragrant dum-cooked biryani',
+  },
+  {
+    src: '/images/vada-4-pieces.png',
+    label: 'Crispy Vada',
+    tag: '4 pcs',
+    caption: 'Golden urad dal vadas',
+  },
+  {
+    src: '/images/ghee-roast-dosa.png',
+    label: 'Ghee Roast',
     tag: 'Premium',
+    caption: 'Aromatic ghee-roasted dosa',
   },
 ];
 
@@ -35,6 +58,7 @@ const VALUE_PROPS = [
 
 export function LoginBrandingPanel() {
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+  const [active, setActive] = useState(0);
   const { data: summary } = useQuery({
     queryKey: ['review-summary'],
     queryFn: () => api.get<ReviewSummaryDto>('/reviews/summary'),
@@ -46,6 +70,15 @@ export function LoginBrandingPanel() {
           s.label === 'Average Rating' ? { ...s, value: `${summary.averageRating}★` } : s,
         )
       : TRUST_STATS.filter((s) => s.label !== 'Average Rating');
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActive((i) => (i + 1) % SHOWCASE_ITEMS.length);
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const current = SHOWCASE_ITEMS[active] ?? SHOWCASE_ITEMS[0];
 
   return (
     <div className="relative hidden lg:grid lg:grid-cols-2 min-h-[calc(100vh-4.5rem)] overflow-hidden bg-[#0f3d24]">
@@ -121,47 +154,75 @@ export function LoginBrandingPanel() {
           transition={{ duration: 0.55, delay: 0.1 }}
           className="relative w-full max-w-[420px] mx-auto"
         >
-          {/* Hero dish — contained, no overflow glow */}
+          {/* Hero dish — auto-slides Dosa / Idly / Biryani */}
           <div className="relative aspect-square w-full max-w-[340px] mx-auto mb-4">
             <div className="absolute inset-0 rounded-[1.75rem] bg-[#F59E0B]/15 blur-2xl scale-95 pointer-events-none" />
             <div className="relative h-full w-full overflow-hidden rounded-[1.75rem] border-2 border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
-              <Image
-                src="/images/hero-dosa.png"
-                alt="Masala Dosa"
-                fill
-                className="object-cover"
-                priority={isLargeScreen === true}
-                sizes="340px"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e18]/70 via-transparent to-transparent" />
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={current.src}
+                  initial={{ opacity: 0, x: 36 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -36 }}
+                  transition={{ duration: 0.35 }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={current.src}
+                    alt={current.label}
+                    fill
+                    className="object-cover"
+                    priority={isLargeScreen === true}
+                    sizes="340px"
+                  />
+                </motion.div>
+              </AnimatePresence>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e18]/70 via-transparent to-transparent pointer-events-none" />
               <div className="absolute bottom-0 inset-x-0 p-4 flex items-end justify-between">
                 <div>
-                  <p className="text-lg font-bold text-white">Masala Dosa</p>
-                  <p className="text-xs text-white/70">Crispy &amp; spiced potato filling</p>
+                  <p className="text-lg font-bold text-white">{current.label}</p>
+                  <p className="text-xs text-white/70">{current.caption}</p>
                 </div>
                 <span className="rounded-full bg-[#F59E0B] px-3 py-1 text-xs font-bold text-[#1F2937]">
-                  Best Seller
+                  {current.tag}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Thumbnail row — 4 items */}
-          <div className="grid grid-cols-4 gap-2.5">
+          <div className="flex justify-center gap-1.5 mb-3">
             {SHOWCASE_ITEMS.map((item, i) => (
-              <motion.div
+              <button
+                key={item.src}
+                type="button"
+                aria-label={`Show ${item.label}`}
+                onClick={() => setActive(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === active ? 'w-6 bg-[#F59E0B]' : 'w-2 bg-white/35'
+                }`}
+              />
+            ))}
+          </div>
+
+          <div className="flex gap-2.5 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-thin">
+            {SHOWCASE_ITEMS.map((item, i) => (
+              <motion.button
+                type="button"
                 key={item.label}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + i * 0.07 }}
-                className="relative aspect-square overflow-hidden rounded-xl border border-white/15 shadow-lg"
+                onClick={() => setActive(i)}
+                className={`relative shrink-0 w-[72px] aspect-square overflow-hidden rounded-xl border shadow-lg snap-start ${
+                  i === active ? 'border-[#F59E0B] ring-2 ring-[#F59E0B]/70' : 'border-white/15'
+                }`}
               >
                 <Image
                   src={item.src}
                   alt={item.label}
                   fill
                   className="object-cover"
-                  sizes="80px"
+                  sizes="72px"
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
@@ -170,7 +231,7 @@ export function LoginBrandingPanel() {
                     {item.label}
                   </p>
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
           </div>
         </motion.div>

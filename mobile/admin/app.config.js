@@ -45,6 +45,11 @@ module.exports = ({ config }) => ({
       'android.permission.CAMERA',
     ],
     allowBackup: false,
+    softwareKeyboardLayoutMode: 'resize',
+  },
+  androidNavigationBar: {
+    backgroundColor: '#14532D',
+    barStyle: 'light-content',
   },
   notification: {
     icon: './assets/icon.png',

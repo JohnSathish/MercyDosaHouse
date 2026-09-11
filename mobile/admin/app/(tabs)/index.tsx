@@ -432,7 +432,7 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: 14, paddingBottom: 36, gap: 12 },
+  body: { padding: 14, paddingBottom: 88, gap: 12 },
   topRow: { gap: 10 },
   storeCard: { borderWidth: 1.5 },
   storeTitleRow: {

@@ -7,7 +7,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'Mercy Dosa House',
   slug: 'mercy-dosa-house',
-  version: '1.0.15',
+  version: '1.0.17',
   orientation: 'portrait',
   scheme: 'mercydosa',
   userInterfaceStyle: 'automatic',
@@ -25,7 +25,7 @@ module.exports = ({ config }) => ({
     },
     package: 'com.mercydosahouse.customer',
     googleServicesFile: './google-services.json',
-    versionCode: 16,
+    versionCode: 18,
     permissions: ['INTERNET', 'ACCESS_NETWORK_STATE', 'POST_NOTIFICATIONS'],
     blockedPermissions: [
       'android.permission.SYSTEM_ALERT_WINDOW',

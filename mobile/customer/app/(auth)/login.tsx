@@ -1,16 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  ImageBackground,
   KeyboardAvoidingView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import * as Linking from 'expo-linking';
@@ -29,6 +31,89 @@ import { WEBSITE_URL } from '@/lib/constants';
 import { resolveAssetUrl } from '@/ui/theme';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const LOGIN_FOOD_SLIDES = [
+  {
+    id: 'dosa',
+    src: '/images/hero-dosa.png',
+    label: 'Masala Dosa',
+    tag: 'Best Seller',
+  },
+  {
+    id: 'idly',
+    src: '/images/idli-4-pieces.png',
+    label: 'Soft Idly',
+    tag: '5 pcs',
+  },
+  {
+    id: 'biryani',
+    src: '/images/chicken-biryani.png',
+    label: 'Chicken Dum Biryani',
+    tag: 'Sunday Special',
+  },
+] as const;
+
+function LoginFoodSlider() {
+  const { width } = useWindowDimensions();
+  const slideWidth = Math.max(width - 36, 280);
+  const scroller = useRef<ScrollView>(null);
+  const indexRef = useRef(0);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const next = (indexRef.current + 1) % LOGIN_FOOD_SLIDES.length;
+      indexRef.current = next;
+      setIndex(next);
+      scroller.current?.scrollTo({ x: next * (slideWidth + 10), animated: true });
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [slideWidth]);
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = Math.round(e.nativeEvent.contentOffset.x / (slideWidth + 10));
+    if (next >= 0 && next < LOGIN_FOOD_SLIDES.length && next !== indexRef.current) {
+      indexRef.current = next;
+      setIndex(next);
+    }
+  };
+
+  return (
+    <View style={styles.foodSliderWrap}>
+      <ScrollView
+        ref={scroller}
+        horizontal
+        decelerationRate="fast"
+        snapToInterval={slideWidth + 10}
+        snapToAlignment="start"
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ gap: 10 }}
+      >
+        {LOGIN_FOOD_SLIDES.map((slide) => (
+          <View key={slide.id} style={[styles.foodSlide, { width: slideWidth }]}>
+            <Image
+              source={{ uri: `${WEBSITE_URL}${slide.src}` }}
+              style={styles.foodSlideImage}
+              resizeMode="cover"
+            />
+            <View style={styles.foodSlideScrim} />
+            <View style={styles.foodSlideCopy}>
+              <Text style={styles.foodSlideTag}>{slide.tag}</Text>
+              <Text style={styles.foodSlideLabel}>{slide.label}</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+      <View style={styles.foodDots}>
+        {LOGIN_FOOD_SLIDES.map((slide, i) => (
+          <View key={slide.id} style={[styles.foodDot, i === index && styles.foodDotActive]} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 function idTokenFromAuthUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -252,12 +337,7 @@ function LoginScreenBody() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ImageBackground
-        source={{ uri: `${WEBSITE_URL}/images/hero-dosa.png` }}
-        resizeMode="cover"
-        style={styles.backgroundImage}
-        imageStyle={styles.backgroundImageStyle}
-      >
+      <View style={styles.backgroundImage}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -274,6 +354,7 @@ function LoginScreenBody() {
             <Text style={styles.tagline}>Sign in with email OTP or Google.</Text>
             <Text style={styles.comingSoonNote}>Mobile OTP is coming soon.</Text>
           </View>
+          <LoginFoodSlider />
 
           <View style={styles.card}>
             {step === 'methods' ? (
@@ -472,7 +553,7 @@ function LoginScreenBody() {
           </View>
           <Text style={styles.footer}>Made with ❤️ for food lovers</Text>
         </ScrollView>
-      </ImageBackground>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -488,8 +569,36 @@ function TrustItem({ icon, label }: { icon: string; label: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF8E8' },
-  backgroundImage: { flex: 1 },
-  backgroundImageStyle: { opacity: 0.07 },
+  backgroundImage: { flex: 1, backgroundColor: '#FFF8E8' },
+  foodSliderWrap: { marginBottom: 18 },
+  foodSlide: {
+    height: 168,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#14532D',
+  },
+  foodSlideImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  foodSlideScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(12, 40, 24, 0.28)',
+  },
+  foodSlideCopy: { flex: 1, justifyContent: 'flex-end', padding: 14 },
+  foodSlideTag: {
+    alignSelf: 'flex-start',
+    color: '#1F2937',
+    backgroundColor: '#F59E0B',
+    fontSize: 10,
+    fontWeight: '800',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  foodSlideLabel: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  foodDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
+  foodDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(20,83,45,0.22)' },
+  foodDotActive: { width: 16, backgroundColor: '#14532D' },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
