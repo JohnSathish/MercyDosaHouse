@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { OrderReceiptActions } from './order-receipt-actions';
 
 interface OrderDrawerProps {
   order: OrderDto | null;
@@ -205,7 +206,8 @@ export function OrderDrawer({
           )}
         </SheetBody>
 
-        <SheetFooter>
+        <SheetFooter className="flex-wrap gap-2">
+          <OrderReceiptActions order={order} compact />
           {order.status === OrderStatus.PENDING && (
             <>
               <Button onClick={() => runAction(() => onAccept(order.id))} disabled={loading}>

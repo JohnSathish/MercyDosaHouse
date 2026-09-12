@@ -17,6 +17,7 @@ import type { OrderDto } from '@mdh/types';
 import { OrderStatus } from '@mdh/types';
 import { api } from '@/lib/api';
 import { OrderDrawer } from './order-drawer';
+import { OrderReceiptActions } from './order-receipt-actions';
 import { RejectOrderDialog } from './reject-order-dialog';
 
 interface OrdersTableProps {
@@ -139,6 +140,7 @@ export function OrdersTable({ orders, onStatusChange, onReject, loading }: Order
               >
                 View
               </Button>
+              <OrderReceiptActions order={order} />
             </div>
           );
         },
@@ -223,6 +225,7 @@ export function OrdersTable({ orders, onStatusChange, onReject, loading }: Order
                 >
                   View
                 </Button>
+                <OrderReceiptActions order={order} compact />
               </div>
             </div>
           </div>
@@ -262,7 +265,14 @@ export function OrdersTable({ orders, onStatusChange, onReject, loading }: Order
               table.getRowModel().rows.map((row) => (
                 <tr key={row.id} className="border-b last:border-0 hover:bg-gray-50/80">
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3 align-middle whitespace-nowrap">
+                    <td
+                      key={cell.id}
+                      className={`px-4 py-3 align-middle ${
+                        cell.column.id === 'actions'
+                          ? 'whitespace-normal min-w-[200px]'
+                          : 'whitespace-nowrap'
+                      }`}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
