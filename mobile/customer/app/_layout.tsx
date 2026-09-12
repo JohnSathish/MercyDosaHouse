@@ -12,7 +12,7 @@ import { useCustomerPush } from '@/hooks/use-customer-push';
 
 function RuntimeOfflineBanner() {
   const [offline, setOffline] = useState(false);
-  useEffect(() => subscribeNetwork(setOffline), []);
+  useEffect(() => subscribeNetwork((isOnline) => setOffline(!isOnline)), []);
   if (!offline) return null;
   return (
     <View style={styles.offlineBanner}>
