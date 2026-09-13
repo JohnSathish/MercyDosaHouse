@@ -42,9 +42,13 @@ interface AddressFormDialogProps {
   defaultMobile?: string;
 }
 
+function indianMobileDigits(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '').slice(0, 10);
+}
+
 const emptyValues = (defaults?: { name?: string; phone?: string }): AddressFormValues => ({
   contactName: defaults?.name ?? '',
-  mobileNumber: defaults?.phone ?? '',
+  mobileNumber: indianMobileDigits(defaults?.phone),
   label: 'Home',
   line1: '',
   line2: '',
@@ -105,7 +109,7 @@ export function AddressFormDialog({
         initialValues
           ? {
               contactName: initialValues.contactName,
-              mobileNumber: initialValues.mobileNumber,
+              mobileNumber: indianMobileDigits(initialValues.mobileNumber),
               label: initialValues.label || 'Home',
               line1: initialValues.line1,
               line2: initialValues.line2 || '',
@@ -240,9 +244,24 @@ export function AddressFormDialog({
                 +91
               </span>
               <Input
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                maxLength={10}
+                pattern="[0-9]{10}"
                 placeholder="95663 63655"
                 className={`pl-12 ${fieldClass(!!errors.mobileNumber)}`}
                 {...register('mobileNumber')}
+                onChange={(event) => {
+                  const digits = indianMobileDigits(event.target.value);
+                  event.target.value = digits;
+                  setValue('mobileNumber', digits, { shouldDirty: true, shouldValidate: true });
+                }}
+                onKeyDown={(event) => {
+                  if (event.ctrlKey || event.metaKey || event.altKey) return;
+                  if (event.key.length !== 1) return;
+                  if (!/[0-9]/.test(event.key)) event.preventDefault();
+                }}
               />
             </div>
             {errors.mobileNumber && (

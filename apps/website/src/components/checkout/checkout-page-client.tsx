@@ -1481,8 +1481,18 @@ function GuestAddressForm({
       <input
         className="w-full rounded-xl border px-3 py-2 text-sm"
         placeholder="Mobile *"
-        value={d.mobileNumber ?? profilePhone ?? ''}
-        onChange={(e) => set('mobileNumber', e.target.value)}
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel"
+        maxLength={10}
+        pattern="[0-9]{10}"
+        value={(d.mobileNumber ?? profilePhone ?? '').replace(/\D/g, '').slice(0, 10)}
+        onChange={(e) => set('mobileNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
+        onKeyDown={(event) => {
+          if (event.ctrlKey || event.metaKey || event.altKey) return;
+          if (event.key.length !== 1) return;
+          if (!/[0-9]/.test(event.key)) event.preventDefault();
+        }}
       />
       <textarea
         className="w-full rounded-xl border px-3 py-2 text-sm"
